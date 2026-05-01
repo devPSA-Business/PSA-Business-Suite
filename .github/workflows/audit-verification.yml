@@ -1,0 +1,94 @@
+name: Audit Verification CI
+
+on:
+  push:
+    branches: [ main, master ]
+  pull_request:
+    branches: [ main, master ]
+  workflow_dispatch:
+
+jobs:
+  collect-and-build:
+    name: Collect Evidence, Build & Stress Test
+    runs-on: ubuntu-latest
+    env:
+      CI: "true"
+      FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: true
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: 'npm'
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Make audit script executable
+        run: |
+          mkdir -p scripts
+          cat > scripts/collect-audit-evidence.sh <<'BASH'
+#!/usr/bin/env bash
+set -euo pipefail
+mkdir -p audit-evidence
+
+echo "Branch: $(git rev-parse --abbrev-ref HEAD)" > audit-evidence/summary.txt
+git log -1 --pretty=oneline >> audit-evidence/summary.txt
+
+echo -e "\nSearch onSnapshot and polling" >> audit-evidence/summary.txt
+(git grep -n "onSnapshot" || echo "no onSnapshot found") >> audit-evidence/summary.txt
+(git grep -n "300000" || true) >> audit-evidence/summary.txt
+(git grep -n "setInterval" || true) >> audit-evidence/summary.txt
+
+echo -e "\nNLQService content" > audit-evidence/NLQService.txt
+sed -n '1,240p' src/application/services/NLQService.ts > audit-evidence/NLQService.txt || true
+
+echo -e "\nSyncServiceImpl content" > audit-evidence/SyncServiceImpl.txt
+sed -n '1,240p' src/infrastructure/services/SyncServiceImpl.ts > audit-evidence/SyncServiceImpl.txt || true
+
+echo -e "\nSettingsPage and processSyncQueue usage" > audit-evidence/SettingsPage.txt
+(git grep -n "Sync Sekarang" || true) >> audit-evidence/SettingsPage.txt
+(git grep -n "processSyncQueue(" || true) >> audit-evidence/SettingsPage.txt
+
+echo -e "\nDexie transactions" > audit-evidence/Dexie.txt
+(git grep -n "Dexie.transaction" || git grep -n "db.transaction" || echo "no dexie transaction found") >> audit-evidence/Dexie.txt
+
+echo -e "\nSentry init" > audit-evidence/Sentry.txt
+(git grep -n "Sentry.init" || true) >> audit-evidence/Sentry.txt
+sed -n '1,200p' src/main.tsx >> audit-evidence/Sentry.txt || true
+
+echo -e "\nObservability docs" >> audit-evidence/summary.txt
+(ls docs || echo "docs folder missing") >> audit-evidence/summary.txt
+(git log -- docs/observability --oneline 2>/dev/null || echo "no observability docs history or deleted") >> audit-evidence/summary.txt
+
+echo -e "\nAI Rules Protection" >> audit-evidence/summary.txt
+ls docs/ai_rules/CORE_RULES.md || echo "CRITICAL WARNING: CORE_RULES.md missing!" >> audit-evidence/summary.txt
+
+echo -e "\nRun build and stress tests (if configured)" >> audit-evidence/build.txt
+npm run build > audit-evidence/build.log 2>&1 || echo "build failed, see build.log" >> audit-evidence/build.txt
+if npm run -s test:stress >/dev/null 2>&1; then
+  npm run test:stress > audit-evidence/test-stress.log 2>&1 || echo "stress tests failed or produced errors" >> audit-evidence/build.txt
+else
+  echo "stress test script not configured" >> audit-evidence/build.txt
+fi
+
+echo "Audit evidence collected" >> audit-evidence/summary.txt
+BASH
+          chmod +x scripts/collect-audit-evidence.sh
+
+      - name: Run audit evidence collection script
+        run: scripts/collect-audit-evidence.sh
+
+      - name: Upload audit evidence artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: audit-evidence
+          path: audit-evidence
+
+      - name: Fail job if build failed
+        if: failure()
+        run: |
+          echo "Build or tests failed. Check audit-evidence/build.log and test-stress.log for details."

@@ -1,0 +1,60 @@
+{
+  "entities": {
+    "User": {
+      "title": "User",
+      "description": "System user with branch association",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string" },
+        "name": { "type": "string" },
+        "role": { "type": "string", "enum": ["ADMIN", "MANAGER", "USER"] },
+        "branchId": { "type": "string" }
+      },
+      "required": ["id", "name", "role", "branchId"]
+    },
+    "StockItem": {
+      "title": "StockItem",
+      "description": "Inventory item associated with a branch",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string" },
+        "name": { "type": "string" },
+        "barcode": { "type": "string" },
+        "category": { "type": "string" },
+        "price": { "type": "number" },
+        "cost": { "type": "number" },
+        "quantity": { "type": "number" },
+        "branchId": { "type": "string" }
+      },
+      "required": ["id", "name", "barcode", "category", "price", "cost", "quantity", "branchId"]
+    },
+    "Transaction": {
+      "title": "Transaction",
+      "description": "Sales transaction associated with a branch",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string" },
+        "total": { "type": "number" },
+        "paymentMethod": { "type": "string" },
+        "status": { "type": "string" },
+        "branchId": { "type": "string" },
+        "userId": { "type": "string" }
+      },
+      "required": ["id", "total", "paymentMethod", "status", "branchId", "userId"]
+    }
+  },
+  "firestore": {
+    "/users/{userId}": {
+      "schema": "User",
+      "description": "User profiles"
+    },
+    "/stock/{stockId}": {
+      "schema": "StockItem",
+      "description": "Inventory items"
+    },
+    "/transactions/{txId}": {
+      "schema": "Transaction",
+      "description": "Sales transactions"
+    }
+  }
+}

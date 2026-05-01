@@ -1,0 +1,33 @@
+name: Documentation Update
+description: Usulkan pembaruan atau penambahan dokumentasi
+title: "[DOCS] "
+labels: ["documentation"]
+body:
+  - type: textarea
+    id: description
+    attributes:
+      label: Deskripsi Pembaruan
+      description: Bagian dokumentasi mana yang perlu diperbarui?
+    validations:
+      required: true
+  - type: textarea
+    id: reproduction
+    attributes:
+      label: Konteks / Langkah Terkait
+      description: Mengapa dokumentasi ini perlu diubah?
+    validations:
+      required: true
+  - type: textarea
+    id: expected
+    attributes:
+      label: Expected Behavior / Hasil Akhir
+      description: Apa yang diharapkan dari pembaruan ini?
+    validations:
+      required: true
+  - type: textarea
+    id: acceptance
+    attributes:
+      label: Acceptance Criteria
+      description: Kriteria agar dokumentasi ini dianggap selesai.
+    validations:
+      required: true

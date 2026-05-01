@@ -1,0 +1,12 @@
+{
+  "branch": "ux/gesture-orb-final",
+  "commit_message": "feat: implement context-aware gesture orb with visual feedback",
+  "files": [
+    { "path": "src/features/gestures/components/GestureOrb.tsx", "content": "Implement context-aware logic, dynamic icon switching (Menu/Back/Wrench), and event guarding." },
+    { "path": "src/shared/components/navigation/MasterMenuSheet.tsx", "content": "Ensure it renders Main Nav Links and QuickActionGrid." },
+    { "path": "src/app/MainLayout.tsx", "content": "Inject <GestureOrb />. Ensure it is hidden on /cashier." }
+  ],
+  "pr_title": "UX: Context-Aware Gesture Orb",
+  "complexity": "Medium",
+  "testing_requirements": "Verifikasi perubahan ikon saat berpindah halaman. Pastikan Single Tap di halaman Home membuka menu, dan di halaman Inventory kembali ke halaman sebelumnya."
+}

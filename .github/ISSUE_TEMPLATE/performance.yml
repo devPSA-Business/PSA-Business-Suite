@@ -1,0 +1,33 @@
+name: Performance Issue
+description: Laporkan masalah performa atau lag
+title: "[PERF] "
+labels: ["performance"]
+body:
+  - type: textarea
+    id: description
+    attributes:
+      label: Deskripsi Masalah Performa
+      description: Bagian mana yang terasa lambat?
+    validations:
+      required: true
+  - type: textarea
+    id: reproduction
+    attributes:
+      label: Langkah Reproduksi
+      description: Bagaimana cara memicu lag tersebut?
+    validations:
+      required: true
+  - type: textarea
+    id: expected
+    attributes:
+      label: Expected Behavior
+      description: Berapa target waktu respons yang diharapkan?
+    validations:
+      required: true
+  - type: textarea
+    id: acceptance
+    attributes:
+      label: Acceptance Criteria
+      description: Kriteria agar optimasi performa ini dianggap selesai.
+    validations:
+      required: true

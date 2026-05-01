@@ -1,0 +1,33 @@
+name: Security Vulnerability
+description: Laporkan masalah keamanan
+title: "[SECURITY] "
+labels: ["security"]
+body:
+  - type: textarea
+    id: description
+    attributes:
+      label: Deskripsi Kerentanan
+      description: Jelaskan masalah keamanan yang ditemukan.
+    validations:
+      required: true
+  - type: textarea
+    id: reproduction
+    attributes:
+      label: Langkah Reproduksi
+      description: Bagaimana cara mengeksploitasi kerentanan ini?
+    validations:
+      required: true
+  - type: textarea
+    id: expected
+    attributes:
+      label: Expected Behavior
+      description: Bagaimana seharusnya sistem mengamankan ini?
+    validations:
+      required: true
+  - type: textarea
+    id: acceptance
+    attributes:
+      label: Acceptance Criteria
+      description: Kriteria agar masalah keamanan ini dianggap selesai.
+    validations:
+      required: true

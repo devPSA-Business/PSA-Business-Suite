@@ -1,0 +1,21 @@
+{
+  "branch": "ux/collapsible-bottom-bar",
+  "commit_message": "feat: implement collapsible enterprise bottom bar for robust navigation",
+  "files":[
+    {
+      "path": "src/shared/store/useUIStore.ts",
+      "content": "// Add isBottomBarOpen state and toggleBottomBar action with persist middleware."
+    },
+    {
+      "path": "src/shared/components/navigation/CollapsibleBottomBar.tsx",
+      "content": "// Implement framer-motion for slide up/down. Include Back, Home, Menu buttons, and a collapse/expand toggle. Handle safe-area-inset-bottom."
+    },
+    {
+      "path": "src/app/MainLayout.tsx",
+      "content": "// Remove old Orb. Inject <CollapsibleBottomBar />. Add dynamic padding-bottom to <main> based on isBottomBarOpen. Hide on /cashier route."
+    }
+  ],
+  "pr_title": "UX: Collapsible Enterprise Bottom Bar",
+  "complexity": "Medium",
+  "testing_requirements": "Verifikasi animasi buka/tutup berjalan mulus. Pastikan tombol kembali tidak error di halaman Home. Pastikan konten paling bawah halaman tidak tertutup bar."
+}

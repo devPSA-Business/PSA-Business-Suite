@@ -1,0 +1,33 @@
+name: Database Migration
+description: Usulkan perubahan skema database Dexie
+title: "[MIGRATION] "
+labels: ["migration"]
+body:
+  - type: textarea
+    id: description
+    attributes:
+      label: Deskripsi Migrasi
+      description: Tabel atau field apa yang perlu diubah?
+    validations:
+      required: true
+  - type: textarea
+    id: reproduction
+    attributes:
+      label: Langkah Migrasi / Reproduksi
+      description: Bagaimana skrip migrasi akan dijalankan?
+    validations:
+      required: true
+  - type: textarea
+    id: expected
+    attributes:
+      label: Expected Behavior
+      description: Apa hasil akhir dari skema database?
+    validations:
+      required: true
+  - type: textarea
+    id: acceptance
+    attributes:
+      label: Acceptance Criteria
+      description: Kriteria agar migrasi ini dianggap aman dan selesai.
+    validations:
+      required: true

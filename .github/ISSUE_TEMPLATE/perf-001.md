@@ -1,11 +1,9 @@
 ---
-name: 'PERF-001: Lazy load / pagination for transaction history'
-about: Implement pagination or virtualized UI for transaction history to prevent memory
-  spikes
+name: "PERF-001: Lazy load / pagination for transaction history"
+about: "Implement pagination or virtualized UI for transaction history to prevent memory spikes"
 title: "[PERF-001] Lazy load / pagination for transaction history"
-labels: ''
-assignees: ''
-
+labels: ["performance", "medium-priority"]
+assignees: []
 ---
 
 ## Description

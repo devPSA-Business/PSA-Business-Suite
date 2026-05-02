@@ -1,3 +1,4 @@
+import { logger } from '@lib/logger';
 import React, { useEffect, useState } from 'react';
 import { Printer, MonitorSmartphone, Scale, CheckCircle2, XCircle, Loader2, AlertTriangle } from 'lucide-react';
 import { useAuthStore } from '../../../shared/store/authStore';
@@ -41,7 +42,7 @@ export const MorningReadinessUI: React.FC<MorningReadinessUIProps> = ({ onSucces
         details
       );
     } catch (err) {
-      console.error('Failed to save audit log for readiness check', err);
+      logger.error('Failed to save audit log for readiness check', err);
     }
   };
 

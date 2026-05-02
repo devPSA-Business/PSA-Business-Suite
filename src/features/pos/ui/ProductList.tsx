@@ -1,3 +1,4 @@
+import { logger } from '@lib/logger';
 import React, { useCallback, useState, useRef, useEffect } from 'react';
 import { StockItem } from '../../../shared/api/db';
 import { DIContainer } from '@infrastructure/di/Container';
@@ -58,7 +59,7 @@ export function ProductList() {
         setProducts(data.slice(0, 50));
         setIsLoading(false);
       }).catch(err => {
-        console.error("Failed to search products:", err);
+        logger.error("Failed to search products:", err);
         setIsLoading(false);
       });
     }, 300);

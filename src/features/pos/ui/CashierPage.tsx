@@ -1,3 +1,4 @@
+import { logger } from '@lib/logger';
 import React, { useState, useEffect } from 'react';
 import { useNavigate } from '@tanstack/react-router';
 import { ShoppingCart, Lock, History, Calculator, Wrench, TrendingUp, Wallet, Printer } from 'lucide-react';
@@ -42,7 +43,7 @@ export function CashierPage() {
             setShowPrinterReconnect(true);
           }
         } catch (error) {
-          console.error("Gagal memeriksa koneksi printer USB", error);
+          logger.error("Gagal memeriksa koneksi printer USB", error);
         }
       }
     };
@@ -59,7 +60,7 @@ export function CashierPage() {
         }
       }
     } catch (error) {
-      console.error("Gagal meminta akses printer USB", error);
+      logger.error("Gagal meminta akses printer USB", error);
     }
   };
 

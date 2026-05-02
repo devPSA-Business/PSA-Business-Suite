@@ -1,3 +1,4 @@
+import { logger } from '@lib/logger';
 import React, { useState, useEffect } from 'react';
 import { db } from '../../../shared/api/db';
 
@@ -72,7 +73,7 @@ export function SkuGenerator({ onBarcodeGenerated, onNameSuggested }: SkuGenerat
       } else {
         setSequence('001');
       }
-    }).catch(e => console.error(e));
+    }).catch(e => logger.error(e));
 
     // Suggest Name
     const brandLabel = BRANDS.find(b => b.code === brand)?.label;
@@ -84,7 +85,7 @@ export function SkuGenerator({ onBarcodeGenerated, onNameSuggested }: SkuGenerat
       onNameSuggested(`${catLabel} ${brandLabel} ${colorLabel} ${size} ${stoneLabel}`);
     }
 
-  }, [brand, category, color, size, stone]);
+  }, [brand, category, color, size, stone, onNameSuggested]);
 
   useEffect(() => {
     onBarcodeGenerated(`${brand}-${category}-${color}-${size}-${stone}-${sequence}`);

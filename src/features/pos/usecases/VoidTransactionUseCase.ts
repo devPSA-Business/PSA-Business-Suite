@@ -1,6 +1,7 @@
 import { IUnitOfWork } from '@application/core/IUnitOfWork';
 import { IRetailRepository } from '@domain/repositories/IRetailRepository';
 import { IStockRepository } from '@domain/repositories/IStockRepository';
+import { MathUtils } from '@shared/utils/decimalUtils';
 
 export interface VoidTransactionDTO {
   transactionId: string;
@@ -44,7 +45,7 @@ export class VoidTransactionUseCase {
               const currentStock = await this.stockRepo.findById(item.stockId);
               if (!currentStock) break;
 
-              const restoredQuantity = currentStock.quantity + item.quantity;
+              const restoredQuantity = MathUtils.add(currentStock.quantity, item.quantity);
               
               // eslint-disable-next-line @typescript-eslint/no-explicit-any
               updated = await (this.stockRepo as any).updateIfVersionMatches(

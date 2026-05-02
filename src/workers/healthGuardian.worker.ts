@@ -115,6 +115,22 @@ async function spotCheckHashChain(count: number): Promise<boolean> {
   }
 }
 
+async function sendTelegramAlert(message: string) {
+  try {
+    const BOT_TOKEN = import.meta.env.VITE_TELEGRAM_BOT_TOKEN;
+    const CHAT_ID = import.meta.env.VITE_TELEGRAM_CHAT_ID;
+    if (!BOT_TOKEN || !CHAT_ID) return;
+    
+    await fetch(`https://api.telegram.org/bot${BOT_TOKEN}/sendMessage`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ chat_id: CHAT_ID, text: `🚨 PSA ALERT:\n\n${message}` })
+    });
+  } catch (e) {
+    console.error('Failed to send TG alert', e);
+  }
+}
+
 async function runHealthChecks(): Promise<HealthReport> {
   const issues: HealthIssue[] = [];
 
@@ -148,6 +164,10 @@ async function runHealthChecks(): Promise<HealthReport> {
 
   if (status !== 'HEALTHY') {
     console.warn(`HealthGuardian detected issues with status: ${status}`, issues);
+    if (status === 'CRITICAL') {
+      const messages = issues.filter(i => i.severity === 'CRITICAL').map(i => i.message).join('\n - ');
+      await sendTelegramAlert(`Critical System Errors:\n - ${messages}`);
+    }
   }
 
   return { timestamp: Date.now(), status, issues, storageUsedPercent: storagePercent,

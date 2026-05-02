@@ -8,11 +8,14 @@ self.onmessage = async (e) => {
     try {
       // 1. Extract all data
       const tables = db.tables;
+      const EXCLUDED_TABLES = ['keys_meta'];
       // eslint-disable-next-line @typescript-eslint/no-explicit-any
       const allData: Record<string, any[]> = {};
       
       for (const table of tables) {
-        allData[table.name] = await table.toArray();
+        if (!EXCLUDED_TABLES.includes(table.name)) {
+          allData[table.name] = await table.toArray();
+        }
       }
       
       const stringified = JSON.stringify(allData);

@@ -1,3 +1,4 @@
+import { logger } from '@lib/logger';
 import React, { useState } from 'react';
 import { motion, AnimatePresence } from 'motion/react';
 import { X, Search, AlertTriangle, CheckCircle, Clock, Printer } from 'lucide-react';
@@ -77,7 +78,7 @@ export const TransactionHistoryModal: React.FC<TransactionHistoryModalProps> = (
       await DIContainer.printService.print(mockTxData);
       useToastStore.getState().addToast('Mencetak ulang struk...', 'info');
     } catch (error) {
-      console.error('Reprint failed', error);
+      logger.error('Reprint failed', error);
       useToastStore.getState().addToast('Gagal mencetak ulang struk', 'error');
     }
   };
@@ -98,7 +99,7 @@ export const TransactionHistoryModal: React.FC<TransactionHistoryModalProps> = (
       });
       useToastStore.getState().addToast('Transaksi dibatalkan (VOID) dan stok dikembalikan', 'success');
     } catch (e) {
-      console.error(e);
+      logger.error(e);
       useToastStore.getState().addToast(e instanceof Error ? (e instanceof Error ? e.message : String(e)) : 'Gagal membatalkan transaksi', 'error');
     }
   };

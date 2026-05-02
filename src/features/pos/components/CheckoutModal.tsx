@@ -6,6 +6,7 @@ import { CustomerSelector } from '../../../shared/components/CustomerSelector';
 import { ManagerAuthDialog } from '../../../shared/components/ManagerAuthDialog';
 import { Decimal } from 'decimal.js';
 import { MathUtils } from '../../../shared/utils/decimalUtils';
+import { handleNumberInputKeyDown } from '../../../shared/utils/inputUtils';
 
 export function CheckoutModal() {
   const {

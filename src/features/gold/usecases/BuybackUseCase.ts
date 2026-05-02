@@ -62,8 +62,8 @@ export class BuybackUseCase {
       // 3. Persist Entity
       await this.buybackRepository.save(buyback);
 
-      // 4. Register Gold Asset History DIBATALKAN KARENA MENYESUAIKAN ALUR BARU
-      // Tidak lagi butuh hitung PGE manual karena ada tabel tersimpan.
+      // 4. Register Gold Asset History
+      // Menyesuaikan alur baru: Tidak lagi butuh hitung PGE manual karena ada tabel tersimpan.
       await this.unitOfWork.registerGoldAssetHistory({
         action: 'BUYBACK',
         weightChange: request.weightGram,

@@ -49,6 +49,7 @@ jobs:
           VITE_FIREBASE_APP_ID: ${{ secrets.VITE_FIREBASE_APP_ID }}
           # ── Sebelumnya HILANG — sekarang DITAMBAHKAN ────────────────────
           VITE_FIREBASE_DATABASE_ID: ${{ secrets.VITE_FIREBASE_DATABASE_ID }}
+          VITE_CRYPTO_PEPPER: ${{ secrets.VITE_CRYPTO_PEPPER }}
           VITE_SENTRY_DSN: ${{ secrets.VITE_SENTRY_DSN }}
           # ── App Check ──────────────────────────────────────────────────
           VITE_RECAPTCHA_SITE_KEY: ${{ secrets.VITE_RECAPTCHA_SITE_KEY }}

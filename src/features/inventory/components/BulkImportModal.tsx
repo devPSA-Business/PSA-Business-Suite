@@ -1,3 +1,4 @@
+import { logger } from '@lib/logger';
 import { useState, useRef, useEffect } from 'react';
 import { X, Upload, FileText, AlertCircle, CheckCircle2, Loader2 } from 'lucide-react';
 import { useToastStore } from '../../../shared/store/toastStore';
@@ -109,7 +110,7 @@ export function BulkImportModal({ isOpen, onClose, onSuccess }: BulkImportModalP
       onClose();
     } catch (err) {
       addToast('Gagal mengimpor data.', 'error');
-      console.error(err);
+      logger.error(err);
     } finally {
       setIsProcessing(false);
     }

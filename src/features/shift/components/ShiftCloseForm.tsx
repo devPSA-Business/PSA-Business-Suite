@@ -1,3 +1,4 @@
+import { logger } from '@lib/logger';
 import { useState, useEffect, useCallback } from 'react';
 import { DIContainer } from '@infrastructure/di/Container';
 import { useAuthStore } from '../../../shared/store/authStore';
@@ -35,7 +36,7 @@ export function ShiftCloseForm({ shiftId, onShiftClosed }: { shiftId: string, on
         const expected = await DIContainer.shiftRepository.calculateExpectedCash(shiftId);
         setExpectedCash(expected);
       } catch (error) {
-        console.error(error);
+        logger.error(error);
       }
     };
     fetchExpected();
@@ -45,7 +46,7 @@ export function ShiftCloseForm({ shiftId, onShiftClosed }: { shiftId: string, on
   const discrepancy = expectedCash !== null ? actualCash - expectedCash : 0;
   const needsAuthorization = Math.abs(discrepancy) > DISCREPANCY_THRESHOLD;
 
-  const handleSubmit = async (e?: React.FormEvent) => {
+  const handleSubmit = useCallback(async (e?: React.FormEvent) => {
     if (e) e.preventDefault();
     
     if (!user) {
@@ -75,12 +76,12 @@ export function ShiftCloseForm({ shiftId, onShiftClosed }: { shiftId: string, on
       addToast('Shift berhasil ditutup.', 'success');
       onShiftClosed();
     } catch (error) {
-      const message = error instanceof Error ? (error instanceof Error ? error.message : String(error)) : String(error);
+      const message = error instanceof Error ? error.message : String(error);
       addToast(`Gagal menutup shift: ${message}`, 'error');
     } finally {
       setIsProcessing(false);
     }
-  };
+  }, [user, endCash, needsAuthorization, isPinVerified, addToast, shiftId, onShiftClosed]);
 
   const handlePinSubmit = useCallback(async () => {
     if (pinInput.length === 6) {

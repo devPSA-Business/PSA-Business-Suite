@@ -1,3 +1,4 @@
+import { logger } from '@lib/logger';
 import { useState } from 'react';
 import { useLiveQuery } from 'dexie-react-hooks';
 import { RepairService } from '../../../shared/api/db';
@@ -194,7 +195,7 @@ export function RepairPage() {
                       await DIContainer.printService.print(repair);
                       addToast('Struk berhasil dicetak', 'success');
                     } catch (error) {
-                      console.error('Gagal mencetak struk:', error);
+                      logger.error('Gagal mencetak struk:', error);
                       addToast('Gagal mencetak struk', 'error');
                     }
                   }}

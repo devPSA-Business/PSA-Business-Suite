@@ -1,3 +1,4 @@
+import { logger } from '@lib/logger';
 import { IShiftRepository } from '@domain/repositories/IShiftRepository';
 import { IUnitOfWork } from '@application/core/IUnitOfWork';
 import { Shift } from '@domain/models/Shift';
@@ -22,7 +23,7 @@ export class OpenShiftUseCase {
   async execute(request: OpenShiftRequestDTO): Promise<OpenShiftResponseDTO> {
     // 1.5 Check cloud for concurrent shift (Scenario 5) outside the transaction to avoid blocking
     let warning: string | undefined;
-    if (process.env.NODE_ENV === 'production') {
+    if (!import.meta.env.DEV) {
       const cloudCheck = await this.shiftRepository.checkCloudForActiveShift(request.userId);
       
       if (cloudCheck.hasActiveShift) {
@@ -33,7 +34,7 @@ export class OpenShiftUseCase {
         warning = 'Shift dibuka dalam mode Offline/Terbatas. Pastikan tidak ada perangkat lain yang menggunakan akun ini secara bersamaan untuk menghindari konflik data.';
       }
     } else {
-      console.warn('Development mode: Skipping cloud shift checks');
+      logger.warn('Development mode: Skipping cloud shift checks');
     }
 
     const shiftId = await this.unitOfWork.execute(async () => {

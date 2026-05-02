@@ -38,16 +38,41 @@ jobs:
           VITE_FIREBASE_APP_ID: ${{ secrets.VITE_FIREBASE_APP_ID }}
           # ── Sebelumnya HILANG — sekarang DITAMBAHKAN ────────────────────
           VITE_FIREBASE_DATABASE_ID: ${{ secrets.VITE_FIREBASE_DATABASE_ID }}
-          VITE_GEMINI_API_KEY: ${{ secrets.VITE_GEMINI_API_KEY }}
-          VITE_MASTER_PIN: ${{ secrets.VITE_MASTER_PIN }}
-          VITE_CRYPTO_PEPPER: ${{ secrets.VITE_CRYPTO_PEPPER }}
           VITE_SENTRY_DSN: ${{ secrets.VITE_SENTRY_DSN }}
           # ── App Check ──────────────────────────────────────────────────
           VITE_RECAPTCHA_SITE_KEY: ${{ secrets.VITE_RECAPTCHA_SITE_KEY }}
 
       - uses: FirebaseExtended/action-hosting-deploy@v0
+        id: firebase_deploy
         with:
           repoToken: "${{ secrets.GITHUB_TOKEN }}"
           firebaseServiceAccount: "${{ secrets.FIREBASE_SERVICE_ACCOUNT }}"
           channelId: live
           projectId: "${{ secrets.FIREBASE_PROJECT_ID }}"
+
+      - name: Send Official Release Notification
+        if: success()
+        uses: dawidd6/action-send-mail@34b9d07ffa2165e6383e25eb3bb6ad18c7ea06b1 # v3.12.0
+        with:
+          server_address: smtp.gmail.com
+          server_port: 465
+          secure: true
+          username: ${{ secrets.MAIL_USERNAME }}
+          password: ${{ secrets.MAIL_PASSWORD }}
+          subject: '[PSA Business Suite] 🚀 Rilis Produksi Berhasil (Versi Terbaru)'
+          to: dev.psajewelry@gmail.com
+          from: PSA CI/CD Bot
+          body: |
+            Halo Tim PSA,
+            
+            Bot GitHub Actions (CI/CD) melaporkan bahwa Pembaruan Aplikasi Kasir Offline-First PSA Business Suite telah BERHASIL DIPRODUKSI.
+            
+            Detail Rilis:
+            - Cabang: ${{ github.ref_name }}
+            - Commit Target: ${{ github.sha }}
+            - Tautan Resmi (HTTPS Live URL): ${{ steps.firebase_deploy.outputs.details_url }}
+            
+            Seluruh audit kriptografi dan security state pass verifikasi. Aplikasi kasir siap digunakan.
+            
+            Salam,
+            Sistem CI/CD PSA

@@ -5,6 +5,7 @@ import { X, Loader2, AlertTriangle, Tag } from 'lucide-react';
 import { CustomerSelector } from '../../../shared/components/CustomerSelector';
 import { ManagerAuthDialog } from '../../../shared/components/ManagerAuthDialog';
 import { Decimal } from 'decimal.js';
+import { MathUtils } from '../../../shared/utils/decimalUtils';
 
 export function CheckoutModal() {
   const {
@@ -36,9 +37,11 @@ export function CheckoutModal() {
 
   if (!isCheckoutModalOpen) return null;
 
-  const loyaltyDiscountAmount = (pointsToRedeem || 0) * 100; // Rp 100 per point
-  const finalTotal = Math.max(0, totalPrice - loyaltyDiscountAmount - manualDiscountAmount);
-  const change = cashReceived - finalTotal;
+  const loyaltyDiscountAmount = MathUtils.mul((pointsToRedeem || 0), 100); // Rp 100 per point
+  const finalTotal = MathUtils.roundInt(
+    Math.max(0, MathUtils.sub(MathUtils.sub(totalPrice, loyaltyDiscountAmount), manualDiscountAmount))
+  );
+  const change = MathUtils.sub(cashReceived, finalTotal);
 
   const handleAdjustQuantity = () => {
     if (checkoutError?.stockId && checkoutError.availableQuantity !== undefined) {
@@ -52,7 +55,7 @@ export function CheckoutModal() {
     if (amount <= 0) return;
 
     // Phase 1.6: Financial Guard - Check if discount > 30% or > 50k
-    const subTotal = cartItems.reduce((sum, item) => sum + (item.price * item.quantity), 0);
+    const subTotal = cartItems.reduce((sum, item) => MathUtils.add(sum, MathUtils.mul(item.price, item.quantity)), 0);
     const thresholdAmount = 50000;
     const thresholdPercentage = 0.3;
     

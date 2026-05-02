@@ -293,6 +293,7 @@ export interface User {
   status: 'ACTIVE' | 'INACTIVE';
   createdAt: number;
   branchId?: string;
+  isDefaultPin?: boolean;
 }
 
 export interface GoldAssetHistory {

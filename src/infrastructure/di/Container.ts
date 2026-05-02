@@ -126,7 +126,7 @@ export const DIContainer = {
   get syncService() { if (!_syncService) _syncService = new SyncServiceImpl(); return _syncService; },
   get communicationService() { if (!_communicationService) _communicationService = new CommunicationServiceImpl(); return _communicationService; },
   get hardwareCheckService() { if (!_hardwareCheckService) _hardwareCheckService = new HardwareCheckService(this.printService); return _hardwareCheckService; },
-  get auditIntegrityService() { if (!_auditIntegrityService) _auditIntegrityService = new AuditIntegrityService(this.unitOfWork); return _auditIntegrityService; },
+  get auditIntegrityService() { if (!_auditIntegrityService) _auditIntegrityService = new AuditIntegrityService(this.unitOfWork, this.reportQuery); return _auditIntegrityService; },
 
   // Queries
   get reportQuery() { if (!_reportQuery) _reportQuery = new ReportQueryImpl(); return _reportQuery; },
@@ -143,7 +143,7 @@ export const DIContainer = {
   get createRepairUseCase() { if (!_createRepairUseCase) _createRepairUseCase = new CreateRepairUseCase(this.repairRepository, this.unitOfWork); return _createRepairUseCase; },
   get updateRepairStatusUseCase() { if (!_updateRepairStatusUseCase) _updateRepairStatusUseCase = new UpdateRepairStatusUseCase(this.repairRepository, this.unitOfWork, this.communicationService, this.customerRepository); return _updateRepairStatusUseCase; },
   get openShiftUseCase() { if (!_openShiftUseCase) _openShiftUseCase = new OpenShiftUseCase(this.shiftRepository, this.unitOfWork); return _openShiftUseCase; },
-  get closeShiftUseCase() { if (!_closeShiftUseCase) _closeShiftUseCase = new CloseShiftUseCase(this.shiftRepository, this.unitOfWork); return _closeShiftUseCase; },
+  get closeShiftUseCase() { if (!_closeShiftUseCase) _closeShiftUseCase = new CloseShiftUseCase(this.shiftRepository, this.unitOfWork, this.syncService); return _closeShiftUseCase; },
   get receiveStockUseCase() { if (!_receiveStockUseCase) _receiveStockUseCase = new ReceiveStockUseCase(this.stockRepository, this.unitOfWork); return _receiveStockUseCase; },
   get bulkReceiveStockUseCase() { if (!_bulkReceiveStockUseCase) _bulkReceiveStockUseCase = new BulkReceiveStockUseCase(this.stockRepository, this.unitOfWork); return _bulkReceiveStockUseCase; },
   get updateProductUseCase() { if (!_updateProductUseCase) _updateProductUseCase = new UpdateProductUseCase(this.stockRepository, this.unitOfWork); return _updateProductUseCase; },

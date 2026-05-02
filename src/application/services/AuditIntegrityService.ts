@@ -1,11 +1,14 @@
 import { db, FinancialClosure } from '../../shared/api/db';
-import { DIContainer } from '../../infrastructure/di/Container';
 import { IUnitOfWork } from '../core/IUnitOfWork';
+import { IReportQuery } from '../queries/IReportQuery';
 import { firestoreDb, isConfigValid } from '../../shared/api/firebase';
 import { doc, getDoc } from 'firebase/firestore';
 
 export class AuditIntegrityService {
-  constructor(private readonly uow: IUnitOfWork) {}
+  constructor(
+    private readonly uow: IUnitOfWork,
+    private readonly reportQuery: IReportQuery
+  ) {}
 
   private getFormattedDate(date: Date): string {
     return date.toISOString().split('T')[0]; // YYYY-MM-DD
@@ -36,7 +39,7 @@ export class AuditIntegrityService {
       }
 
       // 4. Ambil rangkuman data untuk branch ini
-      const report = await DIContainer.reportQuery.getFinancialReport(startOfDay, endOfDay);
+      const report = await this.reportQuery.getFinancialReport(startOfDay, endOfDay);
 
       // 5. Dapatkan hash hari sebelumnya LANGSUNG DARI FIREBASE (Server Authoritative)
       const prevDate = new Date(startOfDay - 1);

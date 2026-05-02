@@ -1,6 +1,6 @@
 import { IShiftRepository } from '@domain/repositories/IShiftRepository';
 import { IUnitOfWork } from '@application/core/IUnitOfWork';
-import { DIContainer } from '@infrastructure/di/Container';
+import { ISyncService } from '@application/services/ISyncService';
 import { backupManager } from '@shared/utils/backupManager';
 
 export interface CloseShiftRequestDTO {
@@ -12,7 +12,8 @@ export interface CloseShiftRequestDTO {
 export class CloseShiftUseCase {
   constructor(
     private readonly shiftRepository: IShiftRepository,
-    private readonly unitOfWork: IUnitOfWork
+    private readonly unitOfWork: IUnitOfWork,
+    private readonly syncService: ISyncService
   ) {}
 
   async execute(request: CloseShiftRequestDTO): Promise<void> {
@@ -77,7 +78,7 @@ export class CloseShiftUseCase {
       // 7. FORCE SYNC & AUTO-BACKUP TRIGGER
       // Memaksa antrean sinkronisasi berjalan seketika setelah shift ditutup
       setTimeout(() => {
-        DIContainer.syncService.processSyncQueue().catch(err => {
+        this.syncService.processSyncQueue().catch(err => {
           console.error('[Auto-Backup] Gagal melakukan force sync saat tutup shift:', err);
         });
       }, 1000);

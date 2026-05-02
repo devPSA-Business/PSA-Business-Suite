@@ -16,7 +16,7 @@
  * @last_audit: 2026-04-19
  */
 import { create } from 'zustand';
-import { persist } from 'zustand/middleware';
+import { persist, createJSONStorage } from 'zustand/middleware';
 import { db, User } from '../api/db';
 import { useAuthStore } from './authStore';
 import { UserRole } from '../../domain/models/User';
@@ -26,6 +26,7 @@ import { useToastStore } from './toastStore';
 import { cryptoDB } from '../../lib/cryptoIndexedDB';
 import { cryptoKeyStore } from '../../lib/cryptoKeyStore';
 import { logger } from '../../lib/logger';
+import { dexieSecurityStorage } from '../../infrastructure/storage/dexieSecurityStorage';
 
 interface SecurityState {
   isPinVerified: boolean;
@@ -141,7 +142,7 @@ export const useSecurityStore = create<SecurityState>()(
           const user = await db.users.get(userId);
           if (!user) return false;
           // Legacy hashes didn't have salt or used short hashes
-          if (!user.salt || user.pinHash === '8d969eef6ecad3c29a3a629280e686cf0c3f5d5a86aff3ca12020c923adc6c92') {
+          if (!user.salt || user.isDefaultPin === true) {
              return true;
           }
           return false;
@@ -267,13 +268,43 @@ export const useSecurityStore = create<SecurityState>()(
         const key = Array.from(crypto.getRandomValues(new Uint8Array(16)))
           .map(b => b.toString(16).padStart(2, '0'))
           .join('').toUpperCase();
-        await db.keyval.put({ key: 'recovery_key', value: key });
+          
+        // SEC-04: Simpan HASH dari kunci (bukan kunci itu sendiri) untuk verifikasi
+        const hashBuffer = await crypto.subtle.digest('SHA-256', new TextEncoder().encode(key));
+        const keyHash = Array.from(new Uint8Array(hashBuffer))
+          .map(b => b.toString(16).padStart(2, '0')).join('');
+          
+        await db.keyval.put({ key: 'recovery_key_hash', value: keyHash });
+        // Kunci asli hanya dikembalikan ke UI untuk dicatat user, tidak disimpan
         return key;
       },
 
       verifyAdminPin: async (pin: string) => {
+        const state = get();
+        const now = Date.now();
+        
+        // SEC-03: Throttle min 2 detik antar percobaan
+        if (now - state.lastAdminAttemptTime < BRUTE_FORCE_DELAY) {
+          useToastStore.getState().addToast('Terlalu cepat.', 'warning');
+          return false;
+        }
+        
+        // SEC-03: Lockout setelah MAX percobaan gagal
+        if (state.adminFailedAttempts >= MAX_FAILED_ATTEMPTS) {
+          if (now - state.lastAdminAttemptTime < LOCKOUT_DURATION) {
+            useToastStore.getState().addToast('Sistem terkunci sementara.', 'error');
+            return false; // Masih dalam periode lockout
+          } else {
+            set({ adminFailedAttempts: 0 }); // Reset setelah durasi
+          }
+        }
+        
+        set({ lastAdminAttemptTime: now });
+
         const users = await db.users.toArray();
         const authorizedUsers = users.filter(u => u.role === UserRole.ADMIN || u.role === UserRole.MANAGER);
+        
+        let isValid = false;
         
         for (const user of authorizedUsers) {
           if (user.status === 'ACTIVE') {
@@ -281,25 +312,44 @@ export const useSecurityStore = create<SecurityState>()(
             
             // Try V2 (600k)
             const hashedInputV2 = await hashPin(pin, currentSalt, true, HASH_ITERATIONS_V2);
-            if (hashedInputV2 === user.pinHash) return true;
+            if (hashedInputV2 === user.pinHash) {
+               isValid = true;
+               break;
+            }
             
             // Fallback V1 (100k)
             const hashedInputV1 = await hashPin(pin, currentSalt, true, HASH_ITERATIONS_V1);
-            if (hashedInputV1 === user.pinHash) return true;
+            if (hashedInputV1 === user.pinHash) {
+               isValid = true;
+               break;
+            }
             
             // Fallback Legacy No Pepper
             const hashedInputLegacyNoPepper = await hashPin(pin, currentSalt, false, HASH_ITERATIONS_V1);
-            if (hashedInputLegacyNoPepper === user.pinHash) return true;
+            if (hashedInputLegacyNoPepper === user.pinHash) {
+               isValid = true;
+               break;
+            }
             
             // Fallback SHA-256
             const msgBuffer = new TextEncoder().encode(pin);
             const oldHashBuffer = await crypto.subtle.digest('SHA-256', msgBuffer);
             const oldHashArray = Array.from(new Uint8Array(oldHashBuffer));
             const oldHash = oldHashArray.map(b => b.toString(16).padStart(2, '0')).join('');
-            if (oldHash === user.pinHash) return true;
+            if (oldHash === user.pinHash) {
+               isValid = true;
+               break;
+            }
           }
         }
-        return false;
+        
+        if (!isValid) {
+          set((s) => ({ adminFailedAttempts: s.adminFailedAttempts + 1 }));
+          return false;
+        }
+        
+        set({ adminFailedAttempts: 0 });
+        return true;
       },
 
       lock: () => {
@@ -308,6 +358,9 @@ export const useSecurityStore = create<SecurityState>()(
       },
       
     }),
-    { name: 'psa-security-storage' }
+    { 
+      name: 'psa-security-storage',
+      storage: createJSONStorage(() => dexieSecurityStorage)
+    }
   )
 );

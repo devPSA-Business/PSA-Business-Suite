@@ -16,7 +16,7 @@ Catatan perubahan besar untuk PSA Business Suite v1.4+.
 | 2026-05-01 | Mitigasi Kritis Zero-Cost: Menghapus folder `functions`, mengganti `httpsCallable` dengan integrasi `@google/genai` murni di `NLQService.ts` untuk mem-bypass sepenuhnya requirement Kartu Kredit. | Selesai | Sangat Tinggi |
 | 2026-05-01 | GitHub Deployment Fix: Menambahkan `VITE_GEMINI_API_KEY` ke `.github/workflows/deploy.yml` agar pipeline CI/CD GitHub Actions ikut menyertakan variabel environment Gemini untuk frontend. | Selesai | Rendah |
 | 2026-05-01 | Mitigasi Kritis Zero-Cost: Refactor arsitektur menghapus ketergantungan pada Cloud Functions karena limitasi Kartu Kredit Founder (Blaze Plan). Tautan resmi diserahkan. | Selesai | Tinggi |
-| 2026-05-01 | Forensic Audit v1.3.5 Remediation: Fix 'any' Types, ganti parseFloat jadi MathUtils di Kasir, tambah webhook Web Worker Watchdog Telegram untuk alternatif zero-cost Cloud Functions. | Selesai | Rendah |
+| 2026-05-02 | CI/CD Hardening: ESLint v9, Vitest alignment, auto-lint-fix, type-check, dependabot grouping. | Selesai | Rendah |
 
 ## Perbaikan TS Critical:
 - Mengonversi `error` (unknown) ke `instanceof Error` handling.

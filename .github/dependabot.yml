@@ -1,7 +1,6 @@
 version: 2
 
 updates:
-  # ── npm (aplikasi utama) ──────────────────────────────────────────────────
   - package-ecosystem: "npm"
     directory: "/"
     schedule:
@@ -11,6 +10,16 @@ updates:
       timezone: "Asia/Jakarta"
     open-pull-requests-limit: 5
     groups:
+      # === BARU: Vitest dan semua plugin-nya harus naik versi bersama ===
+      vitest-ecosystem:
+        patterns:
+          - "vitest"
+          - "@vitest/*"
+      # Firebase SDK juga harus bergerak bersama
+      firebase-sdk:
+        patterns:
+          - "firebase"
+          - "@firebase/*"
       patch-updates:
         update-types:
           - "patch"
@@ -26,11 +35,9 @@ updates:
       prefix-development: "build(deps-dev)"
       include: "scope"
     ignore:
-      # Major version bump selalu butuh review manual
       - dependency-name: "*"
         update-types: ["version-update:semver-major"]
 
-  # ── GitHub Actions ────────────────────────────────────────────────────────
   - package-ecosystem: "github-actions"
     directory: "/"
     schedule:

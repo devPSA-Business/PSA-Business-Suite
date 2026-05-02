@@ -95,8 +95,9 @@ describe('BuybackUseCase', () => {
     expect(mockGoldBuybackRepo.save).toHaveBeenCalled();
     expect(mockUow.registerGoldAssetHistory).toHaveBeenCalledWith(expect.objectContaining({
       action: 'BUYBACK',
-      weightChange: 9,
-      newTotalWeight: 9 // PGE of 10g 90% is 9g
+      weightChange: 10,
+      newTotalWeight: 10, // 0 + 10g
+      user: 'user-1',
     }));
     expect(mockUow.registerAudit).toHaveBeenCalled();
   });

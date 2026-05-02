@@ -137,7 +137,7 @@ describe('Domain Separation: Retail vs Gold Asset Trading', () => {
   it('B2B Gold Sales (Trading) should NOT call registerStockHistory', async () => {
     // Setup asset
     vi.mocked(mockGoldBuybackRepo.findById).mockResolvedValue({ 
-      id: 'bb-1', markAsSoldToCollector: vi.fn(), weightGram: 10, buybackPrice: 9000000
+      id: 'bb-1', markAsSoldToCollector: vi.fn(), weightGram: 10, buybackPrice: 9000000, status: 'stored', customerName: 'John', kadar: 0.75
     } as any);
 
     await goldSales.execute({

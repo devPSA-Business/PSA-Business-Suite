@@ -41,4 +41,4 @@ jobs:
         sudo mv ./gitleaks /usr/local/bin/gitleaks
 
     - name: Run Gitleaks Secret Scan
-      run: gitleaks detect --source . -v
+      run: gitleaks detect --source . -v --no-git

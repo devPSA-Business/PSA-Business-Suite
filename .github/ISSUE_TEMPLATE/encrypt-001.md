@@ -1,9 +1,10 @@
 ---
-name: "ENCRYPT-001: Enforce encryption at rest for sensitive tables"
-about: "Production key management design, PoC hardening, and migration plan for IndexedDB"
+name: 'ENCRYPT-001: Enforce encryption at rest for sensitive tables'
+about: Production key management design, PoC hardening, and migration plan for IndexedDB
 title: "[ENCRYPT-001] Enforce encryption at rest for transactions and audit_logs"
-labels: ["security", "high-priority"]
-assignees: []
+labels: ''
+assignees: ''
+
 ---
 
 ## Description

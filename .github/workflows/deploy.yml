@@ -4,6 +4,17 @@ on:
   push:
     branches:
       - main
+    paths:
+      - 'src/**'
+      - 'public/**'
+      - '*.html'
+      - '*.json'
+      - '*.ts'
+      - '*.tsx'
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
 
 jobs:
   build_and_deploy:
@@ -42,7 +53,7 @@ jobs:
           # ── App Check ──────────────────────────────────────────────────
           VITE_RECAPTCHA_SITE_KEY: ${{ secrets.VITE_RECAPTCHA_SITE_KEY }}
 
-      - uses: FirebaseExtended/action-hosting-deploy@v0
+      - uses: FirebaseExtended/action-hosting-deploy@0cbcac4740c2bfb00d632f0b863b57713124eb5a
         id: firebase_deploy
         with:
           repoToken: "${{ secrets.GITHUB_TOKEN }}"

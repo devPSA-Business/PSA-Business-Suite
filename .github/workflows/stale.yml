@@ -1,0 +1,24 @@
+name: Stale issue and PR bot
+
+on:
+  schedule:
+    - cron: '30 3 * * 1,4' # Twice a week
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  stale:
+    runs-on: ubuntu-latest
+    permissions:
+      issues: write
+      pull-requests: write
+    steps:
+    - uses: actions/stale@v9
+      with:
+        stale-issue-message: 'This issue is stale because it has been open 30 days with no activity. Remove stale label or comment or this will be closed in 7 days.'
+        stale-pr-message: 'This PR is stale because it has been open 30 days with no activity. Remove stale label or comment or this will be closed in 7 days.'
+        days-before-stale: 30
+        days-before-close: 7
+        operations-per-run: 50

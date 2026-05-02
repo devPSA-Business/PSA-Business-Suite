@@ -17,7 +17,11 @@ Setiap kali Anda membuat atau mengedit file, Anda WAJIB mematuhi tag/label komen
 Untuk UI/UX Component, Anda WAJIB menambahkan atribut `data-component-id` dan `data-error-domain` di elemen HTML root agar mudah dide-bug (contoh: `<div data-component-id="PosCart" data-error-domain="checkout">...</div>`).
 
 ## 4. LOGIKA BISNIS (JEWELRY RETAIL - LOCKED)
-- **Akurasi Emas & Uang:** SELALU gunakan `Math.round()` untuk semua hasil kalkulasi finansial (Hindari *Floating Point Bug*).
+- **Akurasi Emas & Uang:** SELALU gunakan `Decimal.js` via `MathUtils` untuk
+  SEMUA kalkulasi moneter (HPP, harga jual, diskon, total shift, margin emas).
+  `Math.round()` HANYA diperbolehkan untuk format tampilan UI akhir (display),
+  BUKAN untuk kalkulasi bisnis atau nilai yang akan disimpan ke database.
+  Pelanggaran terhadap aturan ini adalah BUG KRITIS yang wajib di-revert segera.
 - **Masking Data:** Kasir (CASHIER) dibatasi aksesnya. Tidak boleh melihat Harga Modal (HPP). HPP dijaga via Firebase Security Rules.
 
 ## 5. PROTOKOL INTERAKSI

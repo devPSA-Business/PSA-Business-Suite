@@ -1,0 +1,44 @@
+name: Security Audit
+
+on:
+  push:
+    branches: [ "main" ]
+    paths:
+      - 'src/**'
+      - 'package.json'
+      - 'package-lock.json'
+  pull_request:
+    branches: [ "main" ]
+    paths:
+      - 'src/**'
+      - 'package.json'
+      - 'package-lock.json'
+  schedule:
+    - cron: '30 2 * * 1,4' # Twice a week
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  security:
+    runs-on: ubuntu-latest
+    steps:
+    - name: Checkout repository
+      uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683
+
+    - name: Setup Node.js
+      uses: actions/setup-node@39370e3970a6d050c480ffad4ff0ed4d3fdee5af
+      with:
+        node-version: 22
+
+    - name: Run npm audit
+      run: npm audit --audit-level=high
+
+    - name: Install Gitleaks
+      run: |
+        curl -sSfL https://raw.githubusercontent.com/gitleaks/gitleaks/master/install.sh | sh
+        sudo mv ./gitleaks /usr/local/bin/gitleaks
+
+    - name: Run Gitleaks Secret Scan
+      run: gitleaks detect --source . -v

@@ -11,6 +11,7 @@ import { logger } from './logger';
 
 export class CryptoIndexedDB {
   private key: CryptoKey | null = null;
+  private rawDeviceKey: ArrayBuffer | null = null;
   private currentKeyId: string | null = null;
   private readonly ALGO = 'AES-GCM';
   private readonly KEY_LENGTH = 256;
@@ -106,6 +107,8 @@ export class CryptoIndexedDB {
     const temporaryKey = await this._unwrapInternal(wrappedKeyByPin, pin, salt, true);
     // F-02: Segera impor ulang kunci sebagai kunci operasional dengan extractable: false
     const keyData = await window.crypto.subtle.exportKey('raw', temporaryKey);
+    this.rawDeviceKey = keyData.slice(0); // Menyimpan salinan untuk keperluan auto-backup sesuai rekomendasi
+    
     const secureOperationalKey = await window.crypto.subtle.importKey(
       'raw',
       keyData,
@@ -178,6 +181,10 @@ export class CryptoIndexedDB {
 
   getKeyId(): string | null {
     return this.currentKeyId;
+  }
+
+  getRawDeviceKey(): ArrayBuffer | null {
+    return this.rawDeviceKey;
   }
 
   // eslint-disable-next-line @typescript-eslint/no-explicit-any

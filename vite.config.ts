@@ -55,6 +55,7 @@ export default defineConfig(({mode}) => {
         '@infrastructure': path.resolve(__dirname, './src/infrastructure'),
         '@shared': path.resolve(__dirname, './src/shared'),
         '@features': path.resolve(__dirname, './src/features'),
+        '@lib': path.resolve(__dirname, './src/lib'),
         '@tests': path.resolve(__dirname, './tests'),
       },
     },

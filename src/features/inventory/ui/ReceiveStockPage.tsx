@@ -1,3 +1,4 @@
+import { logger } from '@lib/logger';
 import React, { useState, useEffect } from 'react';
 import { useAppStore } from '../../../shared/store/appStore';
 import { DIContainer } from '@infrastructure/di/Container';
@@ -70,7 +71,7 @@ export function ReceiveStockPage() {
           }
         }
       } catch (error) {
-        console.error('Error checking barcode:', error);
+        logger.error('Error checking barcode:', error);
       }
     }, 500);
 
@@ -148,7 +149,7 @@ export function ReceiveStockPage() {
       setInvoiceNo('');
       setSupplierName('');
     } catch (error) {
-      console.error('Failed to save received stock:', error);
+      logger.error('Failed to save received stock:', error);
       addToast('Terjadi kesalahan saat menyimpan barang.', 'error');
     } finally {
       setIsSaving(false);

@@ -35,16 +35,7 @@ jobs:
       continue-on-error: true
 
     - name: Report Coverage
-      uses: actions/github-script@60a0d83039c74a4aee543508d2ffcb1c3799cdea
+      uses: davelosert/vitest-coverage-report-action@v2
       with:
-        script: |
-          // Simple script to comment that coverage was run
-          // For advanced integration, you would parse the coverage output 
-          // and post a detailed markdown table.
-          
-          github.rest.issues.createComment({
-            issue_number: context.issue.number,
-            owner: context.repo.owner,
-            repo: context.repo.repo,
-            body: '✅ **Code Coverage Report** has been successfully generated in the CI environment. Check the workflow logs for full details.'
-          })
+        json-summary-path: ./coverage/coverage-summary.json
+        json-final-path: ./coverage/coverage-final.json

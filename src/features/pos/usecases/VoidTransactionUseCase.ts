@@ -1,6 +1,7 @@
 import { IUnitOfWork } from '@application/core/IUnitOfWork';
 import { IRetailRepository } from '@domain/repositories/IRetailRepository';
 import { IStockRepository } from '@domain/repositories/IStockRepository';
+import { MathUtils } from '@shared/utils/decimalUtils';
 
 export interface VoidTransactionDTO {
   transactionId: string;
@@ -44,10 +45,9 @@ export class VoidTransactionUseCase {
               const currentStock = await this.stockRepo.findById(item.stockId);
               if (!currentStock) break;
 
-              const restoredQuantity = currentStock.quantity + item.quantity;
+              const restoredQuantity = MathUtils.add(currentStock.quantity, item.quantity);
               
-              // eslint-disable-next-line @typescript-eslint/no-explicit-any
-              updated = await (this.stockRepo as any).updateIfVersionMatches(
+              updated = await this.stockRepo.updateIfVersionMatches(
                 item.stockId,
                 currentStock.version,
                 { quantity: restoredQuantity }
@@ -58,19 +58,16 @@ export class VoidTransactionUseCase {
                 await new Promise(resolve => setTimeout(resolve, 100 * retries)); // Exponential backoff
               } else {
                 // Register stock history
-                if ('registerStockHistory' in this.unitOfWork) {
-                  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-                  await (this.unitOfWork as any).registerStockHistory({
-                    stockId: item.stockId,
-                    action: 'ADJUST',
-                    quantityChange: item.quantity,
-                    oldCost: currentStock.cost,
-                    newCost: currentStock.cost,
-                    newQuantity: restoredQuantity,
-                    user: dto.authorizedBy,
-                    details: `Pengembalian stok dari Void Transaksi ${dto.transactionId}`
-                  });
-                }
+                await this.unitOfWork.registerStockHistory({
+                  stockId: item.stockId,
+                  action: 'ADJUST',
+                  quantityChange: item.quantity,
+                  oldCost: currentStock.cost,
+                  newCost: currentStock.cost,
+                  newQuantity: restoredQuantity,
+                  user: dto.authorizedBy,
+                  details: `Pengembalian stok dari Void Transaksi ${dto.transactionId}`
+                });
               }
             }
             if (!updated) throw new Error(`Gagal mengembalikan stok untuk item ${item.stockId} setelah ${MAX_RETRIES} kali percobaan.`);
@@ -88,23 +85,20 @@ export class VoidTransactionUseCase {
           const removedCash = transaction.paymentMethod === 'CASH' ? voidAmount : 0;
           await db.shift_totals.put({
             ...shiftTotal,
-            cashIn: Math.max(0, shiftTotal.cashIn - removedCash),
-            salesTotal: Math.max(0, shiftTotal.salesTotal - voidAmount),
+            cashIn: Math.max(0, MathUtils.sub(shiftTotal.cashIn, removedCash)),
+            salesTotal: Math.max(0, MathUtils.sub(shiftTotal.salesTotal, voidAmount)),
             lastUpdatedAt: Date.now()
           });
         }
       }
 
       // Explicitly register audit
-      if ('registerAudit' in this.unitOfWork) {
-        // eslint-disable-next-line @typescript-eslint/no-explicit-any
-        await (this.unitOfWork as any).registerAudit(
-          'VOID_RETAIL_TRANSACTION',
-          dto.authorizedBy,
-          `Voiding transaction ${dto.transactionId} over reason: ${dto.reason}`,
-          { entityId: dto.transactionId }
-        );
-      }
+      await this.unitOfWork.registerAudit(
+        'VOID_RETAIL_TRANSACTION',
+        dto.authorizedBy,
+        `Voiding transaction ${dto.transactionId} over reason: ${dto.reason}`,
+        { entityId: dto.transactionId }
+      );
 
       return voidedTransaction;
     }, ['transactions', 'stock', 'stock_history', 'shift_totals']);

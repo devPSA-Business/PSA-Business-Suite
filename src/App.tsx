@@ -39,7 +39,7 @@ export default function App() {
     if (document.visibilityState === 'hidden') {
       logger.info('[App] Aplikasi masuk background, menjalankan auto-backup lokal...');
       backupManager.autoBackupLocal().catch(err => {
-        logger.error('[App] Auto-backup visibilitychange gagal:', err);
+        logger.error('[App] Auto-backup visibilitychange gagal:', { error: err instanceof Error ? err.message : String(err) });
       });
     }
   });
@@ -213,29 +213,33 @@ export default function App() {
         await useSecurityStore.getState().initSetupState();
 
         // FASE 0 Migration: Migrate printer config from localStorage to store_profile Dexie
-        const savedPrinterRaw = localStorage.getItem('PSA_PRINTER_CONFIG');
-        const shopNameRaw = localStorage.getItem('PSA_SHOP_NAME');
-        const shopAddressRaw = localStorage.getItem('PSA_SHOP_ADDRESS');
-        const shopFooterRaw = localStorage.getItem('PSA_RECEIPT_FOOTER');
-        
-        if (savedPrinterRaw || shopNameRaw || shopAddressRaw || shopFooterRaw) {
-          const printerConfig = savedPrinterRaw ? JSON.parse(savedPrinterRaw) : undefined;
+        const migrationV0 = await db.keyval.get('migration_v0_done');
+        if (!migrationV0) {
+          const savedPrinterRaw = localStorage.getItem('PSA_PRINTER_CONFIG');
+          const shopNameRaw = localStorage.getItem('PSA_SHOP_NAME');
+          const shopAddressRaw = localStorage.getItem('PSA_SHOP_ADDRESS');
+          const shopFooterRaw = localStorage.getItem('PSA_RECEIPT_FOOTER');
           
-          await db.store_profile.put({
-            id: 'default',
-            name: shopNameRaw || 'PSA JEWELLERY',
-            address: shopAddressRaw || '',
-            receiptFooter: shopFooterRaw || 'Terima Kasih',
-            isSetupComplete: true, // Assuming if these exist, setup is complete
-            updatedAt: Date.now(),
-            printerConfig: printerConfig
-          });
-          
-          localStorage.removeItem('PSA_PRINTER_CONFIG');
-          localStorage.removeItem('PSA_SHOP_NAME');
-          localStorage.removeItem('PSA_SHOP_ADDRESS');
-          localStorage.removeItem('PSA_RECEIPT_FOOTER');
-          logger.info('[Migration] Printer/Shop config migrated to IndexedDB.');
+          if (savedPrinterRaw || shopNameRaw || shopAddressRaw || shopFooterRaw) {
+            const printerConfig = savedPrinterRaw ? JSON.parse(savedPrinterRaw) : undefined;
+            
+            await db.store_profile.put({
+              id: 'default',
+              name: shopNameRaw || 'PSA JEWELLERY',
+              address: shopAddressRaw || '',
+              receiptFooter: shopFooterRaw || 'Terima Kasih',
+              isSetupComplete: true, // Assuming if these exist, setup is complete
+              updatedAt: Date.now(),
+              printerConfig: printerConfig
+            });
+            
+            localStorage.removeItem('PSA_PRINTER_CONFIG');
+            localStorage.removeItem('PSA_SHOP_NAME');
+            localStorage.removeItem('PSA_SHOP_ADDRESS');
+            localStorage.removeItem('PSA_RECEIPT_FOOTER');
+            logger.info('[Migration] Printer/Shop config migrated to IndexedDB.');
+          }
+          await db.keyval.put({ key: 'migration_v0_done', value: true });
         }
         
         // P0 Migration: Reconcile any legacy shift totals

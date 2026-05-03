@@ -1,3 +1,4 @@
+import { logger } from '@lib/logger';
 import { useState, useRef, useEffect } from 'react';
 import { Camera, X, Loader2 } from 'lucide-react';
 import { DIContainer } from '@infrastructure/di/Container';
@@ -109,7 +110,7 @@ export function RepairForm({ hideBackButton: _hideBackButton }: RepairFormProps 
       setPhotoBlob(compressedBlob);
       setPhotoPreviewUrl(URL.createObjectURL(compressedBlob));
     } catch (err) {
-      console.error('Gagal memproses gambar:', err);
+      logger.error('Gagal memproses gambar:', { error: err instanceof Error ? err.message : String(err) });
       addToast('Gagal memproses gambar.', 'error');
     } finally {
       setIsLoading(false);

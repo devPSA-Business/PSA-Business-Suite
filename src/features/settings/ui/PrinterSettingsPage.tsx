@@ -1,3 +1,4 @@
+import { logger } from '@lib/logger';
 import { useState, useEffect } from 'react';
 import { BackButton } from '../../../shared/components/BackButton';
 import { Printer, Usb, Bluetooth, CheckCircle, XCircle, RefreshCw, Trash2 } from 'lucide-react';
@@ -17,7 +18,7 @@ export function PrinterSettingsPage() {
           setConfig(profile.printerConfig);
         }
       } catch (e) {
-        console.error('Failed to load printer config', e);
+        logger.error('Failed to load printer config', { error: e instanceof Error ? e.message : String(e) });
       }
     };
     loadConfig();
@@ -34,7 +35,7 @@ export function PrinterSettingsPage() {
       setConfig(newConfig);
       addToast('Pengaturan printer berhasil disimpan', 'success');
     } catch (e) {
-      console.error('Failed to save printer config', e);
+      logger.error('Failed to save printer config', { error: e instanceof Error ? e.message : String(e) });
       addToast('Gagal menyimpan pengaturan printer', 'error');
     }
   };
@@ -56,7 +57,7 @@ export function PrinterSettingsPage() {
       saveConfig(newConfig);
       addToast('Printer USB berhasil dikonfigurasi.', 'success');
     } catch (error) {
-      console.error(error);
+      logger.error(error);
       if (error instanceof Error && error.name !== 'NotFoundError') {
         addToast('Gagal menghubungkan printer USB.', 'error');
       }
@@ -84,7 +85,7 @@ export function PrinterSettingsPage() {
       saveConfig(newConfig);
       addToast('Printer Bluetooth berhasil dikonfigurasi.', 'success');
     } catch (error) {
-      console.error(error);
+      logger.error(error);
       if (error instanceof Error && error.name !== 'NotFoundError') {
         addToast('Gagal menghubungkan printer Bluetooth.', 'error');
       }

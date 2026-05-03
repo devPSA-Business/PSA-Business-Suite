@@ -1,3 +1,4 @@
+import { logger } from '@lib/logger';
 import React, { useEffect, useState, useMemo, useRef } from 'react';
 import { useNavigate } from '@tanstack/react-router';
 import { useAuthStore } from '../../../shared/store/authStore';
@@ -8,6 +9,7 @@ import { TrendingUp, AlertTriangle, Package, DollarSign, Activity, Settings, Arr
 import { db } from '../../../shared/api/db';
 import { SmartInsights } from '../components/SmartInsights';
 import { useToastStore } from '../../../shared/store/toastStore';
+import { MathUtils } from '../../../shared/utils/decimalUtils';
 
 /**
  * @ai_context Halaman Dashboard Khusus Owner (Phase 7.1 & 7.2 Extension + SPRINT 7.3 Fraud Watchdog).
@@ -120,7 +122,7 @@ export const OwnerDashboardPage: React.FC = () => {
       }
 
     } catch (e) {
-      console.error(e);
+      logger.error(e);
     } finally {
       setIsLoading(false);
     }
@@ -368,7 +370,7 @@ export const OwnerDashboardPage: React.FC = () => {
                         <div key={item.stockId} className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 p-3 bg-stone-50 rounded-lg border border-rose-100 border-l-4 border-l-rose-500">
                            <div className="flex-1">
                              <div className="font-bold text-stone-800">{item.name}</div>
-                             <div className="text-xs text-stone-500">Terjual: {item.quantity} | Revenue: {formatRupiah(item.price * item.quantity)}</div>
+                             <div className="text-xs text-stone-500">Terjual: {item.quantity} | Revenue: {formatRupiah(MathUtils.mul(item.price, item.quantity))}</div>
                            </div>
                            <div className="flex flex-col gap-1 w-full sm:w-64">
                              <label className="text-[10px] font-bold text-stone-500 uppercase">Perbaiki HPP per Unit <span className="text-rose-500">*</span></label>

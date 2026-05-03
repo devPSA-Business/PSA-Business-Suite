@@ -109,11 +109,9 @@ export class BackupManager {
         });
       }
 
-      // Gunakan kunci enkripsi perangkat yang sedang aktif
-      const deviceKey = cryptoDB.getKey();
-      if (!deviceKey) throw new Error('Kunci enkripsi tidak ditemukan.');
-      
-      const exportedKey = await crypto.subtle.exportKey('raw', deviceKey);
+      // Gunakan kunci enkripsi perangkat mentah untuk proses backup
+      const exportedKey = cryptoDB.getRawDeviceKey();
+      if (!exportedKey) throw new Error('Kunci enkripsi mentah tidak ditemukan untuk backup.');
       
       const blob = await new Promise<Blob>((resolve, reject) => {
         const timeout = setTimeout(() => reject(new Error('Auto backup timeout')), 60000);

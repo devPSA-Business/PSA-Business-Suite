@@ -39,7 +39,8 @@ describe('GoldLiquidationUseCase', () => {
       save: vi.fn(),
     };
     mockUserRepo = {
-      findByName: vi.fn().mockResolvedValue({ role: 'MANAGER' }),
+      findById: vi.fn().mockResolvedValue({ role: 'MANAGER' }),
+      findByName: vi.fn(),
       findAll: vi.fn(),
       save: vi.fn(),
       delete: vi.fn(),
@@ -62,7 +63,7 @@ describe('GoldLiquidationUseCase', () => {
   });
 
   it('should throw error if user is not MANAGER or ADMIN', async () => {
-    vi.mocked(mockUserRepo.findByName).mockResolvedValue({ role: 'CASHIER' } as any);
+    vi.mocked(mockUserRepo.findById).mockResolvedValue({ role: 'CASHIER' } as any);
 
     const request: GoldLiquidationRequestDTO = {
       buybackIds: ['bb-1'],

@@ -1,7 +1,9 @@
+import { logger } from '@lib/logger';
 import { IShiftRepository } from '@domain/repositories/IShiftRepository';
 import { IUnitOfWork } from '@application/core/IUnitOfWork';
 import { ISyncService } from '@application/services/ISyncService';
 import { backupManager } from '@shared/utils/backupManager';
+import { MathUtils } from '@shared/utils/decimalUtils';
 
 export interface CloseShiftRequestDTO {
   shiftId: string;
@@ -42,7 +44,7 @@ export class CloseShiftUseCase {
 
       // 2. Calculate Expected Cash
       const expectedCash = await this.shiftRepository.calculateExpectedCash(request.shiftId);
-      const discrepancy = request.endCash - expectedCash;
+      const discrepancy = MathUtils.sub(request.endCash, expectedCash);
 
       // 3. Update Domain Entity
       const updatedShift = existingShift.close(request.endCash, expectedCash);
@@ -79,7 +81,7 @@ export class CloseShiftUseCase {
       // Memaksa antrean sinkronisasi berjalan seketika setelah shift ditutup
       setTimeout(() => {
         this.syncService.processSyncQueue().catch(err => {
-          console.error('[Auto-Backup] Gagal melakukan force sync saat tutup shift:', err);
+          logger.error('[Auto-Backup] Gagal melakukan force sync saat tutup shift:', { error: err instanceof Error ? err.message : String(err) });
         });
       }, 1000);
 

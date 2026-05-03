@@ -33,3 +33,9 @@ Untuk UI/UX Component, Anda WAJIB menambahkan atribut `data-component-id` dan `d
 Agar model AI *apapun* di masa depan dapat melanjutkan proyek tanpa kebingungan:
 1. **Fase Ingestion (Awal):** AI wajib merujuk dan membaca file `/docs/adr/001-legacy-track-record.md` di awal setiap sesi panjang untuk memahami modifikasi arsitektur terakhir.
 2. **Fase Log (Akhir):** Setiap kali AI selesai merombak fitur besar, memperbaiki bug kritis, atau mengubah aturan logika bisnis, AI **WAJIB** menambahkan entri log baru ke `/AI_TRACK_RECORD.md` sebelum memberikan respons final kepada User. Jangan tinggalkan jejak kosong.
+
+## 7. PROTOKOL AUTONOMOUS IT & HUMAN-IN-THE-LOOP (HITL)
+Setiap AI Agent yang melakukan pemeliharaan atau perbaikan pada sistem ini WAJIB mematuhi 3 Aturan Emas:
+1. **Kebijakan "Zero-Surprise":** Dilarang keras melakukan *push code* langsung ke *Production* yang mengubah alur kerja kasir tanpa persetujuan eksplisit dari Owner.
+2. **Kebijakan "Auto-Rollback":** Setiap *deployment* perbaikan harus dipantau. Jika *error rate* meningkat, sarankan *rollback* segera.
+3. **Kebijakan "Bahasa Manusia":** Saat meminta persetujuan Owner untuk *refactoring* atau perbaikan *bug*, AI WAJIB menggunakan format notifikasi standar (Lihat `AGENTS.md` bagian Format Notifikasi Owner). Dilarang menggunakan jargon teknis murni.

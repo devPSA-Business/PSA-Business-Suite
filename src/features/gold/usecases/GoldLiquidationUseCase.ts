@@ -4,6 +4,7 @@ import { IInternalNoteRepository } from '@domain/repositories/IInternalNoteRepos
 import { IUnitOfWork } from '@application/core/IUnitOfWork';
 import { IUserRepository } from '@domain/repositories/IUserRepository';
 import { generateId } from '../../../lib/generateId';
+import { MathUtils } from '@shared/utils/decimalUtils';
 
 export interface GoldLiquidationRequestDTO {
   buybackIds: string[];
@@ -28,7 +29,7 @@ export class GoldLiquidationUseCase {
   async execute(request: GoldLiquidationRequestDTO): Promise<string> {
     return this.unitOfWork.execute(async () => {
       // 0. RBAC Validation: Only MANAGER or ADMIN can perform Asset Liquidation
-      const user = await this.userRepository.findByName(request.userId);
+      const user = await this.userRepository.findById(request.userId);
       if (!user || (user.role !== 'MANAGER' && user.role !== 'ADMIN')) {
         throw new Error('Akses Ditolak: Hanya Manager atau Admin yang dapat melakukan Likuidasi Aset (Treasury).');
       }
@@ -56,8 +57,8 @@ export class GoldLiquidationUseCase {
         if (item.status !== 'stored') throw new Error(`Barang ${item.customerName} sudah tidak di brankas.`);
         
         buybacksToSell.push(item);
-        totalHPP += item.buybackPrice;
-        totalWeight += item.weightGram;
+        totalHPP = MathUtils.add(totalHPP, item.buybackPrice);
+        totalWeight = MathUtils.add(totalWeight, item.weightGram);
       }
 
       // 3. Pro-rata the sold price based on weight
@@ -71,8 +72,10 @@ export class GoldLiquidationUseCase {
         if (i === buybacksToSell.length - 1) {
           allocatedPrice = remainingSoldPrice;
         } else {
-          allocatedPrice = Math.round((item.weightGram / totalWeight) * request.totalSoldPrice);
-          remainingSoldPrice -= allocatedPrice;
+          allocatedPrice = MathUtils.roundInt(
+            MathUtils.mul(MathUtils.div(item.weightGram, totalWeight), request.totalSoldPrice)
+          );
+          remainingSoldPrice = MathUtils.sub(remainingSoldPrice, allocatedPrice);
         }
 
         item.markAsSoldToCollector(soldDate, allocatedPrice, request.paymentMethod, item.notes);

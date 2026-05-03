@@ -1,3 +1,4 @@
+import { logger } from '@lib/logger';
 import { VersionConflictError, InsufficientStockError } from '@domain/errors';
 import { create } from 'zustand';
 import { useCartStore } from './useCartStore';
@@ -117,12 +118,12 @@ export const useCheckoutStore = create<CheckoutState>((set, get) => ({
             try {
               await DIContainer.printService.triggerCashDrawer();
             } catch (drawerErr) {
-              console.error('Gagal membuka laci kasir:', drawerErr);
+              logger.error('Gagal membuka laci kasir:', drawerErr);
             }
           }
         }
       } catch (printError) {
-        console.error('Gagal mencetak struk:', printError);
+        logger.error('Gagal mencetak struk:', printError);
         useToastStore.getState().addToast('Transaksi berhasil, namun gagal mencetak struk', 'info');
       }
 
@@ -130,7 +131,7 @@ export const useCheckoutStore = create<CheckoutState>((set, get) => ({
       cartState.clearCart();
       get().closeCheckoutModal();
     } catch (error) {
-      console.error('Gagal menyelesaikan transaksi:', error);
+      logger.error('Gagal menyelesaikan transaksi:', error);
       
       if (error instanceof InsufficientStockError) {
         get().setCheckoutError(error);

@@ -6,14 +6,10 @@ import { db } from '../shared/api/db';
 // @business_rule: Jika sync tertunda > 2 jam DAN device online, kirim alert kritis.
 
 const THRESHOLDS = {
-  // Sync queue: jika PENDING > 50 item selama > 2 jam → KRITIS
   MAX_PENDING_SYNC_COUNT: 50,
   MAX_PENDING_SYNC_AGE_MS: 2 * 60 * 60 * 1000, // 2 jam
-  // DLQ: jika > 20 item gagal → perlu perhatian
   MAX_DLQ_COUNT: 20,
-  // IndexedDB quota: jika > 80% → bahaya
   STORAGE_QUOTA_WARN_PERCENT: 0.80,
-  // Hash chain: spot-check 10 log terakhir
   HASH_CHAIN_SPOT_CHECK_COUNT: 10,
 };
 
@@ -51,7 +47,6 @@ async function checkSyncQueueAge(): Promise<{ count: number, ageMs: number } | n
     const pendingEvents = await db.sync_events.where('status').equals('PENDING').toArray();
     if (pendingEvents.length === 0) return null;
     
-    // Find the oldest event
     let oldestTimestamp = Date.now();
     for (const event of pendingEvents) {
       if (event.timestamp < oldestTimestamp) {
@@ -82,28 +77,21 @@ async function checkDLQSize(): Promise<number> {
   }
 }
 
-// Minimal implementation of spot checking the hash chain
 async function spotCheckHashChain(count: number): Promise<boolean> {
   try {
     const latestLogs = await db.audit_logs.orderBy('timestamp').reverse().limit(count).toArray();
     if (latestLogs.length <= 1) return true;
     
-    // Build a set of all known hashes in this window for fast lookup
     const windowHashes = new Set(latestLogs.map(l => l.hash));
     
     for (const current of latestLogs) {
-        // If it's a genesis block or zero, it's valid
         if (!current.previousHash || current.previousHash === 'GENESIS_BLOCK_0000000000000000' || current.previousHash === '0') {
             continue;
         }
 
-        // Check if the previous hash is at least in our recent window.
-        // Due to concurrency, timestamps might be slightly out of order with the chain.
         if (!windowHashes.has(current.previousHash)) {
-            // Fallback: Check the entire DB if it fell out of the window
             const exists = await db.audit_logs.where('hash').equals(current.previousHash).count();
             if (exists === 0) {
-               // The previous hash doesn't exist AT ALL in the DB -> Broken chain
                console.error("HealthGuardian: HASH_CHAIN_BREACH detected on log", current.id);
                return false;
             }
@@ -111,7 +99,7 @@ async function spotCheckHashChain(count: number): Promise<boolean> {
     }
     return true;
   } catch (err) {
-    return true; // fail securely without crashing the health check
+    return true; 
   }
 }
 
@@ -124,15 +112,62 @@ async function sendTelegramAlert(message: string) {
     await fetch(`https://api.telegram.org/bot${BOT_TOKEN}/sendMessage`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ chat_id: CHAT_ID, text: `🚨 PSA ALERT:\n\n${message}` })
+      body: JSON.stringify({ chat_id: CHAT_ID, text: message })
     });
   } catch (e) {
     console.error('Failed to send TG alert', e);
   }
 }
 
+// FUNGSI BARU: Penerjemah Bahasa Manusia untuk Notifikasi Owner
+function formatHumanAlert(issueCode: string, rawMessage: string): string {
+  let untukApa = rawMessage;
+  let positif = "";
+  let negatif = "";
+  let risikoIya = "";
+  let risikoTidak = "";
+
+  switch(issueCode) {
+    case 'STORAGE_CRITICAL':
+      untukApa = "Memori tablet kasir hampir penuh (>80%). Sistem perlu membersihkan riwayat transaksi lama yang sudah aman di Cloud (Auto-Prune).";
+      positif = "Aplikasi kasir akan kembali sangat cepat dan tidak akan hang/lag saat melayani pelanggan.";
+      negatif = "Kasir tidak bisa melihat nota transaksi 3 bulan lalu jika internet mati (tapi data tetap aman di Cloud).";
+      risikoIya = "Proses pembersihan memakan waktu ~10 detik, kasir mungkin melihat layar loading sebentar.";
+      risikoTidak = "Besok atau lusa, aplikasi kasir bisa crash (layar putih) di tengah transaksi karena memori tablet benar-benar habis.";
+      break;
+    case 'SYNC_STUCK':
+      untukApa = "Data penjualan tertahan di tablet selama lebih dari 2 jam dan belum masuk ke server pusat, padahal internet menyala.";
+      positif = "Laporan keuangan di pusat akan kembali akurat dan up-to-date.";
+      negatif = "Sistem akan memaksa pengiriman data secara agresif di latar belakang.";
+      risikoIya = "Koneksi internet tablet akan sedikit melambat selama 1-2 menit saat pengiriman paksa.";
+      risikoTidak = "Data penjualan hari ini tidak akan masuk ke laporan pusat, berisiko selisih kas saat tutup buku.";
+      break;
+    case 'HASH_CHAIN_BREACH':
+      untukApa = "Sistem mendeteksi adanya kerusakan atau potensi manipulasi pada catatan log keamanan (Audit Log) di tablet ini.";
+      positif = "Mencegah kecurangan atau kebocoran data lebih lanjut.";
+      negatif = "Membutuhkan intervensi Owner untuk mereset atau memverifikasi data.";
+      risikoIya = "Operasional kasir mungkin harus dijeda sementara untuk investigasi.";
+      risikoTidak = "Celah keamanan tetap terbuka dan data toko tidak bisa dipercaya keakuratannya.";
+      break;
+    default:
+      untukApa = rawMessage;
+      positif = "Sistem kembali berjalan normal.";
+      negatif = "Tidak ada.";
+      risikoIya = "Sistem melakukan perbaikan otomatis di latar belakang.";
+      risikoTidak = "Aplikasi mungkin mengalami kendala minor.";
+  }
+
+  return `🤖 **PERMINTAAN OTORISASI SISTEM (DARI AI IT TEAM)**\n\n` +
+         `📌 **Untuk Apa Ini?**\n${untukApa}\n\n` +
+         `🟢 **Dampak Positif:**\n${positif}\n\n` +
+         `🔴 **Dampak Negatif:**\n${negatif}\n\n` +
+         `⚠️ **Risiko Jika "IYA" (Eksekusi):**\n${risikoIya}\n\n` +
+         `🚨 **Risiko Jika "TIDAK" (Abaikan):**\n${risikoTidak}\n\n` +
+         `**Tindakan Anda:** Buka menu Pengaturan Sistem di aplikasi untuk mengeksekusi perbaikan.`;
+}
+
 async function runHealthChecks(): Promise<HealthReport> {
-  const issues: HealthIssue[] = [];
+  const issues: HealthIssue[] =[];
 
   const storagePercent = await checkStorageQuota();
   if (storagePercent > THRESHOLDS.STORAGE_QUOTA_WARN_PERCENT) {
@@ -165,8 +200,11 @@ async function runHealthChecks(): Promise<HealthReport> {
   if (status !== 'HEALTHY') {
     console.warn(`HealthGuardian detected issues with status: ${status}`, issues);
     if (status === 'CRITICAL') {
-      const messages = issues.filter(i => i.severity === 'CRITICAL').map(i => i.message).join('\n - ');
-      await sendTelegramAlert(`Critical System Errors:\n - ${messages}`);
+      // Mengirimkan notifikasi menggunakan format Bahasa Manusia
+      for (const issue of issues.filter(i => i.severity === 'CRITICAL')) {
+        const humanMessage = formatHumanAlert(issue.code, issue.message);
+        await sendTelegramAlert(humanMessage);
+      }
     }
   }
 
@@ -180,4 +218,3 @@ self.onmessage = async (e) => {
     self.postMessage({ type: 'HEALTH_REPORT', data: report });
   }
 };
-

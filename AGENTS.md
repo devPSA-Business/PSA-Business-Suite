@@ -113,3 +113,14 @@ Aplikasi menyimpan riwayat transaksi untuk keperluan *Buyback* offline. Jika sud
 
 ---
 *Dokumen ini adalah panduan mutlak. Harap dicetak dan disimpan bersama dokumen legal bisnis Anda.*
+
+## 7. Format Notifikasi Standar Owner (Wajib Digunakan AI)
+Saat AI menemukan *bug*, *technical debt*, atau ingin melakukan optimasi, AI WAJIB meminta izin kepada Owner menggunakan format persis seperti di bawah ini:
+
+🤖 **PERMINTAAN OTORISASI SISTEM (DARI AI IT TEAM)**
+📌 **Untuk Apa Ini?** [Jelaskan masalah dengan bahasa awam]
+🟢 **Dampak Positif:** [Keuntungan bagi operasional toko]
+🔴 **Dampak Negatif:**[Apa yang dikorbankan/trade-off]
+⚠️ **Risiko Jika "IYA":**[Risiko saat dieksekusi]
+🚨 **Risiko Jika "TIDAK":** [Dampak buruk jika dibiarkan]
+**Pilihan Anda:** [ IZINKAN EKSEKUSI ] atau [ TOLAK & BIARKAN ]

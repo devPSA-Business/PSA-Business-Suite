@@ -42,7 +42,7 @@ describe('BulkReceiveStockUseCase', () => {
 
     await useCase.execute({
       items: [
-        { barcode: '123', name: 'Ring', category: StockCategory.CINCIN, price: 100, cost: 50, quantity: 2 }
+        { barcode: '123', name: 'Ring', category: StockCategory.IMITATION, price: 100, cost: 50, quantity: 2 }
       ],
       userId: 'manager1',
       userRole: UserRole.MANAGER
@@ -55,13 +55,13 @@ describe('BulkReceiveStockUseCase', () => {
 
   it('should successfully bulk update existing stock items', async () => {
     const existingStock = StockItem.create({
-      barcode: '123', name: 'Ring', category: StockCategory.CINCIN, price: 100, cost: 50, quantity: 2, weight: 0, karat: 0
+      barcode: '123', name: 'Ring', category: StockCategory.IMITATION, price: 100, cost: 50, quantity: 2, weight: 0, karat: 0
     });
     mockStockRepo.findByBarcode = vi.fn().mockResolvedValue(existingStock);
 
     await useCase.execute({
       items: [
-        { barcode: '123', name: 'Ring', category: StockCategory.CINCIN, price: 120, cost: 60, quantity: 3 }
+        { barcode: '123', name: 'Ring', category: StockCategory.IMITATION, price: 120, cost: 60, quantity: 3 }
       ],
       userId: 'manager1',
       userRole: UserRole.MANAGER

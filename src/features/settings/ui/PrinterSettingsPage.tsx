@@ -18,7 +18,7 @@ export function PrinterSettingsPage() {
           setConfig(profile.printerConfig);
         }
       } catch (e) {
-        logger.error('Failed to load printer config', e);
+        logger.error('Failed to load printer config', { error: e instanceof Error ? e.message : String(e) });
       }
     };
     loadConfig();
@@ -35,7 +35,7 @@ export function PrinterSettingsPage() {
       setConfig(newConfig);
       addToast('Pengaturan printer berhasil disimpan', 'success');
     } catch (e) {
-      logger.error('Failed to save printer config', e);
+      logger.error('Failed to save printer config', { error: e instanceof Error ? e.message : String(e) });
       addToast('Gagal menyimpan pengaturan printer', 'error');
     }
   };

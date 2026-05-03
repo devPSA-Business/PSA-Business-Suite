@@ -39,7 +39,7 @@ export default function App() {
     if (document.visibilityState === 'hidden') {
       logger.info('[App] Aplikasi masuk background, menjalankan auto-backup lokal...');
       backupManager.autoBackupLocal().catch(err => {
-        logger.error('[App] Auto-backup visibilitychange gagal:', err);
+        logger.error('[App] Auto-backup visibilitychange gagal:', { error: err instanceof Error ? err.message : String(err) });
       });
     }
   });

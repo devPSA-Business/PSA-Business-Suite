@@ -59,7 +59,7 @@ export function ProductList() {
         setProducts(data.slice(0, 50));
         setIsLoading(false);
       }).catch(err => {
-        logger.error("Failed to search products:", err);
+        logger.error("Failed to search products:", { error: err instanceof Error ? err.message : String(err) });
         setIsLoading(false);
       });
     }, 300);

@@ -24,7 +24,7 @@ export function DeadLetterQueueViewer() {
         });
       });
     } catch (e) {
-      logger.error("Gagal mencoba ulang sinkronisasi:", e);
+      logger.error("Gagal mencoba ulang sinkronisasi:", { error: e instanceof Error ? e.message : String(e) });
     }
   };
 
@@ -34,7 +34,7 @@ export function DeadLetterQueueViewer() {
         await db.sync_dlq.delete(id);
       }
     } catch (e) {
-      logger.error("Gagal menghapus event DLQ:", e);
+      logger.error("Gagal menghapus event DLQ:", { error: e instanceof Error ? e.message : String(e) });
     }
   };
 

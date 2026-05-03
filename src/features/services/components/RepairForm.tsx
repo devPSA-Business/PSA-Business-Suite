@@ -110,7 +110,7 @@ export function RepairForm({ hideBackButton: _hideBackButton }: RepairFormProps 
       setPhotoBlob(compressedBlob);
       setPhotoPreviewUrl(URL.createObjectURL(compressedBlob));
     } catch (err) {
-      logger.error('Gagal memproses gambar:', err);
+      logger.error('Gagal memproses gambar:', { error: err instanceof Error ? err.message : String(err) });
       addToast('Gagal memproses gambar.', 'error');
     } finally {
       setIsLoading(false);

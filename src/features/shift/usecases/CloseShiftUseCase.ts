@@ -81,7 +81,7 @@ export class CloseShiftUseCase {
       // Memaksa antrean sinkronisasi berjalan seketika setelah shift ditutup
       setTimeout(() => {
         this.syncService.processSyncQueue().catch(err => {
-          logger.error('[Auto-Backup] Gagal melakukan force sync saat tutup shift:', err);
+          logger.error('[Auto-Backup] Gagal melakukan force sync saat tutup shift:', { error: err instanceof Error ? err.message : String(err) });
         });
       }, 1000);
 

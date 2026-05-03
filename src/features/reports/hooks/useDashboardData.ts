@@ -45,7 +45,7 @@ export function useDashboardData(startDate: string, endDate: string) {
       setLowStockItems(results[5]);
       setRecentTransactions(results[6]);
     } catch (e) {
-      logger.error("Failed to fetch dashboard data", e);
+      logger.error("Failed to fetch dashboard data", { error: e instanceof Error ? e.message : String(e) });
     } finally {
       setLoading(false);
     }

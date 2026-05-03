@@ -21,7 +21,7 @@ export function CommunicationBoard() {
           setLastRead(JSON.parse(val));
         } catch (e) {
           if (e instanceof Error) {
-            logger.error('Failed to parse last read:', (e instanceof Error ? e.message : String(e)));
+            logger.error('Failed to parse last read:', { error: e instanceof Error ? e.message : String(e) });
           }
         }
       }

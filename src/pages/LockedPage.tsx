@@ -49,6 +49,18 @@ export function LockedPage() {
     }
   }, [isPinVerified, navigate, search.redirect, requirePinChange]);
 
+  const handlePress = useCallback((value: string) => {
+    if (pinInput.length < 6 && value !== '.') {
+      setPinInput((prev) => prev + value);
+      setError(false);
+    }
+  }, [pinInput.length]);
+
+  const handleDelete = useCallback(() => {
+    setPinInput((prev) => prev.slice(0, -1));
+    setError(false);
+  }, []);
+
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
       if (!selectedUser || showResetConfirm) return;
@@ -89,18 +101,6 @@ export function LockedPage() {
       checkPin();
     }
   }, [pinInput, selectedUser, verifyUserPin, requirePinChange]);
-
-  const handlePress = useCallback((value: string) => {
-    if (pinInput.length < 6 && value !== '.') {
-      setPinInput((prev) => prev + value);
-      setError(false);
-    }
-  }, [pinInput.length]);
-
-  const handleDelete = useCallback(() => {
-    setPinInput((prev) => prev.slice(0, -1));
-    setError(false);
-  }, []);
 
   const handleSaveNewPin = async () => {
     setPinChangeError('');

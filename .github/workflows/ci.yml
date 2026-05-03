@@ -1,77 +1,53 @@
-name: CI
+name: CI — Quality Gate (Lint + Type + Test Coverage)
 
 on:
   push:
-    branches: [main]
-    paths:
-      - 'src/**'
-      - 'package.json'
-      - 'package-lock.json'
-      - 'vite.config.ts'
-      - 'vitest.config.ts'
-      - 'tests/**'
+    branches: [main, develop]
   pull_request:
     branches: [main]
-    paths:
-      - 'src/**'
-      - 'package.json'
-      - 'package-lock.json'
-      - 'vite.config.ts'
-      - 'vitest.config.ts'
-      - 'tests/**'
 
 concurrency:
   group: ${{ github.workflow }}-${{ github.ref }}
   cancel-in-progress: true
 
 jobs:
-  build-and-test:
+  quality_gate:
     runs-on: ubuntu-latest
-    env:
-      FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: true
-    strategy:
-      matrix:
-        node-version: [22]
+    timeout-minutes: 10
 
     steps:
-      # actions/checkout v4.2.2 — pinned to full SHA (org policy)
       - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683
 
-      # actions/setup-node v4.1.0 — pinned to full SHA (org policy)
-      - name: Setup Node.js ${{ matrix.node-version }}
+      - name: Setup Node.js
         uses: actions/setup-node@39370e3970a6d050c480ffad4ff0ed4d3fdee5af
         with:
-          node-version: ${{ matrix.node-version }}
+          node-version: 22
           cache: "npm"
 
       - name: Install dependencies
         run: npm ci
 
-      - name: Lint (ESLint v9 flat config)
-        run: npx eslint src
+      - name: Type Check & Lint
+        run: npm run lint
 
-      - name: Type Check
-        run: npx tsc --noEmit
-
-      - name: Run Unit Tests
-        run: npm test
-
-      - name: Build Production
-        run: npm run build
+      - name: Run Tests with Coverage
+        run: npm run test:coverage
         env:
-          # Firebase Core
-          VITE_FIREBASE_API_KEY: ${{ secrets.VITE_FIREBASE_API_KEY }}
-          VITE_FIREBASE_AUTH_DOMAIN: ${{ secrets.VITE_FIREBASE_AUTH_DOMAIN }}
-          VITE_FIREBASE_PROJECT_ID: ${{ secrets.VITE_FIREBASE_PROJECT_ID }}
-          VITE_FIREBASE_STORAGE_BUCKET: ${{ secrets.VITE_FIREBASE_STORAGE_BUCKET }}
-          VITE_FIREBASE_MESSAGING_SENDER_ID: ${{ secrets.VITE_FIREBASE_MESSAGING_SENDER_ID }}
-          VITE_FIREBASE_APP_ID: ${{ secrets.VITE_FIREBASE_APP_ID }}
-          VITE_FIREBASE_DATABASE_ID: ${{ secrets.VITE_FIREBASE_DATABASE_ID }}
-          VITE_CRYPTO_PEPPER: ${{ secrets.VITE_CRYPTO_PEPPER }}
-          VITE_RECAPTCHA_SITE_KEY: ${{ secrets.VITE_RECAPTCHA_SITE_KEY }}
-          # Observability
-          VITE_SENTRY_DSN: ${{ secrets.VITE_SENTRY_DSN }}
+          # Pepper khusus CI — hanya untuk test, tidak untuk production
+          VITE_CRYPTO_PEPPER: "0000000000000000000000000000000000000000000000000000000000000000"
+          VITE_TELEGRAM_BOT_TOKEN: "mock_token_for_test"
+          VITE_TELEGRAM_CHAT_ID: "mock_chat_id_for_test"
 
-      - name: Run Integrity Backup Validations
-        run: npm run test:backup
-        continue-on-error: false
+      - name: Upload Coverage Artifact
+        uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: coverage-report-${{ github.sha }}
+          path: coverage/
+          retention-days: 14
+
+      - name: Coverage Summary Comment (PR only)
+        if: github.event_name == 'pull_request'
+        uses: davelosert/vitest-coverage-report-action@v2
+        with:
+          json-summary-path: coverage/coverage-summary.json

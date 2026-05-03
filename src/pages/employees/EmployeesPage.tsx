@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import { BackButton } from '../../shared/components/BackButton';
 import { Users, UserPlus, Shield, Key, Trash2, Edit2, Check, AlertCircle } from 'lucide-react';
 import { db, User } from '../../shared/api/db';

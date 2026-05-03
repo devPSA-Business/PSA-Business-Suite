@@ -42,7 +42,7 @@ export const MorningReadinessUI: React.FC<MorningReadinessUIProps> = ({ onSucces
         details
       );
     } catch (err) {
-      logger.error('Failed to save audit log for readiness check', err);
+      logger.error('Failed to save audit log for readiness check', { error: err instanceof Error ? err.message : String(err) });
     }
   };
 

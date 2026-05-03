@@ -29,7 +29,7 @@ export class GoldLiquidationUseCase {
   async execute(request: GoldLiquidationRequestDTO): Promise<string> {
     return this.unitOfWork.execute(async () => {
       // 0. RBAC Validation: Only MANAGER or ADMIN can perform Asset Liquidation
-      const user = await this.userRepository.findByName(request.userId);
+      const user = await this.userRepository.findById(request.userId);
       if (!user || (user.role !== 'MANAGER' && user.role !== 'ADMIN')) {
         throw new Error('Akses Ditolak: Hanya Manager atau Admin yang dapat melakukan Likuidasi Aset (Treasury).');
       }

@@ -56,11 +56,11 @@ service cloud.firestore {
     }
 
     function canAccessRecord(data) {
-        return isVerified() && belongsToBranch(data);
+        return isHardened() && belongsToBranch(data);
     }
 
     function canWriteRecord() {
-        return isVerified() && belongsToBranch(incoming());
+        return isHardened() && belongsToBranch(incoming());
     }
 
     // ===============================================================

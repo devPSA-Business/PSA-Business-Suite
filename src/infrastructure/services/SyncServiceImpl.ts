@@ -52,7 +52,19 @@ export class SyncServiceImpl implements ISyncService {
       .toArray();
       
     for (const event of stuckEvents) {
-      await db.sync_events.update(event.id!, { status: 'PENDING', timestamp: Date.now() });
+      const currentHeals = event.retry_count || 0;
+      if (currentHeals >= 5) {
+          const eventToDlq = { ...event, status: 'FAILED', error_message: 'Max healing attempts reached' } as SyncEvent;
+          if (eventToDlq.payload && typeof eventToDlq.payload.photoBeforeBase64 === 'string') {
+             eventToDlq.payload.photoBeforeBase64 = '[TRIMMED_FOR_DLQ]';
+          }
+          await db.transaction('rw', db.sync_events, db.sync_dlq, async () => {
+             await db.sync_dlq.add(eventToDlq);
+             await db.sync_events.delete(event.id!);
+          });
+      } else {
+          await db.sync_events.update(event.id!, { status: 'PENDING', timestamp: Date.now(), retry_count: currentHeals + 1 });
+      }
     }
   }
 

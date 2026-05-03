@@ -22,6 +22,8 @@ Catatan perubahan besar untuk PSA Business Suite v1.4+.
 | 2026-05-02 | Import Path Remediation: Scripting otomatis `fix-imports.cjs` untuk memperbaiki resolusi domain `features` dan sinkronisasi `vitest.config.ts` untuk alias `@lib`. | Selesai | Rendah |
 | 2026-05-02 | **PENJEDAAN PENGERJAAN**: Pengerjaan dijeda sementara. Hasil kerja diarsipkan ke `/docs/RESUME_PENGERJAAN_v20260502.md`. | Selesai | Rendah |
 | 2026-05-03 | **MASTER EXECUTION PLAN (FASE 1-5)**: Fix alias `@lib` untuk deploy blocker, perbaikan 44 TS Errors (CAT A-E), Penambahan `VITE_TELEGRAM` credentials, CI/CD Coverage Quality Gate, Refactor MathUtils di `GoldLiquidationUseCase.ts`. Semua tes vitest 100% passed dan coverage terjaga. | Selesai | Tinggi |
+| 2026-05-03 | **REMEDIASI KRITIS AUDIT**: Penuntasan mutlak BUG-001 (Native JS Math) di CheckoutUseCase.ts line 221 & 257. Perbaikan Mocks test IUserRepository krn bulk-replace yg overcorrect, serta mitigasi firestore.rules utk menonaktifkan AppCheck sementara waktu. Semua dirinci di ADR-010. | Selesai | Tinggi |
+| 2026-05-03 | **SECURITY ROLLBACK & FINAL TEST VERIFICATION**: Mengembalikan fungsionalitas Firebase App Check di `firestore.rules` (mencegah bypass). Memverifikasi tuntas penghilangan JS native math pada `CheckoutUseCase.ts`. Menjalankan pengujian lolos 100% (56 test). Dirinci di ADR-011. | Selesai | Tinggi |
 
 
 ## Perbaikan TS Critical:

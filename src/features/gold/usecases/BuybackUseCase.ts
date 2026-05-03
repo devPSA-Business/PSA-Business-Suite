@@ -1,9 +1,7 @@
 import { IGoldBuybackRepository } from '@domain/repositories/IGoldBuybackRepository';
-import { IGoldLiquidationRepository } from '@domain/repositories/IGoldLiquidationRepository';
 import { IStockRepository } from '@domain/repositories/IStockRepository';
 import { IUnitOfWork } from '@application/core/IUnitOfWork';
 import { GoldBuyback } from '@domain/models/GoldBuyback';
-import { GoldCalculator } from '@shared/utils/goldCalculator';
 import { IUserRepository } from '@domain/repositories/IUserRepository';
 import { StockCategory } from '@domain/models/StockCategory';
 import { StockItem } from '@domain/models/StockItem';
@@ -32,7 +30,7 @@ export class BuybackUseCase {
   async execute(request: BuybackRequestDTO): Promise<string> {
     return this.unitOfWork.execute(async () => {
       // 0. RBAC Validation: Only MANAGER or ADMIN can perform Buyback
-      const user = await this.userRepository.findByName(request.userId);
+      const user = await this.userRepository.findById(request.userId);
       if (!user || (user.role !== 'MANAGER' && user.role !== 'ADMIN')) {
         throw new Error('Akses Ditolak: Hanya Manager atau Admin yang dapat melakukan transaksi Buyback (Treasury).');
       }

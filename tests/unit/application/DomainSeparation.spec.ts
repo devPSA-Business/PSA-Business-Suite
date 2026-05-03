@@ -68,7 +68,8 @@ describe('Domain Separation: Retail vs Gold Asset Trading', () => {
       findAll: vi.fn(),
     };
     mockUserRepo = {
-      findByName: vi.fn().mockResolvedValue({ role: 'MANAGER' }),
+      findById: vi.fn().mockResolvedValue({ role: 'MANAGER' }),
+      findByName: vi.fn(),
       findAll: vi.fn(),
       save: vi.fn(),
       delete: vi.fn(),

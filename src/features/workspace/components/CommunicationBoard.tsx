@@ -1,3 +1,4 @@
+import { logger } from '@lib/logger';
 import React, { useState, useEffect } from 'react';
 import { useLiveQuery } from 'dexie-react-hooks';
 import { db } from '../../../shared/api/db';
@@ -20,7 +21,7 @@ export function CommunicationBoard() {
           setLastRead(JSON.parse(val));
         } catch (e) {
           if (e instanceof Error) {
-            console.error('Failed to parse last read:', (e instanceof Error ? e.message : String(e)));
+            logger.error('Failed to parse last read:', { error: e instanceof Error ? e.message : String(e) });
           }
         }
       }
@@ -46,7 +47,7 @@ export function CommunicationBoard() {
     setActiveTab(tab);
     const updatedLastRead = { ...lastRead, [tab]: Date.now() };
     setLastRead(updatedLastRead);
-    db.keyval.put({ key: 'comm_board_last_read', value: JSON.stringify(updatedLastRead) }).catch(console.error);
+    db.keyval.put({ key: 'comm_board_last_read', value: JSON.stringify(updatedLastRead) }).catch(e => logger.error("Caught error", { error: e }));
   };
 
   // eslint-disable-next-line @typescript-eslint/no-explicit-any

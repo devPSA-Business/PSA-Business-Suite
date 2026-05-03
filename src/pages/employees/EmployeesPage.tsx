@@ -1,6 +1,6 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import { BackButton } from '../../shared/components/BackButton';
-import { Users, UserPlus, Shield, Key, Trash2, Edit2, Check, X, AlertCircle } from 'lucide-react';
+import { Users, UserPlus, Shield, Key, Trash2, Edit2, Check, AlertCircle } from 'lucide-react';
 import { db, User } from '../../shared/api/db';
 import { UserRole } from '../../domain/models/User';
 import { useToastStore } from '../../shared/store/toastStore';
@@ -24,11 +24,7 @@ export function EmployeesPage() {
     confirmPin: ''
   });
 
-  useEffect(() => {
-    fetchUsers();
-  }, []);
-
-  const fetchUsers = async () => {
+  const fetchUsers = useCallback(async () => {
     try {
       const allUsers = await db.users.toArray();
       setUsers(allUsers);
@@ -37,7 +33,11 @@ export function EmployeesPage() {
     } finally {
       setIsLoading(false);
     }
-  };
+  }, [addToast]);
+
+  useEffect(() => {
+    fetchUsers();
+  }, [fetchUsers]);
 
   const handleSave = async (e: React.FormEvent) => {
     e.preventDefault();

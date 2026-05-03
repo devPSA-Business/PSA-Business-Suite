@@ -12,19 +12,20 @@ import { logger } from '../../lib/logger';
  */
 export const archiveOldLogsAndEvents = async (): Promise<{ count: number }> => {
   try {
-    // Definisi data lama: > 30 hari (untuk menghemat ram tablet)
-    const thirtyDaysAgo = Date.now() - 30 * 24 * 60 * 60 * 1000;
+    const PRUNE_THRESHOLD_DAYS = 90;
+    // Definisi data lama: > PRUNE_THRESHOLD_DAYS
+    const thresholdDate = Date.now() - PRUNE_THRESHOLD_DAYS * 24 * 60 * 60 * 1000;
     
-    // Temukan audit_logs yang lebih tua dari 30 hari
+    // Temukan audit_logs yang lebih tua
     const oldLogs = await db.audit_logs
       .where('timestamp')
-      .below(thirtyDaysAgo)
+      .below(thresholdDate)
       .primaryKeys();
 
     // Temukan sync_events tua yang statusnya MUTLAK 'SYNCED'
     const oldSyncEvents = await db.sync_events
       .where('timestamp')
-      .below(thirtyDaysAgo)
+      .below(thresholdDate)
       .filter(event => event.status === 'SYNCED')
       .primaryKeys();
     
@@ -59,7 +60,7 @@ export const archiveOldLogsAndEvents = async (): Promise<{ count: number }> => {
       const lastLog = await db.audit_logs.orderBy('timestamp').last();
       const lastHash = lastLog ? lastLog.hash : '0';
       
-      const details = `Auto-Prune Aktif: Menghapus ${logsToDelete.length} audit logs dan ${oldSyncEvents.length} sync events (Status: SYNCED) kedaluwarsa (> 30 hari).`;
+      const details = `Auto-Prune Aktif: Menghapus ${logsToDelete.length} audit logs dan ${oldSyncEvents.length} sync events (Status: SYNCED) kedaluwarsa (> ${PRUNE_THRESHOLD_DAYS} hari).`;
       
       // Catat penghapusan ke audit log agar tidak dicurigai hilang
       const encoder = new TextEncoder();

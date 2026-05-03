@@ -1,3 +1,4 @@
+import { logger } from '@lib/logger';
 import React, { useState, useEffect } from 'react';
 import { X, Save, Edit2 } from 'lucide-react';
 import { StockItem } from '../../../shared/api/db';
@@ -46,7 +47,7 @@ export const InventoryItemDetailModal: React.FC<InventoryItemDetailModalProps> =
         addToast('Produk berhasil diperbarui', 'success');
       } catch (error) {
         addToast('Gagal memperbarui produk', 'error');
-        console.error(error);
+        logger.error(error);
       }
     }
   };

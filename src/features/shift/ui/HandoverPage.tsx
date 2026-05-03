@@ -1,3 +1,4 @@
+import { logger } from '@lib/logger';
 import React, { useState } from 'react';
 import { useLiveQuery } from 'dexie-react-hooks';
 import { DIContainer } from '@infrastructure/di/Container';
@@ -38,7 +39,7 @@ export function HandoverPage() {
       setCategory(CATEGORIES[0]);
       addToast('Catatan berhasil disimpan.', 'success');
     } catch (error) {
-      console.error('Failed to save handover note:', error);
+      logger.error('Failed to save handover note:', error);
       addToast('Gagal menyimpan catatan.', 'error');
     } finally {
       setIsSubmitting(false);

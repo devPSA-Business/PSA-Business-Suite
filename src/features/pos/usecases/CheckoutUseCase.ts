@@ -60,7 +60,7 @@ export class CheckoutUseCase {
     return metrics.measure('psa_checkout_operation', async () => {
       // Phase 1.6: Financial Guard (Anti-Zero & High Discount Check)
       const subTotal = request.items.reduce((sum, item) => MathUtils.add(sum, MathUtils.mul(item.price, item.quantity)), 0);
-      const totalDiscount = (request.manualDiscountAmount || 0) + (request.loyaltyDiscountAmount || 0);
+      const totalDiscount = MathUtils.add((request.manualDiscountAmount || 0), (request.loyaltyDiscountAmount || 0));
       const discountPercentage = subTotal > 0 ? (totalDiscount / subTotal) : 0;
       const hasPhysicalItem = request.items.some(item => !item.isCustomItem);
 
@@ -218,7 +218,7 @@ export class CheckoutUseCase {
           const manualDiscountAmount = request.manualDiscountAmount || 0;
           const manualDiscountNote = request.manualDiscountNote;
           if (manualDiscountAmount > 0) {
-            finalTotal = Math.round(Math.max(0, finalTotal - manualDiscountAmount));
+            finalTotal = MathUtils.roundInt(Math.max(0, MathUtils.sub(finalTotal, manualDiscountAmount)));
           }
 
           // ANOMALY DETECTION: Flagging transaksi Rp 0 akibat diskon
@@ -254,7 +254,7 @@ export class CheckoutUseCase {
           // 6. Persist Entity
           await this.retailRepository.save(transaction);
 
-          const grossProfit = Math.round(MathUtils.sub(transaction.total, totalCost));
+          const grossProfit = MathUtils.roundInt(MathUtils.sub(transaction.total, totalCost));
 
           // Update shift_totals
           const openShift = await this.shiftRepository.getOpenShift();

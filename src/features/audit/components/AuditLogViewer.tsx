@@ -1,3 +1,4 @@
+import { logger } from '@lib/logger';
 import { useState, useEffect, useRef, useMemo } from 'react';
 import { useVirtualizer } from '@tanstack/react-virtual';
 import { DIContainer } from '@infrastructure/di/Container';
@@ -29,7 +30,7 @@ export function AuditLogViewer() {
       }
       setHasNextPage(newLogs.length === 50);
     } catch (error) {
-      console.error('Failed to fetch logs:', error);
+      logger.error('Failed to fetch logs:', error);
     } finally {
       setIsLoading(false);
       setIsFetchingNextPage(false);
@@ -93,8 +94,10 @@ export function AuditLogViewer() {
     overscan: 5,
   });
 
+  const virtualItems = rowVirtualizer.getVirtualItems();
+
   useEffect(() => {
-    const [lastItem] = [...rowVirtualizer.getVirtualItems()].reverse();
+    const [lastItem] = [...virtualItems].reverse();
     if (!lastItem) return;
 
     if (
@@ -111,7 +114,7 @@ export function AuditLogViewer() {
       });
     }
   }, [
-    rowVirtualizer.getVirtualItems(),
+    virtualItems,
     hasNextPage,
     isFetchingNextPage,
     filteredLogs.length,

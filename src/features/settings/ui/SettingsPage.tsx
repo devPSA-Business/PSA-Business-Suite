@@ -1,3 +1,4 @@
+import { logger } from '@lib/logger';
 import { useState, useRef, useEffect } from 'react';
 import { Download, Upload, Trash2, AlertTriangle, Archive, Users, ShieldAlert, Target, Activity, Lock, Database } from 'lucide-react';
 import { DIContainer } from '@infrastructure/di/Container';
@@ -79,7 +80,7 @@ export function SettingsPage() {
       addToast('Backup terenkripsi berhasil diunduh.', 'success');
     } catch (error) {
       addToast('Gagal melakukan backup terenkripsi.', 'error');
-      console.error(error);
+      logger.error(error);
     } finally {
       setIsExporting(false);
     }
@@ -107,7 +108,7 @@ export function SettingsPage() {
       setTimeout(() => window.location.reload(), 1500);
     } catch (error) {
       addToast('Gagal memulihkan: PIN salah atau file korup.', 'error');
-      console.error(error);
+      logger.error(error);
     } finally {
       setIsImporting(false);
       setImportFile(null);
@@ -139,13 +140,13 @@ export function SettingsPage() {
           setTimeout(() => window.location.reload(), 1500);
         } catch (err) {
           addToast('Format file tidak valid.', 'error');
-          console.error(err);
+          logger.error(err);
         }
       };
       reader.readAsText(importFile);
     } catch (error) {
       addToast('Gagal memulihkan data.', 'error');
-      console.error(error);
+      logger.error(error);
     } finally {
       setIsImporting(false);
       setModalState('NONE');
@@ -166,7 +167,7 @@ export function SettingsPage() {
       setTimeout(() => window.location.reload(), 1500);
     } catch (error) {
       addToast('Gagal menghapus data.', 'error');
-      console.error(error);
+      logger.error(error);
     } finally {
       setIsClearing(false);
       setModalState('NONE');
@@ -181,7 +182,7 @@ export function SettingsPage() {
       setTimeout(() => window.location.reload(), 1500);
     } catch (error) {
       addToast('Gagal memulihkan data dari Cloud.', 'error');
-      console.error(error);
+      logger.error(error);
     } finally {
       setIsRecovering(false);
       setModalState('NONE');
@@ -199,7 +200,7 @@ export function SettingsPage() {
       }
     } catch (error) {
       addToast('Gagal melakukan pembersihan data.', 'error');
-      console.error(error);
+      logger.error(error);
     } finally {
       setIsArchiving(false);
     }
@@ -299,7 +300,7 @@ export function SettingsPage() {
                       addToast('Sinkronisasi berhasil dilakukan.', 'success');
                     } catch (error) {
                       addToast('Gagal sinkronisasi data.', 'error');
-                      console.error(error);
+                      logger.error(error);
                     }
                   }}
                   className="w-full flex items-center justify-center gap-2 px-4 py-2.5 bg-white border border-stone-200 hover:bg-stone-100 text-stone-700 font-medium rounded-lg transition-colors"

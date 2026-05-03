@@ -1,3 +1,4 @@
+import { logger } from '@lib/logger';
 import React, { useState, useEffect } from 'react';
 import { BackButton } from '../../../shared/components/BackButton';
 import { Receipt, Save, Store, MapPin, MessageSquare } from 'lucide-react';
@@ -20,7 +21,7 @@ export function ReceiptSettingsPage() {
           setReceiptFooter(profile.receiptFooter || 'Terima Kasih\nBarang yang sudah dibeli\ntidak dapat ditukar/dikembalikan.');
         }
       } catch (err) {
-        console.error("Failed to load store profile", err);
+        logger.error("Failed to load store profile", { error: err instanceof Error ? err.message : String(err) });
       }
     };
     loadProfile();
@@ -40,7 +41,7 @@ export function ReceiptSettingsPage() {
       
       addToast('Format struk berhasil disimpan', 'success');
     } catch (err) {
-      console.error("Failed to save store profile", err);
+      logger.error("Failed to save store profile", { error: err instanceof Error ? err.message : String(err) });
       addToast('Gagal menyimpan profil toko', 'error');
     }
   };

@@ -358,7 +358,7 @@ export function CheckoutModal() {
                 />
               </div>
               <div className="bg-amber-50 p-2.5 sm:p-3 rounded-xl border border-amber-100 text-amber-800 text-[10px] sm:text-xs">
-                Diskon di atas Rp 50.000 atau 10% dari total memerlukan otorisasi Manajer.
+                Diskon di atas Rp 50.000 atau 30% dari total memerlukan otorisasi Manajer.
               </div>
             </div>
             <div className="p-3 sm:p-4 bg-stone-50 border-t border-stone-100 flex gap-2 sm:gap-3">

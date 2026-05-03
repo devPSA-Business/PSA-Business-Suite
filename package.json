@@ -22,7 +22,6 @@
     "audit:deps": "npm ls --production --depth=0"
   },
   "dependencies": {
-    "@google/genai": "^1.51.0",
     "@tanstack/react-router": "^1.168.8",
     "@tanstack/react-virtual": "^3.13.23",
     "clsx": "^2.1.1",
@@ -42,6 +41,7 @@
     "zustand": "^5.0.12"
   },
   "devDependencies": {
+    "@google/genai": "^1.51.0",
     "@tailwindcss/vite": "^4.1.14",
     "@types/node": "^22.19.17",
     "@types/react": "^19.2.14",

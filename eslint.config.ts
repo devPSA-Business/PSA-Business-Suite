@@ -9,7 +9,8 @@ import firebaseRulesPlugin from '@firebase/eslint-plugin-security-rules';
  */
 export default tsEslint.config(
   ...tsEslint.configs.recommended,
-  firebaseRulesPlugin.configs['flat/recommended'],
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  firebaseRulesPlugin.configs['flat/recommended'] as any,
   {
     plugins: { 'react-hooks': reactHooks },
     rules: {

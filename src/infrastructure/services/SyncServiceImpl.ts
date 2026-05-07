@@ -303,24 +303,17 @@ export class SyncServiceImpl implements ISyncService {
 
           await new Promise((resolve) => setTimeout(resolve, 50));
 
-          // SEC/SYNC-01: Set to SYNCED before commit to prevent ghost data on crash
-          await db.transaction('rw', db.sync_events, async () => {
-            for (const op of individualOperations) {
-              await db.sync_events.update(op.eventId, { status: 'SYNCED', retry_count: 0 });
-            }
-          });
-
           try {
             await safeFirestoreCall(async () => { await batch.commit(); });
-          } catch (error) {
-            logger.warn('[SyncService] Batch commit failed. Falling back to individual writes.', error);
             
-            // Revert status for individual retry
+            // SEC/SYNC-01: Set to SYNCED AFTER successful commit to prevent data loss on crash
             await db.transaction('rw', db.sync_events, async () => {
               for (const op of individualOperations) {
-                await db.sync_events.update(op.eventId, { status: 'PENDING' });
+                await db.sync_events.update(op.eventId, { status: 'SYNCED', retry_count: 0 });
               }
             });
+          } catch (error) {
+            logger.warn('[SyncService] Batch commit failed. Falling back to individual writes.', error);
 
             // eslint-disable-next-line @typescript-eslint/no-explicit-any
             const errCode = (error as any)?.code;

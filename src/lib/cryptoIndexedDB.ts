@@ -8,6 +8,7 @@
  * @last_audit: 2026-04-19
  */
 import { logger } from './logger';
+import { Dexie } from 'dexie';
 
 export class CryptoIndexedDB {
   private key: CryptoKey | null = null;
@@ -194,11 +195,11 @@ export class CryptoIndexedDB {
     const iv = window.crypto.getRandomValues(new Uint8Array(12));
     const encodedData = new TextEncoder().encode(JSON.stringify(record));
 
-    const ciphertextBuffer = await window.crypto.subtle.encrypt(
+    const ciphertextBuffer = await Dexie.waitFor(window.crypto.subtle.encrypt(
       { name: this.ALGO, iv: iv },
       this.key,
       encodedData
-    );
+    ));
 
     return {
       ciphertext: this.arrayBufferToBase64(ciphertextBuffer),
@@ -217,11 +218,11 @@ export class CryptoIndexedDB {
     const ivBuffer = this.base64ToArrayBuffer(encryptedRecord.iv);
     const ciphertextBuffer = this.base64ToArrayBuffer(encryptedRecord.ciphertext);
 
-    const decryptedBuffer = await window.crypto.subtle.decrypt(
+    const decryptedBuffer = await Dexie.waitFor(window.crypto.subtle.decrypt(
       { name: this.ALGO, iv: new Uint8Array(ivBuffer) },
       this.key,
       ciphertextBuffer
-    );
+    ));
 
     const decodedData = new TextDecoder().decode(decryptedBuffer);
     return JSON.parse(decodedData);

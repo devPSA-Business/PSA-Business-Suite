@@ -5,7 +5,6 @@ import { useToastStore } from '../../../shared/store/toastStore';
 import { DIContainer } from '@infrastructure/di/Container';
 import { useAuthStore } from '../../../shared/store/authStore';
 import { StockCategory } from '../../../domain/models/StockCategory';
-import { UserRole } from '../../../domain/models/User';
 import { BulkReceiveStockItemDTO } from '../usecases/BulkReceiveStockUseCase';
 
 interface BulkImportModalProps {

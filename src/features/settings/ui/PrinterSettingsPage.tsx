@@ -1,7 +1,7 @@
 import { logger } from '@lib/logger';
 import { useState, useEffect } from 'react';
 import { BackButton } from '../../../shared/components/BackButton';
-import { Printer, Usb, Bluetooth, CheckCircle, XCircle, RefreshCw, Trash2 } from 'lucide-react';
+import { Printer, Usb, Bluetooth, CheckCircle, RefreshCw, Trash2 } from 'lucide-react';
 import { useToastStore } from '../../../shared/store/toastStore';
 import { db, PrinterConfig } from '../../../shared/api/db';
 
@@ -100,7 +100,7 @@ export function PrinterSettingsPage() {
       // Simulation of printing process
       await new Promise(resolve => setTimeout(resolve, 1500));
       addToast('Perintah cetak terkirim. Periksa printer Anda.', 'success');
-    } catch (error) {
+    } catch (_error) {
       addToast('Gagal melakukan cetak uji.', 'error');
     } finally {
       setIsTesting(false);

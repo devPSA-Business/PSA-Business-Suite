@@ -144,7 +144,7 @@ export const useSecurityStore = create<SecurityState>()(
              return true;
           }
           return false;
-        } catch(e) {
+        } catch(_e) {
           return false;
         }
       },
@@ -277,7 +277,7 @@ export const useSecurityStore = create<SecurityState>()(
            wrappedKeyMeta.wrappedKeysByPin[targetUserId] = pinWrappedKey;
            await cryptoKeyStore.saveWrappedKey(wrappedKeyMeta);
            return true;
-         } catch (err) {
+         } catch (_err) {
            return false;
          }
       },

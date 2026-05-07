@@ -15,7 +15,8 @@ service cloud.firestore {
 
     function isSignedIn() { return request.auth != null; }
     function isVerified() { return isSignedIn() && request.auth.token.email_verified == true; }
-    function isHardened() { return isVerified(); }
+    function isAppCheckVerified() { return request.token.app_check != null; }
+    function isHardened() { return isVerified() && isAppCheckVerified(); }
     
     function incoming() { return request.resource.data; }
     function existing() { return resource.data; }

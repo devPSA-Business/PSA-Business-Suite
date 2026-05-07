@@ -4,6 +4,7 @@ import { firestoreDb, safeFirestoreCall, isConfigValid } from '../../shared/api/
 import { writeBatch, doc, collection, increment, updateDoc, setDoc, deleteDoc, getDoc } from 'firebase/firestore';
 import { useAuthStore } from '../../shared/store/authStore';
 import { logger } from '../../lib/logger';
+import { IUnitOfWork } from '../../application/core/IUnitOfWork';
 
 import { guardSyncEnqueue } from '../../shared/utils/syncGuard';
 
@@ -103,6 +104,7 @@ export class SyncServiceImpl implements ISyncService {
       logger.warn('[SyncService] Device appears online but cannot reach Firestore. Aborting sync.');
       return;
     }
+    logger.info('[SyncService] Proceeding with sync as real connectivity confirmed.');
 
     try {
       await navigator.locks.request('psa-sync-lock', { ifAvailable: true }, async (lock) => {
@@ -202,7 +204,7 @@ export class SyncServiceImpl implements ISyncService {
             // Fast conflict detection logic (Using pre-fetched data)
             if ((event.action === 'UPDATE' || event.action === 'UPDATE_DELTA') && event.payload.version !== undefined) {
               const serverData = serverDocsMap.get(event.id);
-              if (serverData && serverData.version && serverData.version > Number(event.payload.version)) {
+              if (serverData && serverData.version && serverData.version >= Number(event.payload.version)) {
                 // Conflict detected!
                 conflictEvents.push({ eventId: event.id, serverPayload: serverData });
                 continue; // Skip adding to batch
@@ -373,9 +375,12 @@ export class SyncServiceImpl implements ISyncService {
     }
   }
 
-  async resolveConflict(eventId: number, resolution: 'LOCAL' | 'SERVER'): Promise<void> {
+  async resolveConflict(eventId: number, resolution: 'LOCAL' | 'SERVER', uow: IUnitOfWork): Promise<void> {
     const event = await db.sync_events.get(eventId);
     if (!event) throw new Error('Sync event not found');
+
+    const currentUser = useAuthStore.getState().user;
+    const userIdentifier = currentUser?.name || 'SYSTEM';
 
     if (resolution === 'LOCAL') {
       // Force local update by incrementing version
@@ -385,7 +390,7 @@ export class SyncServiceImpl implements ISyncService {
         version: serverVersion + 1
       };
 
-      await db.transaction('rw', db.sync_events, async () => {
+      await uow.execute(async () => {
         await db.sync_events.update(eventId, {
           status: 'PENDING',
           payload: updatedPayload,
@@ -393,31 +398,38 @@ export class SyncServiceImpl implements ISyncService {
           next_retry_time: 0,
           server_payload: undefined
         });
-      });
+
+        await uow.registerAudit(
+          'RESOLVE_CONFLICT',
+          userIdentifier,
+          `Konflik sinkronisasi pada ${event.entity_type} diselesaikan: Memaksa versi LOKAL (ID: ${event.payload.id || event.payload.client_txn_id})`,
+          { entityId: String(event.payload.id || event.payload.client_txn_id), payloadDiff: JSON.stringify({ resolution: 'LOCAL' }) }
+        );
+      }, ['sync_events', 'audit_logs']);
       
       // Trigger sync
       this.processSyncQueue();
     } else {
       // Accept server changes (F6: Expanded to all relevant tables)
       const ALL_CONFLICT_TABLES = [
-        db.sync_events, 
-        db.stock, 
-        db.customers, 
-        db.repair_services,
-        db.gold_buyback,
-        db.shifts,
-        db.petty_cash,
-        db.transactions,
-        db.gold_liquidations,
-        db.custom_orders,
-        db.appointments
+        'sync_events', 
+        'stock', 
+        'customers', 
+        'repair_services',
+        'gold_buyback',
+        'shifts',
+        'petty_cash',
+        'transactions',
+        'gold_liquidations',
+        'custom_orders',
+        'appointments',
+        'audit_logs'
       ];
 
-      await db.transaction('rw', ALL_CONFLICT_TABLES, async () => {
+      await uow.execute(async () => {
         await db.sync_events.delete(eventId);
         
         if (event.server_payload && (event.payload.id || event.payload.client_txn_id)) {
-          const docId = String(event.payload.client_txn_id || event.payload.id);
           // eslint-disable-next-line @typescript-eslint/no-explicit-any
           const payload = event.server_payload as any;
           
@@ -461,7 +473,14 @@ export class SyncServiceImpl implements ISyncService {
               });
           }
         }
-      });
+
+        await uow.registerAudit(
+          'RESOLVE_CONFLICT',
+          userIdentifier,
+          `Konflik sinkronisasi pada ${event.entity_type} diselesaikan: Menerima versi SERVER (ID: ${event.payload.id || event.payload.client_txn_id})`,
+          { entityId: String(event.payload.id || event.payload.client_txn_id), payloadDiff: JSON.stringify({ resolution: 'SERVER' }) }
+        );
+      }, ALL_CONFLICT_TABLES);
     }
   }
 

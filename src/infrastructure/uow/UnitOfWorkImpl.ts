@@ -27,8 +27,8 @@ export class UnitOfWorkImpl implements IUnitOfWork {
         ? this.FULL_SCOPE
         : Array.from(new Set([...tables, ...this.MANDATORY_TABLES]));
 
-      // eslint-disable-next-line @typescript-eslint/no-explicit-any
-      return await (db as any).transaction('rw', tableNames, work);
+      // Use typed transaction
+      return await db.transaction('rw', tableNames, work);
     } catch (err) {
       if (err instanceof Error) {
         if (err.name === 'QuotaExceededError' || (err as { inner?: { name?: string } }).inner?.name === 'QuotaExceededError') {

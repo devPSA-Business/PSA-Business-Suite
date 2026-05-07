@@ -71,7 +71,6 @@ export class CheckoutUseCase {
       const subTotal = request.items.reduce((sum, item) => MathUtils.add(sum, MathUtils.mul(item.price, item.quantity)), 0);
       const totalDiscount = MathUtils.add((request.manualDiscountAmount || 0), (request.loyaltyDiscountAmount || 0));
       const discountPercentage = subTotal > 0 ? MathUtils.div(totalDiscount, subTotal) : 0;
-      const hasPhysicalItem = request.items.some(item => !item.isCustomItem);
 
       // Rule 1: High Discount (> 30%) requires authorization
       if (discountPercentage > 0.3 && !request.authorizedBy && request.userRole !== 'ADMIN') {

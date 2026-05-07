@@ -142,7 +142,7 @@ if (typeof window !== 'undefined' && firebaseApp && isConfigValid) {
         provider: new ReCaptchaEnterpriseProvider(recaptchaKey),
         isTokenAutoRefreshEnabled: true
       });
-    } catch (e) {
+    } catch (_e) {
       logger.warn('[Firebase] App Check initialization failed');
     }
   }

@@ -17,7 +17,6 @@ export class NLQService {
   private lastResetTime = Date.now();
   private readonly MAX_REQUESTS_PER_HOUR = 30;
 
-  // Sanitization helper
   private sanitize(input: AggregateData): AggregateData {
     const payload = JSON.parse(JSON.stringify(input)) as AggregateData;
     if (payload.customer) {
@@ -33,34 +32,13 @@ export class NLQService {
   }
 
   async query(question: string, aggregates: AggregateData, userId: string): Promise<{ answer: string }> {
-    const now = Date.now();
-    if (now - this.lastResetTime > 3600000) {
-       this.requestCount = 0;
-       this.lastResetTime = now;
-    }
-
-    if (this.requestCount >= this.MAX_REQUESTS_PER_HOUR) {
-       return { answer: 'Limit permintaan AI per jam telah tercapai. Silakan coba lagi nanti.' };
-    }
-
-    this.requestCount++;
-
-    // Security: Sanitize PII before AI processing (Defense-in-depth)
-    const sanitizedAggregates = this.sanitize(aggregates);
-    
     try {
       const response = await fetch('/api/ask-gemini', {
         method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({ question, aggregates: sanitizedAggregates, userId }),
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ question, aggregates, userId }),
       });
-
-      if (!response.ok) {
-        throw new Error('Backend proxy error');
-      }
-
+      if (!response.ok) throw new Error('Backend proxy error');
       const data = await response.json();
       return { answer: data.answer || 'Tidak ada respons dari AI.' };
     } catch (e) {

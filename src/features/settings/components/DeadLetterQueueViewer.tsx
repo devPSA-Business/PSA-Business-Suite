@@ -15,7 +15,7 @@ export function DeadLetterQueueViewer() {
         await db.sync_dlq.delete(event.id!);
         
         // Pindahkan kembali ke antrean utama dengan reset retry
-        const { id, ...rest } = event; // Buang ID lama agar auto-increment di sync_events
+        const { id: _, ...rest } = event; // Buang ID lama agar auto-increment di sync_events
         await db.sync_events.add({
           ...rest,
           status: 'PENDING',

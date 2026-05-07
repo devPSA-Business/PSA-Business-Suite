@@ -11,8 +11,9 @@ import {
 } from '@application/queries/IReportQuery';
 import { db, Transaction } from '../../shared/api/db';
 import { StockItem } from '../../domain/models/StockItem';
-import { GoldCalculator } from '../../shared/utils/goldCalculator';
 import { cryptoDB } from '../../lib/cryptoIndexedDB';
+
+import { MathUtils } from '../../shared/utils/decimalUtils';
 
 export class ReportQueryImpl implements IReportQuery {
   private async decryptTransaction(tx: Transaction): Promise<Transaction> {
@@ -43,7 +44,7 @@ export class ReportQueryImpl implements IReportQuery {
       const customerId = tx.customerId!;
       const existing = customerRevenueMap.get(customerId) || { totalRevenue: 0, totalTransactions: 0 };
       customerRevenueMap.set(customerId, {
-        totalRevenue: existing.totalRevenue + tx.total,
+        totalRevenue: MathUtils.add(existing.totalRevenue, tx.total),
         totalTransactions: existing.totalTransactions + 1
       });
     });
@@ -85,7 +86,7 @@ export class ReportQueryImpl implements IReportQuery {
       .filter(t => t.status === 'SUCCESS')
       .each(tx => {
         totalTransactions++;
-        totalRevenue += tx.total;
+        totalRevenue = MathUtils.add(totalRevenue, tx.total);
       });
 
     // include sales to collectors
@@ -93,7 +94,7 @@ export class ReportQueryImpl implements IReportQuery {
       .filter(gb => gb.status === 'sold_to_collector' && gb.soldDate !== undefined && new Date(gb.soldDate).getTime() >= startOfDay && new Date(gb.soldDate).getTime() <= endOfDay)
       .each(tx => {
         totalTransactions++;
-        totalRevenue += (tx.soldPrice || 0);
+        totalRevenue = MathUtils.add(totalRevenue, (tx.soldPrice || 0));
       });
 
     const completedRepairs = await db.repair_services
@@ -146,23 +147,14 @@ export class ReportQueryImpl implements IReportQuery {
 
     const cashFlow = { cashIn: 0, cashOut: 0, netCash: 0 };
 
-    // 1. Hitung Rata-rata HPP Emas (tidak lagi PGE, pakai simple cost base if needed, or totalBuybackValue / totalStoredWeightGram)
-    let totalStoredWeightGram = 0;
-    let totalBuybackValue = 0;
-    await db.gold_buyback.each(b => {
-      totalStoredWeightGram += b.weightGram;
-      totalBuybackValue += b.buybackPrice;
-    });
-    const avgGoldCostPerGram = totalStoredWeightGram > 0 ? totalBuybackValue / totalStoredWeightGram : 0;
-
     // 2. Hitung Cash Out (Buyback & Petty Cash)
     await db.gold_buyback
       .where('date').between(startDate, endDate, true, true)
-      .each(b => { if (b.paymentMethod === 'CASH') cashFlow.cashOut += b.buybackPrice; });
+      .each(b => { if (b.paymentMethod === 'CASH') cashFlow.cashOut = MathUtils.add(cashFlow.cashOut, b.buybackPrice); });
 
     await db.petty_cash
       .where('date').between(startDate, endDate, true, true)
-      .each(pc => { cashFlow.cashOut += pc.amount; });
+      .each(pc => { cashFlow.cashOut = MathUtils.add(cashFlow.cashOut, pc.amount); });
 
     // 3. Hitung Transaksi Ritel
     const retailRecords = await db.transactions
@@ -176,15 +168,15 @@ export class ReportQueryImpl implements IReportQuery {
         transactionCount++;
         const txRevenue = tx.total;
         let txCogs = 0;
-        tx.items.forEach(item => { txCogs += (item.unitCost || 0) * item.quantity; });
+        tx.items.forEach(item => { txCogs = MathUtils.add(txCogs, MathUtils.mul((item.unitCost || 0), item.quantity)); });
         
-        breakdown.retail.revenue += txRevenue;
-        breakdown.retail.cogs += txCogs;
-        breakdown.retail.grossProfit += (txRevenue - txCogs);
+        breakdown.retail.revenue = MathUtils.add(breakdown.retail.revenue, txRevenue);
+        breakdown.retail.cogs = MathUtils.add(breakdown.retail.cogs, txCogs);
+        breakdown.retail.grossProfit = MathUtils.add(breakdown.retail.grossProfit, MathUtils.sub(txRevenue, txCogs));
         
-        totalRevenue += txRevenue;
-        totalCost += txCogs;
-        if (tx.paymentMethod === 'CASH') cashFlow.cashIn += txRevenue;
+        totalRevenue = MathUtils.add(totalRevenue, txRevenue);
+        totalCost = MathUtils.add(totalCost, txCogs);
+        if (tx.paymentMethod === 'CASH') cashFlow.cashIn = MathUtils.add(cashFlow.cashIn, txRevenue);
       });
 
     // 4. Hitung Likuidasi Emas (Fase 2 Update: Gunakan gold_buyback dengan status sold_to_collector)
@@ -196,13 +188,13 @@ export class ReportQueryImpl implements IReportQuery {
         const txRevenue = b.soldPrice || 0;
         const goldCogs = b.buybackPrice; // modal adalah buyPrice
         
-        breakdown.gold.revenue += txRevenue;
-        breakdown.gold.cogs += goldCogs;
-        breakdown.gold.grossProfit += (txRevenue - goldCogs);
+        breakdown.gold.revenue = MathUtils.add(breakdown.gold.revenue, txRevenue);
+        breakdown.gold.cogs = MathUtils.add(breakdown.gold.cogs, goldCogs);
+        breakdown.gold.grossProfit = MathUtils.add(breakdown.gold.grossProfit, MathUtils.sub(txRevenue, goldCogs));
 
-        totalRevenue += txRevenue;
-        totalCost += goldCogs;
-        if (b.paymentMethod === 'CASH') cashFlow.cashIn += txRevenue;
+        totalRevenue = MathUtils.add(totalRevenue, txRevenue);
+        totalCost = MathUtils.add(totalCost, goldCogs);
+        if (b.paymentMethod === 'CASH') cashFlow.cashIn = MathUtils.add(cashFlow.cashIn, txRevenue);
       });
 
     // 5. Hitung Reparasi
@@ -214,18 +206,18 @@ export class ReportQueryImpl implements IReportQuery {
         const txRevenue = rs.price;
         const txCogs = rs.materialCost || 0;
         
-        breakdown.services.revenue += txRevenue;
-        breakdown.services.cogs += txCogs;
-        breakdown.services.grossProfit += (txRevenue - txCogs);
+        breakdown.services.revenue = MathUtils.add(breakdown.services.revenue, txRevenue);
+        breakdown.services.cogs = MathUtils.add(breakdown.services.cogs, txCogs);
+        breakdown.services.grossProfit = MathUtils.add(breakdown.services.grossProfit, MathUtils.sub(txRevenue, txCogs));
 
-        totalRevenue += txRevenue;
-        totalCost += txCogs;
-        if (rs.paymentMethod === 'CASH') cashFlow.cashIn += txRevenue;
+        totalRevenue = MathUtils.add(totalRevenue, txRevenue);
+        totalCost = MathUtils.add(totalCost, txCogs);
+        if (rs.paymentMethod === 'CASH') cashFlow.cashIn = MathUtils.add(cashFlow.cashIn, txRevenue);
       });
 
-    cashFlow.netCash = cashFlow.cashIn - cashFlow.cashOut;
-    const grossProfit = totalRevenue - totalCost;
-    const margin = totalRevenue > 0 ? (grossProfit / totalRevenue) * 100 : 0;
+    cashFlow.netCash = MathUtils.sub(cashFlow.cashIn, cashFlow.cashOut);
+    const grossProfit = MathUtils.sub(totalRevenue, totalCost);
+    const margin = totalRevenue > 0 ? MathUtils.mul(MathUtils.div(grossProfit, totalRevenue), 100) : 0;
 
     return { totalRevenue, totalCost, grossProfit, margin, transactionCount, breakdown, cashFlow };
   }
@@ -283,7 +275,7 @@ export class ReportQueryImpl implements IReportQuery {
     transactions.forEach(tx => {
       tx.items.forEach(item => {
         const category = stockCategoryMap.get(item.stockId) || 'Lainnya';
-        categoryMap.set(category, (categoryMap.get(category) || 0) + item.subtotal);
+        categoryMap.set(category, MathUtils.add((categoryMap.get(category) || 0), item.subtotal));
       });
     });
 
@@ -310,7 +302,7 @@ export class ReportQueryImpl implements IReportQuery {
       .filter(tx => tx.status === 'SUCCESS')
       .each(tx => {
         const dateStr = new Date(tx.date).toLocaleDateString('id-ID', { day: '2-digit', month: 'short' });
-        trendMap.set(dateStr, (trendMap.get(dateStr) || 0) + tx.total);
+        trendMap.set(dateStr, MathUtils.add((trendMap.get(dateStr) || 0), tx.total));
       });
     return Array.from(trendMap.entries()).map(([date, revenue]) => ({ date, revenue }));
   }
@@ -321,7 +313,7 @@ export class ReportQueryImpl implements IReportQuery {
       .where('date').between(startDate, endDate, true, true)
       .filter(tx => tx.status === 'SUCCESS')
       .each(tx => {
-        methodMap.set(tx.paymentMethod, (methodMap.get(tx.paymentMethod) || 0) + tx.total);
+        methodMap.set(tx.paymentMethod, MathUtils.add((methodMap.get(tx.paymentMethod) || 0), tx.total));
       });
     return Array.from(methodMap.entries()).map(([method, revenue]) => ({ method, revenue }));
   }

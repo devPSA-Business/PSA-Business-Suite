@@ -4,7 +4,7 @@ import { StockItem } from '../../../shared/api/db';
 import { DIContainer } from '@infrastructure/di/Container';
 import { useCartStore } from '../store/useCartStore';
 import { useToastStore } from '../../../shared/store/toastStore';
-import { PackageSearch, Plus, Search, Loader2 } from 'lucide-react';
+import { Plus, Search } from 'lucide-react';
 
 import { useAuthStore } from '../../../shared/store/authStore';
 
@@ -79,8 +79,6 @@ export function ProductList() {
       if (activeTag === 'input' || activeTag === 'textarea' || activeTag === 'select') {
         if (document.activeElement?.id !== 'pos-search-input') return;
       }
-
-      const now = Date.now();
 
       if (e.key === 'Enter') {
         if (barcodeBuffer.length > 3) {

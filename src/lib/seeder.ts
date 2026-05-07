@@ -1,6 +1,5 @@
 import { db } from '../shared/api/db';
 import { StockCategory } from '../domain/models/StockCategory';
-import { cryptoKeyStore } from './cryptoKeyStore';
 import { isDevEnvironment } from '../shared/utils/devUtils';
 
 export const seedDatabase = async () => {

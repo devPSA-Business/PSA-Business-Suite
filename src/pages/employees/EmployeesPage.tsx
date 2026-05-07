@@ -28,7 +28,7 @@ export function EmployeesPage() {
     try {
       const allUsers = await db.users.toArray();
       setUsers(allUsers);
-    } catch (err) {
+    } catch (_err) {
       addToast('Gagal memuat data pegawai.', 'error');
     } finally {
       setIsLoading(false);
@@ -90,7 +90,7 @@ export function EmployeesPage() {
       
       resetForm();
       fetchUsers();
-    } catch (err) {
+    } catch (_err) {
       addToast('Gagal menyimpan data.', 'error');
     }
   };
@@ -107,7 +107,7 @@ export function EmployeesPage() {
       await db.users.delete(id);
       addToast('Pegawai dihapus.', 'success');
       fetchUsers();
-    } catch (err) {
+    } catch (_err) {
       addToast('Gagal menghapus pegawai.', 'error');
     }
   };

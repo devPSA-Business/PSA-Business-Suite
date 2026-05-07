@@ -10,8 +10,6 @@ import { useLiveQuery } from 'dexie-react-hooks';
 import { DIContainer } from '@infrastructure/di/Container';
 import { BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer } from 'recharts';
 
-const COLORS = ['#1a365d', '#D4AF37', '#10b981', '#f59e0b', '#ef4444', '#8b5cf6'];
-
 function CustomerSegmentationChart() {
   const segmentation = useLiveQuery(() => DIContainer.reportQuery.getCustomerSegmentation(), []);
 
@@ -48,13 +46,6 @@ function CustomerSegmentationChart() {
       </ResponsiveContainer>
     </div>
   );
-}
-
-interface Customer {
-  id: string;
-  name: string;
-  phoneNumber: string;
-  totalTransactions: number;
 }
 
 export function DashboardPage() {

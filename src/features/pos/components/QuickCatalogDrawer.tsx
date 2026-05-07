@@ -1,8 +1,6 @@
 import React, { useState } from 'react';
 import { useLiveQuery } from 'dexie-react-hooks';
-import { DIContainer } from '@infrastructure/di/Container';
 import { X, Search, PackageSearch } from 'lucide-react';
-import { StockCategoryLabels } from '../../../domain/models/StockCategory';
 import { db } from '../../../shared/api/db';
 
 interface QuickCatalogDrawerProps {

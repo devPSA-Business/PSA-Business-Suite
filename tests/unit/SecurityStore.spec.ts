@@ -304,5 +304,31 @@ describe('SecurityStore', () => {
     expect(result).toBe(true);
     expect(cryptoDB.generateDeviceKey).toHaveBeenCalled();
   });
+
+  it('should verify admin pin via SHA-256 fallback', async () => {
+    const pin = 'admin123';
+    const msgBuffer = new TextEncoder().encode(pin);
+    const hashBuffer = await crypto.subtle.digest('SHA-256', msgBuffer);
+    const hashArray = Array.from(new Uint8Array(hashBuffer));
+    const sha256Hash = hashArray.map(b => b.toString(16).padStart(2, '0')).join('');
+
+    (db.users.toArray as any).mockResolvedValue([
+      { id: 'admin-legacy', role: 'ADMIN', status: 'ACTIVE', pinHash: sha256Hash, salt: 'some-salt' }
+    ]);
+
+    // Ensure state is clean
+    useSecurityStore.setState({ isSystemLocked: false, adminFailedAttempts: 0, lastAdminAttemptTime: 0 });
+
+    const result = await useSecurityStore.getState().verifyAdminPin(pin);
+    expect(result).toBe(true);
+  });
+
+  it('should lock the store and logout user when lock() is called', () => {
+    const logoutSpy = vi.spyOn(useAuthStore.getState(), 'logout');
+    useSecurityStore.getState().lock();
+    
+    expect(useSecurityStore.getState().isPinVerified).toBe(false);
+    expect(logoutSpy).toHaveBeenCalled();
+  });
 });
 

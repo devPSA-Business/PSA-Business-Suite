@@ -21,7 +21,7 @@ export class ScaleService {
       await this.port.open({ baudRate: 9600 }); // Baud rate standar timbangan emas
       metrics.histogram('hardware_connection_duration_ms', performance.now() - start, { hardware: 'scale', status: 'success' });
       metrics.increment('hardware_connection_total', { hardware: 'scale', status: 'success' });
-    } catch (error) {
+    } catch (_error) {
       metrics.histogram('hardware_connection_duration_ms', performance.now() - start, { hardware: 'scale', status: 'error' });
       metrics.increment('hardware_connection_total', { hardware: 'scale', status: 'error' });
       throw new Error('Gagal menghubungkan timbangan. Pastikan kabel USB terpasang dan tidak digunakan oleh aplikasi lain.');
@@ -33,7 +33,7 @@ export class ScaleService {
 
     try {
       const textDecoder = new TextDecoderStream();
-      const readableStreamClosed = this.port.readable.pipeTo(textDecoder.writable);
+      this.port.readable.pipeTo(textDecoder.writable);
       this.reader = textDecoder.readable.getReader();
 
       let buffer = '';

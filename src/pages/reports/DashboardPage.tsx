@@ -1,5 +1,5 @@
-import React, { useState, useMemo } from 'react';
-import { Calendar, Download, TrendingUp, TrendingDown, Minus, Filter, X, BarChart3, PieChart as PieChartIcon, Activity, DollarSign, Package, AlertTriangle, Lightbulb } from 'lucide-react';
+import React, { useState } from 'react';
+import { Calendar, Download, TrendingUp, TrendingDown, Minus, Filter, X, BarChart3 } from 'lucide-react';
 import { BackButton } from '../../shared/components/BackButton';
 import { useToastStore } from '../../shared/store/toastStore';
 import { useDashboardData } from '../../features/reports/hooks/useDashboardData';
@@ -8,7 +8,7 @@ import { DashboardCharts } from '../../features/reports/components/DashboardChar
 import { DashboardSecondary } from '../../features/reports/components/DashboardSecondary';
 import { useLiveQuery } from 'dexie-react-hooks';
 import { DIContainer } from '@infrastructure/di/Container';
-import { BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer, CartesianGrid, Cell, PieChart, Pie, Legend, LineChart, Line } from 'recharts';
+import { BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer } from 'recharts';
 
 const COLORS = ['#1a365d', '#D4AF37', '#10b981', '#f59e0b', '#ef4444', '#8b5cf6'];
 

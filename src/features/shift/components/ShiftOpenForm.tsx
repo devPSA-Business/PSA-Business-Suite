@@ -5,6 +5,7 @@ import { Wallet } from 'lucide-react';
 import { useToastStore } from '../../../shared/store/toastStore';
 import { MorningReadinessUI } from '../../auth/components/MorningReadinessUI';
 import { ERROR_MESSAGES } from '../../../shared/constants/errorMessages';
+import { mapErrorToUser } from '../../../shared/utils/errorMapper';
 
     import { MathUtils } from '../../../shared/utils/decimalUtils';
 import { Decimal } from 'decimal.js';
@@ -53,8 +54,8 @@ export function ShiftOpenForm({ onShiftOpened }: { onShiftOpened: () => void }) 
       
       onShiftOpened();
     } catch (error) {
-      const message = error instanceof Error ? (error instanceof Error ? error.message : String(error)) : String(error);
-      addToast(`Gagal membuka shift: ${message}`, 'error');
+      const mapped = mapErrorToUser(error);
+      addToast(`Gagal membuka shift: ${mapped.userMessage}`, 'error');
     } finally {
       setIsProcessing(false);
     }

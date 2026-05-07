@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { Camera, Wrench, PackagePlus } from 'lucide-react';
+import { Wrench, PackagePlus } from 'lucide-react';
 import { useCartStore } from '../store/useCartStore';
 import { useToastStore } from '../../../shared/store/toastStore';
 import { handleNumberInputKeyDown, sanitizeNumberInput } from '../../../shared/utils/inputUtils';

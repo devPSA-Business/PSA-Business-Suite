@@ -1,12 +1,11 @@
 import { logger } from '@lib/logger';
-import React, { useEffect, useState, useMemo, useRef } from 'react';
+import React, { useEffect, useState, useMemo } from 'react';
 import { useNavigate } from '@tanstack/react-router';
 import { useAuthStore } from '../../../shared/store/authStore';
 import { analyticsService, DailyMetricData, ProductMetricData } from '../../../application/services/AnalyticsService';
 import { UserRole } from '../../../domain/models/User';
 import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip as RechartsTooltip, ResponsiveContainer, BarChart, Bar, Legend, ScatterChart, Scatter, ZAxis } from 'recharts';
-import { TrendingUp, AlertTriangle, Package, DollarSign, Activity, Settings, ArrowRight, Save, LayoutGrid, Filter, ShieldAlert, CheckCircle2, MessageSquare } from 'lucide-react';
-import { db } from '../../../shared/api/db';
+import { TrendingUp, AlertTriangle, DollarSign, Activity, ArrowRight, LayoutGrid } from 'lucide-react';
 import { SmartInsights } from '../components/SmartInsights';
 import { useToastStore } from '../../../shared/store/toastStore';
 import { MathUtils } from '../../../shared/utils/decimalUtils';
@@ -63,12 +62,8 @@ export const OwnerDashboardPage: React.FC = () => {
   const [showCostModal, setShowCostModal] = useState(false);
   const [pendingCostPatch, setPendingCostPatch] = useState<Record<string, Record<string, string>>>({});
 
-  // Feature flags SPRINT 7.4 Soft Launch
-  const [flags] = useState({ nlq: true, nlqCache: true, nlqFallback: true });
-
   // 7.2 Extension: Category Filters
   const [selectedCategory, setSelectedCategory] = useState<string>('ALL');
-  const prevCategoryRef = useRef<string>('ALL');
 
   const endDateMs = Date.now();
   const startDateMs = endDateMs - 30 * 24 * 60 * 60 * 1000;
@@ -100,24 +95,16 @@ export const OwnerDashboardPage: React.FC = () => {
       setPendingCostPatch(initPatches);
 
       if (!sessionStorage.getItem('dashboard_audited')) {
-        const lastLog = await db.audit_logs.orderBy('timestamp').last();
-        const lastHash = lastLog ? lastLog.hash : '0';
         const details = `Owner mengakses Profit Analytics Dashboard (Cost Anomaly: ${anomalies.length})`;
-        const encoder = new TextEncoder();
-        const data = encoder.encode(lastHash + Date.now().toString() + 'ACCESS_ANALYTICS' + user!.id + details);
-        const hashBuffer = await crypto.subtle.digest('SHA-256', data);
-        const hashArray = Array.from(new Uint8Array(hashBuffer));
-        const hash = hashArray.map(b => b.toString(16).padStart(2, '0')).join('');
-
-        await db.audit_logs.add({
-          id: crypto.randomUUID(),
-          timestamp: Date.now(),
-          action: 'ACCESS_ANALYTICS',
-          user: user!.id,
-          details,
-          hash,
-          previousHash: lastHash
-        });
+        
+        // VULNERABILITY FIX: Use DIContainer for audit logs to maintain offline-first sync guarantees
+        // and ensure the audit log reaches the UnitOfWork and gets synchronized to Firebase.
+        await (await import('../../../infrastructure/di/Container')).DIContainer.logAuditUseCase.execute(
+          'ACCESS_ANALYTICS',
+          user!.id,
+          details
+        );
+        
         sessionStorage.setItem('dashboard_audited', 'true');
       }
 

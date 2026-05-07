@@ -1,10 +1,15 @@
 import { ICommunicationService, SendMessageRequest } from '@application/services/ICommunicationService';
 import { db } from '../../shared/api/db';
 import { generateId } from '../../lib/generateId';
+import { logger } from '../../lib/logger';
 
 export class CommunicationServiceImpl implements ICommunicationService {
   async sendMessage(request: SendMessageRequest): Promise<string | void> {
-    console.log(`[CommunicationService] Sending ${request.type} to ${request.to}: ${request.message}`);
+    logger.info(`[CommunicationService] Processing ${request.type} request`, { 
+      type: request.type,
+      // Sanitized recipient for logs
+      recipient: request.to.substring(0, 4) + '****' 
+    });
     
     try {
       let whatsappUrl: string | undefined;
@@ -32,7 +37,7 @@ export class CommunicationServiceImpl implements ICommunicationService {
 
       return whatsappUrl;
     } catch (error) {
-      console.error('[CommunicationService] Failed to send message or save notification:', error);
+      logger.error('[CommunicationService] Failed to send message or save notification', error);
     }
   }
 }

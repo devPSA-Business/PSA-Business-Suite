@@ -15,6 +15,8 @@ interface BuybackFormProps {
   hideBackButton?: boolean;
 }
 
+import { mapErrorToUser } from '../../../shared/utils/errorMapper';
+
 export function BuybackForm({ hideBackButton }: BuybackFormProps = {}) {
   const user = useAuthStore((state) => state.user);
   const addToast = useToastStore((state) => state.addToast);
@@ -103,8 +105,8 @@ export function BuybackForm({ hideBackButton }: BuybackFormProps = {}) {
       setTimeout(() => setIsSuccess(false), 3000);
       addToast('Aset emas berhasil disimpan ke Treasury!', 'success');
     } catch (error) {
-      const message = error instanceof Error ? error.message : 'Gagal memproses buyback.';
-      addToast(message, 'error');
+      const mapped = mapErrorToUser(error);
+      addToast(mapped.userMessage, 'error');
     } finally {
       setIsLoading(false);
     }

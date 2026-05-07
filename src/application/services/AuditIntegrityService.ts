@@ -90,8 +90,7 @@ export class AuditIntegrityService {
       };
 
       await db.financial_closures.put(newClosure);
-      // eslint-disable-next-line @typescript-eslint/no-explicit-any
-      await this.uow.registerSync('financial_closures', 'INSERT', newClosure as any);
+      await this.uow.registerSync('financial_closures', 'INSERT', newClosure as unknown as Record<string, unknown>);
       await this.uow.registerAudit('DAILY_CLOSURE', 'System', `Tutup buku otoritatif untuk ${branchId} pada ${dateStr}. Hash: ${currentHash.substring(0, 8)}...`);
 
       return newClosure;

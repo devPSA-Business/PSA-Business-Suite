@@ -7,7 +7,7 @@
       "properties": {
         "id": { "type": "string" },
         "name": { "type": "string" },
-        "role": { "type": "string", "enum": ["ADMIN", "MANAGER", "USER"] },
+        "role": { "type": "string", "enum": ["ADMIN", "MANAGER", "USER", "KASIR"] },
         "branchId": { "type": "string" }
       },
       "required": ["id", "name", "role", "branchId"]
@@ -41,6 +41,18 @@
         "userId": { "type": "string" }
       },
       "required": ["id", "total", "paymentMethod", "status", "branchId", "userId"]
+    },
+    "AuditLog": {
+      "title": "AuditLog",
+      "description": "System audit trail",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string" },
+        "action": { "type": "string" },
+        "branchId": { "type": "string" },
+        "timestamp": { "type": "number" }
+      },
+      "required": ["id", "action", "branchId", "timestamp"]
     }
   },
   "firestore": {
@@ -55,6 +67,10 @@
     "/transactions/{txId}": {
       "schema": "Transaction",
       "description": "Sales transactions"
+    },
+    "/audit_logs/{logId}": {
+      "schema": "AuditLog",
+      "description": "System audit logs"
     }
   }
 }

@@ -101,6 +101,11 @@ export default function App() {
           import('./infrastructure/di/Container').then(m => {
             m.DIContainer.syncService.processSyncQueue().catch(console.error);
           });
+        } else if (e.data.type === 'SEND_ALERT') {
+          import('./infrastructure/services/AlertService').then(m => {
+            const alertService = new m.AlertService();
+            alertService.sendTelegramAlert(e.data.message).catch(console.error);
+          });
         }
       };
     };

@@ -27,10 +27,8 @@ export function CommunicationBoard() {
       }
     });
 
-    const handleStorageChange = (e: StorageEvent) => {
-      // In a real PWA with multiple tabs, we'd use BroadcastChannel instead of StorageEvent for cross-tab sync 
-      // since we're dropping localStorage. We'll add a simplified BroadcastChannel here.
-    };
+    // In a real PWA with multiple tabs, we'd use BroadcastChannel instead of StorageEvent for cross-tab sync 
+    // since we're dropping localStorage. We'll add a simplified BroadcastChannel here.
   }, []);
   
   const { user } = useAuthStore();

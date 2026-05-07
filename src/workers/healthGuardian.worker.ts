@@ -1,4 +1,5 @@
 import { db } from '../shared/api/db';
+import { logger } from '../lib/logger';
 
 // @ai_context: HealthGuardian — sistem pemantauan mandiri.
 // Berjalan di Web Worker (non-blocking). Dipanggil dari App.tsx setiap 5 menit.
@@ -92,7 +93,7 @@ async function spotCheckHashChain(count: number): Promise<boolean> {
         if (!windowHashes.has(current.previousHash)) {
             const exists = await db.audit_logs.where('hash').equals(current.previousHash).count();
             if (exists === 0) {
-               console.error("HealthGuardian: HASH_CHAIN_BREACH detected on log", current.id);
+               logger.error("HealthGuardian: HASH_CHAIN_BREACH detected on log", { logId: current.id });
                return false;
             }
         }
@@ -103,20 +104,19 @@ async function spotCheckHashChain(count: number): Promise<boolean> {
   }
 }
 
-async function sendTelegramAlert(message: string) {
-  try {
-    const BOT_TOKEN = import.meta.env.VITE_TELEGRAM_BOT_TOKEN;
-    const CHAT_ID = import.meta.env.VITE_TELEGRAM_CHAT_ID;
-    if (!BOT_TOKEN || !CHAT_ID) return;
-    
-    await fetch(`https://api.telegram.org/bot${BOT_TOKEN}/sendMessage`, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ chat_id: CHAT_ID, text: message })
-    });
-  } catch (e) {
-    console.error('Failed to send TG alert', e);
+/**
+ * G-01 FIX: Kirim alert via postMessage ke main thread.
+ * Main thread memanggil AlertService -> Cloud Function -> Telegram.
+ * Worker TIDAK pernah menyentuh token apapun.
+ * @security_tier: CRITICAL — JANGAN kembalikan logika token ke sini.
+ */
+function sendAlert(message: string): void {
+  // Fallback browser notification jika diizinkan
+  if ('Notification' in self && Notification.permission === 'granted') {
+    new Notification('PSA Health Guardian', { body: message.substring(0, 200) });
   }
+  // Delegasi ke main thread -> AlertService -> Cloud Function proxy
+  self.postMessage({ type: 'SEND_ALERT', message });
 }
 
 // FUNGSI BARU: Penerjemah Bahasa Manusia untuk Notifikasi Owner
@@ -198,12 +198,12 @@ async function runHealthChecks(): Promise<HealthReport> {
                : issues.some(i => i.severity === 'WARNING') ? 'WARNING' : 'HEALTHY';
 
   if (status !== 'HEALTHY') {
-    console.warn(`HealthGuardian detected issues with status: ${status}`, issues);
+    logger.warn(`HealthGuardian detected issues with status: ${status}`, { issues });
     if (status === 'CRITICAL') {
       // Mengirimkan notifikasi menggunakan format Bahasa Manusia
       for (const issue of issues.filter(i => i.severity === 'CRITICAL')) {
         const humanMessage = formatHumanAlert(issue.code, issue.message);
-        await sendTelegramAlert(humanMessage);
+        sendAlert(humanMessage);
       }
     }
   }

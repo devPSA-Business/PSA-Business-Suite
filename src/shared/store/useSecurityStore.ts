@@ -20,8 +20,6 @@ import { persist, createJSONStorage } from 'zustand/middleware';
 import { db, User } from '../api/db';
 import { useAuthStore } from './authStore';
 import { UserRole } from '../../domain/models/User';
-import { useCartStore } from '../../features/pos/store/useCartStore';
-import { DIContainer } from '../../infrastructure/di/Container';
 import { useToastStore } from './toastStore';
 import { cryptoDB } from '../../lib/cryptoIndexedDB';
 import { cryptoKeyStore } from '../../lib/cryptoKeyStore';
@@ -137,7 +135,7 @@ export const useSecurityStore = create<SecurityState>()(
         }
       },
 
-      checkRequiresPinChange: async (userId: string, pinInput: string) => {
+      checkRequiresPinChange: async (userId: string, _pinInput: string) => {
         try {
           const user = await db.users.get(userId);
           if (!user) return false;
@@ -154,6 +152,12 @@ export const useSecurityStore = create<SecurityState>()(
       verifyUserPin: async (userId: string, pin: string) => {
         const state = get();
         const now = Date.now();
+        
+        if (state.isSystemLocked) {
+          useToastStore.getState().addToast('Sistem terkunci permanen akibat indikasi pembobolan (Nuclear Lockout).', 'error');
+          return false;
+        }
+
         if (now - state.lastAttemptTime < BRUTE_FORCE_DELAY) {
           useToastStore.getState().addToast('Terlalu cepat.', 'warning');
           return false;
@@ -194,11 +198,24 @@ export const useSecurityStore = create<SecurityState>()(
         }
 
         if (!isPinValid) {
-          set((s) => ({ failedAttempts: s.failedAttempts + 1 }));
+          const newAbsolute = state.absoluteFailedAttempts + 1;
+          const isSystemLocked = newAbsolute >= 10;
+          
+          set((s) => ({ 
+            failedAttempts: s.failedAttempts + 1, 
+            absoluteFailedAttempts: newAbsolute,
+            isSystemLocked: s.isSystemLocked || isSystemLocked
+          }));
+          
+          db.keyval.put({ key: 'absolute_failed_attempts', value: newAbsolute }).catch(console.error);
+          if (isSystemLocked) {
+             db.keyval.put({ key: 'is_system_locked', value: true }).catch(console.error);
+          }
           return false;
         }
 
         set({ failedAttempts: 0, absoluteFailedAttempts: 0 });
+        db.keyval.delete('absolute_failed_attempts').catch(console.error);
 
         try {
           let wrappedKeyMeta = await cryptoKeyStore.getWrappedKey();
@@ -283,6 +300,11 @@ export const useSecurityStore = create<SecurityState>()(
         const state = get();
         const now = Date.now();
         
+        if (state.isSystemLocked) {
+          useToastStore.getState().addToast('Sistem terkunci permanen akibat indikasi pembobolan (Nuclear Lockout).', 'error');
+          return false;
+        }
+
         // SEC-03: Throttle min 2 detik antar percobaan
         if (now - state.lastAdminAttemptTime < BRUTE_FORCE_DELAY) {
           useToastStore.getState().addToast('Terlalu cepat.', 'warning');
@@ -344,11 +366,24 @@ export const useSecurityStore = create<SecurityState>()(
         }
         
         if (!isValid) {
-          set((s) => ({ adminFailedAttempts: s.adminFailedAttempts + 1 }));
+          const newAbsolute = state.absoluteFailedAttempts + 1;
+          const isSystemLocked = newAbsolute >= 10;
+          
+          set((s) => ({ 
+            adminFailedAttempts: s.adminFailedAttempts + 1,
+            absoluteFailedAttempts: newAbsolute,
+            isSystemLocked: s.isSystemLocked || isSystemLocked
+          }));
+
+          db.keyval.put({ key: 'absolute_failed_attempts', value: newAbsolute }).catch(console.error);
+          if (isSystemLocked) {
+             db.keyval.put({ key: 'is_system_locked', value: true }).catch(console.error);
+          }
           return false;
         }
         
-        set({ adminFailedAttempts: 0 });
+        set({ adminFailedAttempts: 0, absoluteFailedAttempts: 0 });
+        db.keyval.delete('absolute_failed_attempts').catch(console.error);
         return true;
       },
 

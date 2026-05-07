@@ -16,10 +16,11 @@ export const archiveOldLogsAndEvents = async (): Promise<{ count: number }> => {
     // Definisi data lama: > PRUNE_THRESHOLD_DAYS
     const thresholdDate = Date.now() - PRUNE_THRESHOLD_DAYS * 24 * 60 * 60 * 1000;
     
-    // Temukan audit_logs yang lebih tua
+    // Temukan audit_logs yang lebih tua, KECUALI yang tipe GOLD_BUYBACK
     const oldLogs = await db.audit_logs
       .where('timestamp')
       .below(thresholdDate)
+      .filter(log => log.action !== 'GOLD_BUYBACK')
       .primaryKeys();
 
     // Temukan sync_events tua yang statusnya MUTLAK 'SYNCED'

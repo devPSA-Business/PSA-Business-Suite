@@ -2,6 +2,7 @@ import { IRetailRepository } from '@domain/repositories/IRetailRepository';
 import { RetailTransaction } from '@domain/models/RetailTransaction';
 import { db } from '../../shared/api/db';
 import { cryptoDB } from '../../lib/cryptoIndexedDB';
+import { logger } from '../../lib/logger';
 
 export class RetailRepositoryImpl implements IRetailRepository {
   async save(transaction: RetailTransaction): Promise<void> {
@@ -52,7 +53,7 @@ export class RetailRepositoryImpl implements IRetailRepository {
         items = decrypted.items;
         manualDiscountNote = decrypted.manualDiscountNote;
       } catch (err) {
-        console.error('Failed to decrypt transaction', err);
+        logger.error('Failed to decrypt transaction', err);
       }
     }
 
@@ -98,7 +99,7 @@ export class RetailRepositoryImpl implements IRetailRepository {
           items = decrypted.items;
           manualDiscountNote = decrypted.manualDiscountNote;
         } catch (err) {
-          console.error('Failed to decrypt transaction list item', err);
+          logger.error('Failed to decrypt transaction list item', err);
         }
       }
 

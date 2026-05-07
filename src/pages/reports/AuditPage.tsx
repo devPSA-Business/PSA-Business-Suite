@@ -1,4 +1,5 @@
 import { AuditLogViewer } from '../../features/audit/components/AuditLogViewer';
+import { IntegrityVerifier } from '../../features/audit/components/IntegrityVerifier';
 import { ShieldAlert } from 'lucide-react';
 import { BackButton } from '../../shared/components/BackButton';
 
@@ -17,6 +18,8 @@ export function AuditPage() {
       </div>
 
       <div className="flex-1 overflow-y-auto min-h-0 pb-6 relative">
+        {/* G-13 FIX: UI Verifikasi Integritas Audit */}
+        <IntegrityVerifier />
         <AuditLogViewer />
         <span className="text-[9px] text-stone-300 font-mono absolute bottom-1 right-2">[W-A-01]</span>
       </div>

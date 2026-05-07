@@ -3,14 +3,16 @@ import React, { useState, useEffect } from 'react';
 import { useAppStore } from '../../../shared/store/appStore';
 import { DIContainer } from '@infrastructure/di/Container';
 import { PackagePlus, Plus, Save, Trash2, Upload, Info } from 'lucide-react';
+import { Scan } from 'lucide-react';
 import { useToastStore } from '../../../shared/store/toastStore';
 import { useAuthStore } from '../../../shared/store/authStore';
-import { UserRole } from '../../../domain/models/User';
 import { StockCategory, StockCategoryLabels } from '../../../domain/models/StockCategory';
 import { BackButton } from '../../../shared/components/BackButton';
 import { BulkImportModal } from '../components/BulkImportModal';
 import { SkuGenerator } from '../components/SkuGenerator';
 import { db } from '../../../shared/api/db';
+import { useCameraWithExplainer, PermissionExplainer } from '../../../shared/components/PermissionExplainer';
+import { BarcodeScanner } from '../../../shared/components/BarcodeScanner';
 
 interface DraftItem {
   id: string; // Temporary ID for draft list
@@ -46,6 +48,23 @@ export function ReceiveStockPage() {
   const [isBulkImportOpen, setIsBulkImportOpen] = useState(false);
   const [isExistingProduct, setIsExistingProduct] = useState(false);
   const [isAutoSku, setIsAutoSku] = useState(false);
+  const { requestCamera, showExplainer, explainerProps } = useCameraWithExplainer();
+  const [isScannerOpen, setIsScannerOpen] = useState(false);
+
+  const startScanning = async () => {
+    const stream = await requestCamera();
+    if (stream) {
+      setIsScannerOpen(true);
+    } else {
+      addToast('Akses kamera ditolak atau tidak tersedia.', 'error');
+    }
+  };
+
+  const handleScanSuccess = (decodedText: string) => {
+    setBarcode(decodedText);
+    setIsScannerOpen(false);
+    addToast('Barcode berhasil dipindai', 'success');
+  };
 
   useEffect(() => {
     if (!barcode || barcode.length < 3) {
@@ -258,6 +277,14 @@ export function ReceiveStockPage() {
                       placeholder="Scan atau ketik..."
                       className="flex-1 bg-stone-50 border border-stone-200 rounded-xl p-3 focus:outline-none focus:ring-2 focus:ring-brand-900/20 focus:border-brand-900 transition-all text-stone-800 font-mono"
                     />
+                    <button
+                      type="button"
+                      onClick={startScanning}
+                      className="min-w-[44px] min-h-[44px] px-3 bg-brand-50 text-brand-900 rounded-xl hover:bg-brand-100 transition-colors flex items-center justify-center border border-brand-200"
+                      title="Scan Barcode"
+                    >
+                      <Scan size={20} />
+                    </button>
                     {!isAutoSku && (
                       <button
                         type="button"
@@ -438,6 +465,14 @@ export function ReceiveStockPage() {
           </div>
         )}
       </div>
+
+      {showExplainer && <PermissionExplainer {...explainerProps} />}
+      {isScannerOpen && (
+        <BarcodeScanner 
+          onScan={handleScanSuccess} 
+          onClose={() => setIsScannerOpen(false)} 
+        />
+      )}
     </div>
   );
 }

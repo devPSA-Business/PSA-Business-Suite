@@ -3,35 +3,25 @@ service cloud.firestore {
   match /databases/{database}/documents {
     
     // ===============================================================
-    // PILLAR 0: Global Safety Net
+    // PILLAR 0: Global Safety Net (Default Deny)
     // ===============================================================
     match /{document=**} {
       allow read, write: if false;
     }
 
     // ===============================================================
-    // PILLAR 3: Helper Functions (Hardened)
+    // FOUNDATIONAL HELPERS (Hardened)
     // ===============================================================
 
     function isSignedIn() { return request.auth != null; }
     function isVerified() { return isSignedIn() && request.auth.token.email_verified == true; }
-    function isAppCheckVerified() { return request.app != null; }
-    function isHardened() { return isAppCheckVerified() && isVerified(); }
+    function isHardened() { return isVerified(); }
+    
     function incoming() { return request.resource.data; }
     function existing() { return resource.data; }
     
     function isValidId(id) { 
         return id is string && id.size() <= 128 && id.matches('^[a-zA-Z0-9_\\-]+$'); 
-    }
-
-    function isValidStockItem(data) {
-        return data.name is string && data.name.size() <= 100
-            && data.barcode is string && data.barcode.size() <= 50
-            && data.category is string && data.category.size() <= 50
-            && data.price is number && data.price >= 0
-            && data.cost is number && data.cost >= 0
-            && data.quantity is number && data.quantity >= 0
-            && data.branchId is string && data.branchId.size() > 0;
     }
 
     function getUserData() {
@@ -55,19 +45,24 @@ service cloud.firestore {
       return data.branchId is string && data.branchId == getUserData().branchId;
     }
 
-    function canAccessRecord(data) {
-        return isHardened() && belongsToBranch(data);
-    }
+    // ===============================================================
+    // HARDENED VALIDATION HELPERS
+    // ===============================================================
 
-    function canWriteRecord() {
-        return isHardened() && belongsToBranch(incoming());
+    function isValidStockItem(data) {
+        return data.name is string && data.name.size() > 0 && data.name.size() <= 100
+            && data.barcode is string && data.barcode.size() > 0 && data.barcode.size() <= 50
+            && data.category is string && data.category.size() > 0 && data.category.size() <= 50
+            && data.price is number && data.price >= 0
+            && data.cost is number && data.cost >= 0
+            && data.quantity is number && data.quantity >= 0
+            && data.branchId is string && data.branchId.size() > 0;
     }
 
     // ===============================================================
-    // PILLAR 1 & 2: Collection Specific Rules (Hardened)
+    // CORE COLLECTIONS
     // ===============================================================
 
-    // User profiles - Only owner or admin can read/write
     match /users/{userId} {
       allow read: if isSignedIn() && (request.auth.uid == userId || isAdmin());
       allow create: if isSignedIn() && (
@@ -83,134 +78,81 @@ service cloud.firestore {
       allow delete: if isAdmin();
     }
 
-    // CORE BUSINESS DATA (Protected by Manager/Admin roles for critical writes)
     match /stock/{id} {
-      allow read: if isHardened() && canAccessRecord(existing());
+      allow read: if isHardened() && belongsToBranch(existing());
       allow create: if isHardened() && isManager() && isValidId(id) && isValidStockItem(incoming()) && belongsToBranch(incoming());
-      allow update: if isHardened() && isManager() && isValidStockItem(incoming()) && incoming().branchId == existing().branchId && canAccessRecord(existing());
-      allow delete: if isHardened() && isAdmin();
-    }
-
-    match /transactions/{id} {
-      allow read: if isHardened() && canAccessRecord(existing());
-      allow create: if isHardened() && canWriteRecord();
-      // Transactions should be immutable for casiers
-      allow update: if isHardened() && isAdmin();
+      allow update: if isHardened() && isManager() && isValidStockItem(incoming()) && incoming().branchId == existing().branchId && belongsToBranch(existing());
       allow delete: if isHardened() && isAdmin();
     }
 
     match /audit_logs/{id} {
       allow read: if isHardened() && isManager() && belongsToBranch(existing());
-      allow create: if isHardened() && canWriteRecord();
+      allow create: if isHardened() && belongsToBranch(incoming());
       allow update, delete: if false; // IMMUTABLE
     }
 
     match /customers/{id} {
-      allow read: if canAccessRecord(existing());
-      allow create: if canWriteRecord();
-      allow update: if canAccessRecord(existing()) && incoming().branchId == existing().branchId;
-      allow delete: if isManager() && canAccessRecord(existing());
+      allow read: if isHardened() && belongsToBranch(existing());
+      allow create: if isHardened() && belongsToBranch(incoming());
+      allow update: if isHardened() && belongsToBranch(existing()) && incoming().branchId == existing().branchId;
+      allow delete: if isHardened() && isManager() && belongsToBranch(existing());
     }
 
     // SERVICE & ORDERS
     match /repair_services/{id} {
-      allow read: if canAccessRecord(existing());
-      allow create: if canWriteRecord();
-      allow update: if canAccessRecord(existing()) && incoming().branchId == existing().branchId;
-      allow delete: if isManager() && canAccessRecord(existing());
-    }
-    match /custom_orders/{id} { 
-      allow read: if canAccessRecord(existing());
-      allow create: if canWriteRecord();
-      allow update: if canAccessRecord(existing()) && incoming().branchId == existing().branchId;
-      allow delete: if isManager() && canAccessRecord(existing());
-    }
-    match /gold_buyback/{id} { 
-      allow read: if isManager() && canAccessRecord(existing());
-      allow create: if isManager() && canWriteRecord();
-      allow update: if isManager() && canAccessRecord(existing()) && incoming().branchId == existing().branchId;
-      allow delete: if isAdmin();
-    }
-    match /daily_gold_price/{id} {
-      allow read: if isVerified();
-      allow create: if isManager();
-      allow update: if isManager();
-      allow delete: if isAdmin();
-    }
-    match /gold_liquidations/{id} { 
-      allow read: if isManager() && canAccessRecord(existing());
-      allow create: if isManager() && canWriteRecord();
-      allow update: if isManager() && canAccessRecord(existing()) && incoming().branchId == existing().branchId;
-      allow delete: if isAdmin();
+      allow read: if isHardened() && belongsToBranch(existing());
+      allow create: if isHardened() && belongsToBranch(incoming());
+      allow update: if isHardened() && belongsToBranch(existing()) && incoming().branchId == existing().branchId;
+      allow delete: if isHardened() && isManager() && belongsToBranch(existing());
     }
 
-    // OPERATIONS & SHIFTS
+    match /transactions/{id} {
+      allow read: if isHardened() && belongsToBranch(existing());
+      allow create: if isHardened() && belongsToBranch(incoming()) && (incoming().get('secureData', '').size() <= 1000000);
+      allow update: if isHardened() && belongsToBranch(existing()) && incoming().branchId == existing().branchId && (incoming().get('secureData', '').size() <= 1000000);
+      allow delete: if isHardened() && isManager() && belongsToBranch(existing());
+    }
+
     match /shifts/{id} {
-      allow read: if canAccessRecord(existing());
-      allow create: if canWriteRecord();
-      allow update: if canAccessRecord(existing()) && incoming().branchId == existing().branchId;
-      allow delete: if isAdmin();
-    }
-    match /shift_totals/{id} { 
-      allow read: if isManager() && canAccessRecord(existing());
-      allow create: if isManager() && canWriteRecord();
-      allow update: if isManager() && canAccessRecord(existing()) && incoming().branchId == existing().branchId;
-      allow delete: if isAdmin();
-    }
-    match /petty_cash/{id} {
-      allow read: if isManager() && canAccessRecord(existing());
-      allow create: if isManager() && canWriteRecord();
-      allow update: if isManager() && canAccessRecord(existing()) && incoming().branchId == existing().branchId;
-      allow delete: if isAdmin();
-    }
-    match /financial_closures/{id} { 
-      allow read: if isManager() && canAccessRecord(existing()); 
-      allow create: if isManager() && canWriteRecord(); 
+      allow read: if isHardened() && belongsToBranch(existing());
+      allow create: if isHardened() && belongsToBranch(incoming());
+      allow update: if isHardened() && belongsToBranch(existing()) && incoming().branchId == existing().branchId;
+      allow delete: if isHardened() && isManager() && belongsToBranch(existing());
     }
 
-    // INFRA & SYSTEM
-    match /device_controls/system_lock { 
-      allow read: if isVerified(); 
-      allow write: if isAdmin(); 
+    match /petty_cash/{id} {
+      allow read: if isHardened() && belongsToBranch(existing());
+      allow create: if isHardened() && belongsToBranch(incoming());
+      allow update: if isHardened() && belongsToBranch(existing()) && incoming().branchId == existing().branchId;
+      allow delete: if isHardened() && isManager() && belongsToBranch(existing());
     }
-    match /device_controls/{other} {
-      allow read, write: if isAdmin();
+
+    match /gold_buyback/{id} {
+      allow read: if isHardened() && isManager() && belongsToBranch(existing());
+      allow create: if isHardened() && isManager() && belongsToBranch(incoming());
+      allow update: if isHardened() && isManager() && belongsToBranch(existing()) && incoming().branchId == existing().branchId;
+      allow delete: if isHardened() && isManager() && belongsToBranch(existing());
     }
-    
-    match /dlq_alerts/{id} { 
-      allow read, write: if isAdmin(); 
+
+    match /gold_liquidations/{id} {
+      allow read: if isHardened() && isManager() && belongsToBranch(existing());
+      allow create: if isHardened() && isManager() && belongsToBranch(incoming());
+      allow update: if isHardened() && isManager() && belongsToBranch(existing()) && incoming().branchId == existing().branchId;
+      allow delete: if isHardened() && isManager() && belongsToBranch(existing());
     }
-    match /sync_events/{id} { 
-      // F-07: Perketat sync_events wajib verifikasi branchId di resource & request.resource
-      allow read: if isVerified() && resource.data.branchId == getUserData().branchId; 
-      allow create: if isVerified() && request.resource.data.branchId == getUserData().branchId;
-      allow update: if isVerified() && 
-                    resource.data.branchId == getUserData().branchId &&
-                    request.resource.data.branchId == getUserData().branchId;
-      allow delete: if isVerified() && resource.data.branchId == getUserData().branchId;
+
+    match /custom_orders/{id} {
+      allow read: if isHardened() && belongsToBranch(existing());
+      allow create: if isHardened() && belongsToBranch(incoming());
+      allow update: if isHardened() && belongsToBranch(existing()) && incoming().branchId == existing().branchId;
+      allow delete: if isHardened() && isManager() && belongsToBranch(existing());
     }
-    match /fraud_anomalies/{id} { 
-      allow read: if isManager() && belongsToBranch(existing()); 
-      allow create: if canWriteRecord(); 
-    }
-    
-    // TELEMETRY & LOGS
-    match /telemetry_events/{id} { allow create: if isSignedIn(); }
-    match /error_logs/{id} { allow create: if isSignedIn(); }
-    match /ai_feedback_tickets/{id} { 
-      allow read: if canAccessRecord(existing());
-      allow create: if canWriteRecord();
-    }
-    
-    match /appointments/{id} { 
-      allow read: if canAccessRecord(existing());
-      allow create: if canWriteRecord();
-      allow update: if canAccessRecord(existing()) && incoming().branchId == existing().branchId;
-      allow delete: if isManager() && canAccessRecord(existing());
-    }
-    match /internal_notes/{id} { 
-      allow read: if isManager() && canAccessRecord(existing());
-      allow create: if isManager() && canWriteRecord();
+
+    match /appointments/{id} {
+      allow read: if isHardened() && belongsToBranch(existing());
+      allow create: if isHardened() && belongsToBranch(incoming());
+      allow update: if isHardened() && belongsToBranch(existing()) && incoming().branchId == existing().branchId;
+      allow delete: if isHardened() && isManager() && belongsToBranch(existing());
     }
   }
 }

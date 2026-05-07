@@ -1,18 +1,38 @@
 // src/application/services/NLQService.ts
 
-import { GoogleGenAI } from '@google/genai';
+import { logger } from '../../lib/logger';
+
+interface AggregateData {
+  customer?: {
+    name?: string;
+    phone?: string;
+    email?: string;
+  };
+  text?: string;
+  [key: string]: unknown;
+}
 
 export class NLQService {
   private requestCount = 0;
   private lastResetTime = Date.now();
   private readonly MAX_REQUESTS_PER_HOUR = 30;
 
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  async query(question: string, aggregates: any, userId: string): Promise<{ answer: string }> {
-    if (!import.meta.env.VITE_GEMINI_API_KEY) {
-       return { answer: 'Kunci API Gemini (VITE_GEMINI_API_KEY) belum dikonfigurasi.' };
+  // Sanitization helper
+  private sanitize(input: AggregateData): AggregateData {
+    const payload = JSON.parse(JSON.stringify(input)) as AggregateData;
+    if (payload.customer) {
+      payload.customer.name = '<<PII_REMOVED>>';
+      payload.customer.phone = '<<PII_REMOVED>>';
+      payload.customer.email = '<<PII_REMOVED>>';
     }
+    if (typeof payload.text === 'string') {
+      payload.text = payload.text.replace(/\b\d{12,19}\b/g, '<<PII_REMOVED>>');
+      payload.text = payload.text.replace(/\+?\d{7,15}/g, '<<PII_REMOVED>>');
+    }
+    return payload;
+  }
 
+  async query(question: string, aggregates: AggregateData, userId: string): Promise<{ answer: string }> {
     const now = Date.now();
     if (now - this.lastResetTime > 3600000) {
        this.requestCount = 0;
@@ -25,25 +45,27 @@ export class NLQService {
 
     this.requestCount++;
 
-    const ai = new GoogleGenAI({ apiKey: import.meta.env.VITE_GEMINI_API_KEY });
+    // Security: Sanitize PII before AI processing (Defense-in-depth)
+    const sanitizedAggregates = this.sanitize(aggregates);
     
-    // Anonymize/Trim PII if possible
-    const context = JSON.stringify(aggregates).replace(/([a-zA-Z0-9._-]+@[a-zA-Z0-9._-]+\.[a-zA-Z0-9_-]+)/gi, '[EMAIL]');
-
     try {
-      const response = await ai.models.generateContent({
-        model: 'gemini-2.5-flash',
-        contents: [
-          `Kamu adalah asisten toko perhiasan imitasi. Jawab pertanyaan berikut berdasarkan data agregat:
-           Penting: Jawab "Maaf, nama kasir dan data PII tidak direkam dalam konteks performa ini untuk memastikan keamanan privasi toko." jika diminta data spesifik tersebut.
-           Data Agregat: ${context}`,
-          `Pertanyaan: ${question}`
-        ]
+      const response = await fetch('/api/ask-gemini', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({ question, aggregates: sanitizedAggregates, userId }),
       });
-      return { answer: response.text || 'Tidak ada respons dari AI.' };
+
+      if (!response.ok) {
+        throw new Error('Backend proxy error');
+      }
+
+      const data = await response.json();
+      return { answer: data.answer || 'Tidak ada respons dari AI.' };
     } catch (e) {
-      console.error('NLQ Query Error:', e);
-      return { answer: 'Terjadi kesalahan saat menghubungi layanan AI.' };
+      logger.error('NLQ Query Error', e instanceof Error ? e : new Error(String(e)));
+      return { answer: 'Terjadi kesalahan sistem saat menghubungi layar analitik.' };
     }
   }
 }

@@ -99,12 +99,10 @@ export class UnitOfWorkImpl implements IUnitOfWork {
     await db.audit_logs.add(log);
     
     // 3. Auto-sync audit logs ke Cloud (Immutable Backup)
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    await this.registerSync('audit_logs', 'INSERT', log as any as Record<string, any>);
+    await this.registerSync('audit_logs', 'INSERT', log as unknown as Record<string, unknown>);
   }
 
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  async registerSync(entityType: string, action: 'INSERT' | 'UPDATE' | 'DELETE' | 'UPDATE_DELTA', payload: Record<string, any>): Promise<void> {
+  async registerSync(entityType: string, action: 'INSERT' | 'UPDATE' | 'DELETE' | 'UPDATE_DELTA', payload: Record<string, unknown>): Promise<void> {
     await this.syncService.enqueueSync({
       entity_type: entityType,
       action,
@@ -130,8 +128,7 @@ export class UnitOfWorkImpl implements IUnitOfWork {
     await db.stock_history.add(history);
     
     // Auto-sync stock history
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    await this.registerSync('stock_history', 'INSERT', history as any as Record<string, any>);
+    await this.registerSync('stock_history', 'INSERT', history as unknown as Record<string, unknown>);
   }
 
   async registerGoldAssetHistory(params: {
@@ -149,7 +146,6 @@ export class UnitOfWorkImpl implements IUnitOfWork {
     await db.gold_asset_history.add(history);
     
     // Auto-sync gold asset history
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    await this.registerSync('gold_asset_history', 'INSERT', history as any as Record<string, any>);
+    await this.registerSync('gold_asset_history', 'INSERT', history as unknown as Record<string, unknown>);
   }
 }

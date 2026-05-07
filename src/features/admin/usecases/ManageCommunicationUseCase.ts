@@ -20,8 +20,7 @@ export class ManageCommunicationUseCase {
         `Membuat janji temu dengan ${appointment.customerName}`
       );
       
-      // eslint-disable-next-line @typescript-eslint/no-explicit-any
-      await this.unitOfWork.registerSync('appointments', 'INSERT', appointment as any as Record<string, any>);
+      await this.unitOfWork.registerSync('appointments', 'INSERT', appointment as unknown as Record<string, unknown>);
     }, ['notifications', 'internal_notes']);
   }
 
@@ -35,8 +34,7 @@ export class ManageCommunicationUseCase {
         `Membuat catatan internal kategori ${note.category}`
       );
       
-      // eslint-disable-next-line @typescript-eslint/no-explicit-any
-      await this.unitOfWork.registerSync('internal_notes', 'INSERT', note as any as Record<string, any>);
+      await this.unitOfWork.registerSync('internal_notes', 'INSERT', note as unknown as Record<string, unknown>);
     }, ['notifications', 'internal_notes']);
   }
 }

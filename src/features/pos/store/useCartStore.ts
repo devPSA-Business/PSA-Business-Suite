@@ -152,18 +152,8 @@ export const useCartStore = create<CartState>()(
       name: 'pos-cart-storage',
       storage: createJSONStorage(() => dexieCartStorage),
       partialize: (state) => {
-        const { 
-          addItem, 
-          addCustomItem, 
-          removeItem, 
-          updateQuantity, 
-          clearCart, 
-          setCartItems, 
-          setManualDiscount,
-          setHasHydrated,
-          ...stateToPersist 
-        // eslint-disable-next-line @typescript-eslint/no-explicit-any
-        } = state as any;
+        // eslint-disable-next-line @typescript-eslint/no-unused-vars
+        const { addItem, addCustomItem, removeItem, updateQuantity, clearCart, setCartItems, setManualDiscount, setHasHydrated, ...stateToPersist } = state;
         return stateToPersist;
       },
       onRehydrateStorage: () => (state) => {

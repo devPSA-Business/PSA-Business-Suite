@@ -8,6 +8,7 @@ import { VersionConflictError, InsufficientStockError } from '@domain/errors';
 import { metrics } from '../../../lib/metrics';
 import { logger } from '../../../lib/logger';
 import { MathUtils } from '@shared/utils/decimalUtils';
+import { withLock } from '../../../shared/utils/transactionMutex';
 
 /**
  * ============================================================================
@@ -57,21 +58,33 @@ export class CheckoutUseCase {
   ) {}
 
   async execute(request: CheckoutRequestDTO): Promise<string> {
-    return metrics.measure('psa_checkout_operation', async () => {
-      // Phase 1.6: Financial Guard (Anti-Zero & High Discount Check)
+    const lockKey = `checkout:${request.userId}`;
+    return withLock(lockKey, async () => {
+      return metrics.measure('psa_checkout_operation', async () => {
+        // Phase 1.6: Financial Guard (Anti-Zero & High Discount Check)
       const subTotal = request.items.reduce((sum, item) => MathUtils.add(sum, MathUtils.mul(item.price, item.quantity)), 0);
       const totalDiscount = MathUtils.add((request.manualDiscountAmount || 0), (request.loyaltyDiscountAmount || 0));
       const discountPercentage = subTotal > 0 ? (totalDiscount / subTotal) : 0;
       const hasPhysicalItem = request.items.some(item => !item.isCustomItem);
+
+      // Rule 0: Empty cart validation
+      if (!request.items || request.items.length === 0) {
+        throw new Error('Tidak dapat memproses transaksi: Keranjang belanja kosong.');
+      }
 
       // Rule 1: High Discount (> 30%) requires authorization
       if (discountPercentage > 0.3 && !request.authorizedBy && request.userRole !== 'ADMIN') {
         throw new Error(`Diskon terlalu besar (${Math.round(discountPercentage * 100)}%). Otorisasi Manager diperlukan.`);
       }
 
-      // Rule 2: Zero transaction for physical goods is strictly guarded
-      if (request.total <= 0 && hasPhysicalItem && !request.authorizedBy && request.userRole !== 'ADMIN') {
-        throw new Error('Transaksi Rp 0 diblokir. Otorisasi Manager diperlukan untuk mendiskon 100% barang fisik.');
+      // Rule 2: Negative total guard
+      if (request.total < 0) {
+        throw new Error('Total transaksi tidak boleh bernilai negatif.');
+      }
+
+      // Rule 3: Zero transaction guarded for ALL items (physical & service)
+      if (request.total === 0 && !request.authorizedBy && request.userRole !== 'ADMIN') {
+        throw new Error('Transaksi Rp 0 diblokir. Otorisasi Manager atau Admin diperlukan.');
       }
 
       const maxRetries = 3;
@@ -224,8 +237,11 @@ export class CheckoutUseCase {
           // ANOMALY DETECTION: Flagging transaksi Rp 0 akibat diskon
           let isFlagged = false;
           let flagReason = undefined;
-          if (finalTotal <= 0 && hasPhysicalItem && !request.authorizedBy && request.userRole !== 'ADMIN') {
-            throw new Error('Transaksi final Rp 0 diblokir. Otorisasi Manager diperlukan untuk mendiskon 100% barang fisik.');
+          if (finalTotal === 0 && !request.authorizedBy && request.userRole !== 'ADMIN') {
+            throw new Error('Transaksi final Rp 0 diblokir. Otorisasi Manager diperlukan.');
+          }
+          if (finalTotal < 0) {
+            throw new Error('Transaksi final tidak boleh bernilai negatif.');
           }
           if (finalTotal === 0 && request.total > 0) {
             isFlagged = true;
@@ -339,6 +355,7 @@ export class CheckoutUseCase {
         throw err;
       }
     }
+      });
     });
   }
 }

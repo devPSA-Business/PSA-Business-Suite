@@ -1,19 +1,20 @@
 import { useState, useEffect } from 'react';
 import { useLiveQuery } from 'dexie-react-hooks';
-import { Edit2, Trash2, Plus, PackageSearch, X, AlertTriangle, Filter, Search } from 'lucide-react';
+import { Edit2, Trash2, Plus, X, Filter, Search, Scan } from 'lucide-react';
 import { motion, AnimatePresence } from 'motion/react';
 import { db, StockItem } from '../../../shared/api/db';
 import { DIContainer } from '@infrastructure/di/Container';
 import { InventoryFilterDrawer, InventoryFilterState } from '../components/InventoryFilterDrawer';
 import { useToastStore } from '../../../shared/store/toastStore';
 import { useAuthStore } from '../../../shared/store/authStore';
-import { UserRole } from '../../../domain/models/User';
 import { StockCategory, StockCategoryLabels } from '../../../domain/models/StockCategory';
 import { useAppStore } from '../../../shared/store/appStore';
 import { UI_REGISTRY } from '../../../shared/constants/ui_registry';
 
-import { PinGate } from '../../../shared/components/PinGate';
 import { BackButton } from '../../../shared/components/BackButton';
+import { ConfirmActionDialog } from '../../../shared/components/ConfirmActionDialog';
+import { useCameraWithExplainer, PermissionExplainer } from '../../../shared/components/PermissionExplainer';
+import { BarcodeScanner } from '../../../shared/components/BarcodeScanner';
 
 export function InventoryPage() {
   const { addToast } = useToastStore();
@@ -93,6 +94,29 @@ export function InventoryPage() {
   const [isDeleteOpen, setIsDeleteOpen] = useState(false);
   const [selectedProduct, setSelectedProduct] = useState<StockItem | null>(null);
   const [isProcessing, setIsProcessing] = useState(false);
+  const { requestCamera, showExplainer, explainerProps } = useCameraWithExplainer();
+  const [isScannerOpen, setIsScannerOpen] = useState(false);
+  const [scannerTarget, setScannerTarget] = useState<'search' | 'form'>('search');
+
+  const startScanning = async (target: 'search' | 'form') => {
+    setScannerTarget(target);
+    const stream = await requestCamera();
+    if (stream) {
+      setIsScannerOpen(true);
+    } else {
+      addToast('Akses kamera ditolak atau tidak tersedia.', 'error');
+    }
+  };
+
+  const handleScanSuccess = (decodedText: string) => {
+    if (scannerTarget === 'search') {
+      setSearchTerm(decodedText);
+    } else {
+      setFormData(prev => ({ ...prev, barcode: decodedText }));
+    }
+    setIsScannerOpen(false);
+    addToast('Barcode berhasil dipindai', 'success');
+  };
 
   // Form State
   const [formData, setFormData] = useState({
@@ -219,15 +243,24 @@ export function InventoryPage() {
         </div>
         
         <div className="flex items-center gap-3">
-          <div className="relative flex-1 md:w-64">
-            <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-stone-400" size={18} />
-            <input
-              type="text"
-              placeholder="Cari produk..."
-              value={searchTerm}
-              onChange={(e) => setSearchTerm(e.target.value)}
-              className="w-full pl-10 pr-4 py-3 bg-white border border-stone-200 rounded-2xl focus:ring-2 focus:ring-brand-900/20 outline-none shadow-sm"
-            />
+          <div className="relative flex-1 md:w-80 flex gap-2">
+            <div className="relative flex-1">
+              <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-stone-400" size={18} />
+              <input
+                type="text"
+                placeholder="Cari produk..."
+                value={searchTerm}
+                onChange={(e) => setSearchTerm(e.target.value)}
+                className="w-full pl-10 pr-4 py-3 bg-white border border-stone-200 rounded-2xl focus:ring-2 focus:ring-brand-900/20 outline-none shadow-sm"
+              />
+            </div>
+            <button
+              onClick={() => startScanning('search')}
+              className="p-3 bg-white border border-stone-200 rounded-2xl text-brand-900 hover:bg-brand-50 transition-all shadow-sm"
+              title="Scan Produk"
+            >
+              <Scan size={20} />
+            </button>
           </div>
           <button
             onClick={() => setIsFilterOpen(true)}
@@ -358,14 +391,23 @@ export function InventoryPage() {
 
                 <div>
                   <label className="block text-[10px] sm:text-xs font-bold text-stone-400 uppercase tracking-widest mb-2">Barcode / SKU</label>
-                  <input
-                    required
-                    type="text"
-                    value={formData.barcode}
-                    onChange={(e) => setFormData({...formData, barcode: e.target.value})}
-                    className="w-full p-3 sm:p-4 bg-stone-50 border-2 border-stone-100 rounded-2xl focus:outline-none focus:ring-4 focus:ring-brand-900/10 focus:border-brand-900 transition-all text-stone-800 font-mono text-sm sm:text-base"
-                    placeholder="C-001"
-                  />
+                  <div className="flex gap-2">
+                    <input
+                      required
+                      type="text"
+                      value={formData.barcode}
+                      onChange={(e) => setFormData({...formData, barcode: e.target.value})}
+                      className="flex-1 p-3 sm:p-4 bg-stone-50 border-2 border-stone-100 rounded-2xl focus:outline-none focus:ring-4 focus:ring-brand-900/10 focus:border-brand-900 transition-all text-stone-800 font-mono text-sm sm:text-base"
+                      placeholder="C-001"
+                    />
+                    <button
+                      type="button"
+                      onClick={() => startScanning('form')}
+                      className="px-4 bg-stone-100 text-brand-900 rounded-2xl hover:bg-brand-50 transition-all border border-stone-200"
+                    >
+                      <Scan size={20} />
+                    </button>
+                  </div>
                 </div>
 
                 <div>
@@ -487,38 +529,26 @@ export function InventoryPage() {
         </div>
       )}
 
-      {/* Delete Confirmation Modal */}
-      {isDeleteOpen && selectedProduct && (
-        <div className="fixed inset-0 z-50 flex items-end sm:items-center justify-center bg-stone-900/40 backdrop-blur-sm sm:p-4 transition-opacity">
-          <div className="absolute inset-0" onClick={handleCloseDelete} />
-          <div className="bg-white rounded-t-[2.5rem] sm:rounded-[2.5rem] shadow-2xl w-full max-w-md overflow-hidden animate-in slide-in-from-bottom-full sm:zoom-in-95 duration-200 p-6 sm:p-10 text-center relative pb-safe">
-            <div className="w-12 h-1.5 bg-stone-200 rounded-full mx-auto mb-6 sm:hidden" />
-            <div className="w-16 h-16 sm:w-20 sm:h-20 bg-red-50 text-red-600 rounded-3xl flex items-center justify-center mx-auto mb-4 sm:mb-6 shadow-lg shadow-red-100">
-              <AlertTriangle size={32} className="sm:w-10 sm:h-10" />
-            </div>
-            <h3 className="text-xl sm:text-2xl font-serif font-bold text-stone-800 mb-2 sm:mb-3">Hapus Barang?</h3>
-            <p className="text-stone-500 text-sm sm:text-lg mb-8 sm:mb-10 leading-relaxed">
-              Apakah Anda yakin ingin menghapus <strong>{selectedProduct.name}</strong>? Data ini akan hilang permanen dari inventaris.
-            </p>
-            <div className="flex gap-3 sm:gap-4">
-              <button
-                onClick={handleCloseDelete}
-                className="flex-1 px-4 sm:px-6 py-3 sm:py-4 text-stone-600 bg-stone-100 hover:bg-stone-200 rounded-2xl font-bold transition-all active:scale-95 text-sm sm:text-base"
-              >
-                Batal
-              </button>
-              <button
-                onClick={handleDelete}
-                disabled={isProcessing}
-                className="flex-1 px-4 sm:px-6 py-3 sm:py-4 text-white bg-red-600 hover:bg-red-700 disabled:bg-red-300 rounded-2xl font-black shadow-lg shadow-red-600/20 transition-all active:scale-95 text-sm sm:text-base"
-              >
-                {isProcessing ? 'Menghapus...' : 'Hapus'}
-              </button>
-            </div>
-          </div>
-        </div>
-      )}
+      {/* G-10 FIX: Menggunakan ConfirmActionDialog untuk Hapus Produk */}
+      <ConfirmActionDialog
+        isOpen={isDeleteOpen}
+        title="Hapus Barang?"
+        description={`Apakah Anda yakin ingin menghapus ${selectedProduct?.name}? Data ini akan hilang permanen dari inventaris.`}
+        dangerLevel="danger"
+        confirmWord="HAPUS"
+        confirmLabel={isProcessing ? 'Menghapus...' : 'Ya, Hapus'}
+        onConfirm={handleDelete}
+        onCancel={handleCloseDelete}
+      />
       <span className="text-[9px] text-stone-300 font-mono absolute bottom-1 right-2">[W-I-01]</span>
+      
+      {showExplainer && <PermissionExplainer {...explainerProps} />}
+      {isScannerOpen && (
+        <BarcodeScanner 
+          onScan={handleScanSuccess} 
+          onClose={() => setIsScannerOpen(false)} 
+        />
+      )}
     </div>
   );
 }

@@ -1,5 +1,5 @@
-import { Collection, PromiseExtended } from 'dexie';
-import { StockItem, Transaction, RepairService, Handover, AuditLog, SuspendedCart, StockHistory, Shift, GoldBuyback, GoldLiquidation } from '../../shared/api/db';
+import { PromiseExtended } from 'dexie';
+import { StockItem, RepairService, Handover, AuditLog, SuspendedCart, StockHistory, Shift, GoldBuyback, GoldLiquidation } from '../../shared/api/db';
 
 export interface ILiveQueries {
   observeOpenShift(branchId?: string): PromiseExtended<Shift | undefined>;

@@ -2,6 +2,7 @@ import { ICustomerRepository } from '../../domain/repositories/ICustomerReposito
 import { Customer } from '../../domain/models/Customer';
 import { db, Customer as DbCustomer } from '../../shared/api/db';
 import { cryptoDB } from '../../lib/cryptoIndexedDB';
+import { logger } from '../../lib/logger';
 
 export class CustomerRepositoryImpl implements ICustomerRepository {
   private async mapToDomain(dbCust: DbCustomer): Promise<Customer> {
@@ -14,7 +15,7 @@ export class CustomerRepositoryImpl implements ICustomerRepository {
         email = decrypted.email;
         address = decrypted.address;
       } catch (error) {
-        console.error('Failed to decrypt customer data', error);
+        logger.error('Failed to decrypt customer data', error);
       }
     }
 
@@ -45,7 +46,7 @@ export class CustomerRepositoryImpl implements ICustomerRepository {
         email = undefined;
         address = undefined;
       } catch (error) {
-        console.error('Failed to encrypt customer data', error);
+        logger.error('Failed to encrypt customer data', error);
       }
     }
 

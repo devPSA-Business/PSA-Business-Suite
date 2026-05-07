@@ -6,7 +6,9 @@ export interface StockItem {
   id: string;
   name: string;
   category: StockCategory;
+  /** @precision Selalu gunakan MathUtils untuk aritmatika. Jangan gunakan JS native math. */
   price: number;
+  /** @precision Selalu gunakan MathUtils untuk aritmatika. Jangan gunakan JS native math. */
   cost: number;
   quantity: number;
   barcode: string;
@@ -24,8 +26,11 @@ export interface TransactionItem {
   stockId: string;
   name: string;
   quantity: number;
+  /** @precision Selalu gunakan MathUtils untuk aritmatika. Jangan gunakan JS native math. */
   price: number;
+  /** @precision Selalu gunakan MathUtils untuk aritmatika. Jangan gunakan JS native math. */
   subtotal: number;
+  /** @precision Selalu gunakan MathUtils untuk aritmatika. Jangan gunakan JS native math. */
   unitCost?: number;
   maxStock?: number;
   isCustomItem?: boolean;
@@ -34,6 +39,7 @@ export interface TransactionItem {
 export interface Transaction {
   id: string;
   date: number;
+  /** @precision Selalu gunakan MathUtils untuk aritmatika. Jangan gunakan JS native math. */
   total: number;
   paymentMethod: 'CASH' | 'QRIS' | 'TRANSFER' | 'SPLIT';
   items: TransactionItem[];

@@ -1,9 +1,8 @@
 import React, { useState, useEffect } from 'react';
-import { Link, Outlet, useRouterState, useNavigate } from '@tanstack/react-router';
+import { Outlet, useRouterState, useNavigate } from '@tanstack/react-router';
 import { useLiveQuery } from 'dexie-react-hooks';
 import { DIContainer } from '../infrastructure/di/Container';
 import { WifiOff, RefreshCw, CloudDrizzle, DownloadCloud, Lock, Menu, MoreVertical, AlertTriangle, X } from 'lucide-react';
-import { InstallPWAButton } from '../shared/components/InstallPWAButton';
 import { useRegisterSW } from 'virtual:pwa-register/react';
 import { ToastContainer } from '../shared/components/Toast';
 import { useToastStore } from '../shared/store/toastStore';
@@ -14,7 +13,10 @@ import { CollapsibleBottomBar } from '../shared/components/navigation/Collapsibl
 import { GlobalSidebar } from '../shared/components/navigation/GlobalSidebar';
 import { ContextualBottomSheet } from '../shared/components/navigation/ContextualBottomSheet';
 
+import { useSessionTimeout } from '../shared/hooks/useSessionTimeout';
+
 export function MainLayout() {
+  useSessionTimeout();
   const [isOnline, setIsOnline] = useState(navigator.onLine);
   const routerState = useRouterState();
   const isCashier = routerState.location.pathname === '/cashier';
@@ -28,11 +30,17 @@ export function MainLayout() {
     sessionStorage.getItem('psa_dismissed_storage_banner') === 'true'
   );
 
+  const isIOS = /iPad|iPhone|iPod/.test(navigator.userAgent);
+  const isInStandaloneMode = window.matchMedia('(display-mode: standalone)').matches;
+  const [showIOSInstallBanner, setShowIOSInstallBanner] = useState(
+    isIOS && !isInStandaloneMode && sessionStorage.getItem('psa_dismissed_ios_banner') !== 'true'
+  );
+
   const {
-    needRefresh: [needRefresh, setNeedRefresh],
+    needRefresh: [needRefresh],
     updateServiceWorker,
   } = useRegisterSW({
-    onRegistered(r) {
+    onRegistered(_r) {
       // SW Registered
     },
     onRegisterError(error) {
@@ -94,7 +102,7 @@ export function MainLayout() {
 
   useEffect(() => {
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    const handleUSBDisconnect = (event: any) => {
+    const handleUSBDisconnect = (_event: any) => {
       useToastStore.getState().addToast('Hardware terputus! Periksa kabel printer/timbangan.', 'error');
     };
 
@@ -140,6 +148,14 @@ export function MainLayout() {
       )}
       <GlobalSidebar />
       <ContextualBottomSheet />
+
+      {/* Global Offline Banner */}
+      {!isOnline && (
+        <div className="bg-stone-800 text-stone-100 px-4 py-2 flex items-center justify-center gap-2 text-sm font-medium z-50 shadow-md">
+          <WifiOff size={16} className="text-amber-400" />
+          <span>Mode Offline — Data transaksi aman tersimpan di perangkat lokal.</span>
+        </div>
+      )}
       
         {/* Dynamic Header */}
         {!isCashierPage && !isAuthRoute && (
@@ -211,6 +227,28 @@ export function MainLayout() {
             </div>
           </header>
         )}
+
+      {/* iOS Safari Install Banner */}
+      {showIOSInstallBanner && (
+        <div className="bg-brand-50 border-b border-brand-200 px-4 py-3 flex items-start sm:items-center justify-between gap-3 z-10 shrink-0">
+          <div className="flex items-start sm:items-center gap-3">
+            <DownloadCloud className="text-brand-600 shrink-0 mt-0.5 sm:mt-0" size={20} />
+            <p className="text-sm font-medium text-brand-900">
+              Gunakan aplikasi secara optimal: Tap bagikan (ikon Share) di Safari, lalu pilih <strong>Add to Home Screen</strong>.
+            </p>
+          </div>
+          <button 
+            onClick={() => {
+              sessionStorage.setItem('psa_dismissed_ios_banner', 'true');
+              setShowIOSInstallBanner(false);
+            }} 
+            className="text-brand-600 hover:text-brand-900 bg-brand-200/50 hover:bg-brand-300 p-1.5 rounded-lg transition-colors shrink-0"
+            title="Tutup panduan"
+          >
+            <X size={16} />
+          </button>
+        </div>
+      )}
 
       {/* Storage Persistence Warning Banner */}
       {!isAuthRoute && isStoragePersisted === false && !isStorageBannerDismissed && (

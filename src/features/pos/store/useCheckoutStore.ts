@@ -5,6 +5,7 @@ import { useCartStore } from './useCartStore';
 import { DIContainer } from '@infrastructure/di/Container';
 import { useAuthStore } from '../../../shared/store/authStore';
 import { useToastStore } from '../../../shared/store/toastStore';
+import { mapErrorToUser } from '../../../shared/utils/errorMapper';
 import { Customer } from '../../../domain/models/Customer';
 
 type PaymentMethod = 'CASH' | 'QRIS' | 'SPLIT';
@@ -137,7 +138,8 @@ export const useCheckoutStore = create<CheckoutState>((set, get) => ({
         get().setCheckoutError(error);
         useToastStore.getState().addToast('Stok tidak mencukupi untuk beberapa item.', 'error');
       } else {
-        useToastStore.getState().addToast((error as Error).message || 'Terjadi kesalahan saat memproses transaksi.', 'error');
+        const mapped = mapErrorToUser(error);
+        useToastStore.getState().addToast(mapped.userMessage, 'error');
         if (error instanceof VersionConflictError) {
           useCartStore.getState().clearCart();
           get().closeCheckoutModal();

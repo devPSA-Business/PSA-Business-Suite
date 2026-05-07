@@ -61,7 +61,7 @@
     height: 100%;
     margin: 0;
     padding: 0;
-    overscroll-behavior-y: none;
+    overscroll-behavior: none;
     touch-action: !important manipulation;
     padding-bottom: var(--spacing-safe);
     font-family: var(--font-sans);

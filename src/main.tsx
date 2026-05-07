@@ -18,24 +18,27 @@ if (navigator.storage && navigator.storage.persist) {
   });
 }
 
-const validateProductionSecrets = () => {
-  const pepper = import.meta.env.VITE_CRYPTO_PEPPER;
-  const WEAK_PEPPER_HINTS = ['change-me', 'secret-pepper', 'GANTI_DENGAN', 'GENERATE_DULU', ''];
-
-  if (!pepper || pepper.length < 32 || WEAK_PEPPER_HINTS.some(h => pepper.includes(h))) {
-    throw new Error(
-      '[PSA-SECURITY] VITE_CRYPTO_PEPPER tidak valid, kosong, atau terlalu lemah.\n' +
-      'Generate dengan: node -e "console.log(require(\'crypto\').randomBytes(32).toString(\'hex\'))"'
-    );
+// G-04 FIX: Force SW update dari network, bypass HTTP cache
+registerSW({ 
+  immediate: true,
+  onRegisteredSW(swUrl, r) {
+    if (r) {
+      // Cek update setiap 1 jam saat online, bypass cache
+      setInterval(async () => {
+        if (!(!r.installing && navigator.onLine)) return;
+        try {
+          const resp = await fetch(swUrl, {
+            cache: 'no-store',
+            headers: { 'Cache-Control': 'no-cache' },
+          });
+          if (resp?.status === 200) await r.update();
+        } catch (err) {
+          console.error('SW update check failed', err);
+        }
+      }, 60 * 60 * 1000);
+    }
   }
-};
-
-// Hanya validasi di production — dev boleh pakai nilai dummy
-if (import.meta.env.PROD) {
-  validateProductionSecrets();
-}
-
-registerSW({ immediate: true });
+});
 
 DIContainer.syncService.startAutoSync();
 

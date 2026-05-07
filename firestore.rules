@@ -59,6 +59,43 @@ service cloud.firestore {
             && data.branchId is string && data.branchId.size() > 0;
     }
 
+    function isValidUser(data) {
+        return data.name is string && data.name.size() > 0 && data.name.size() <= 100
+             && data.role is string && (data.role == 'ADMIN' || data.role == 'MANAGER' || data.role == 'USER' || data.role == 'KASIR')
+             && data.branchId is string && data.branchId.size() > 0;
+    }
+
+    function isValidCustomer(data) {
+        return data.name is string && data.name.size() > 0 && data.name.size() <= 100
+             && data.branchId is string && data.branchId.size() > 0;
+    }
+
+    function isValidTransaction(data) {
+        return data.total is number && data.total >= 0
+             && data.paymentMethod is string && data.paymentMethod.size() > 0
+             && data.status is string && data.status.size() > 0
+             && data.branchId is string && data.branchId.size() > 0
+             && data.userId is string && data.userId.size() > 0;
+    }
+
+    function isValidRepair(data) {
+        return data.branchId is string && data.branchId.size() > 0
+             && data.status is string && data.status.size() > 0;
+    }
+
+    function isValidShift(data) {
+        return data.branchId is string && data.branchId.size() > 0;
+    }
+
+    function isValidPettyCash(data) {
+        return data.branchId is string && data.branchId.size() > 0
+             && data.amount is number;
+    }
+
+    function isValidGoldBuyback(data) {
+        return data.branchId is string && data.branchId.size() > 0;
+    }
+
     // ===============================================================
     // CORE COLLECTIONS
     // ===============================================================
@@ -79,58 +116,74 @@ service cloud.firestore {
     }
 
     match /stock/{id} {
-      allow read: if isHardened() && belongsToBranch(existing());
-      allow create: if isHardened() && isManager() && isValidId(id) && isValidStockItem(incoming()) && belongsToBranch(incoming());
-      allow update: if isHardened() && isManager() && isValidStockItem(incoming()) && incoming().branchId == existing().branchId && belongsToBranch(existing());
+      allow list: if isHardened() && isSignedIn(); // Query enforced by `belongsToBranch` below in read/write
+      allow get: if isHardened() && belongsToBranch(resource.data);
+      allow create: if isHardened() && isManager() && isValidId(id) && isValidStockItem(incoming()) && belongsToBranch(incoming()) && incoming().createdAt == request.time;
+      allow update: if isHardened() && isManager() && isValidStockItem(incoming()) && incoming().branchId == existing().branchId && belongsToBranch(existing()) 
+        && incoming().diff(existing()).affectedKeys().hasOnly(['name', 'barcode', 'category', 'price', 'cost', 'quantity', 'updatedAt'])
+        && incoming().updatedAt == request.time;
       allow delete: if isHardened() && isAdmin();
     }
 
     match /audit_logs/{id} {
-      allow read: if isHardened() && isManager() && belongsToBranch(existing());
-      allow create: if isHardened() && belongsToBranch(incoming());
+      allow list: if isHardened() && isManager();
+      allow get: if isHardened() && isManager() && belongsToBranch(resource.data);
+      allow create: if isHardened() && belongsToBranch(incoming()) && incoming().timestamp == request.time;
       allow update, delete: if false; // IMMUTABLE
     }
 
     match /customers/{id} {
-      allow read: if isHardened() && belongsToBranch(existing());
-      allow create: if isHardened() && belongsToBranch(incoming());
-      allow update: if isHardened() && belongsToBranch(existing()) && incoming().branchId == existing().branchId;
+      allow list: if isHardened() && isSignedIn();
+      allow get: if isHardened() && belongsToBranch(resource.data);
+      allow create: if isHardened() && belongsToBranch(incoming()) && incoming().createdAt == request.time;
+      allow update: if isHardened() && belongsToBranch(existing()) && incoming().branchId == existing().branchId 
+        && incoming().updatedAt == request.time;
       allow delete: if isHardened() && isManager() && belongsToBranch(existing());
     }
 
     // SERVICE & ORDERS
     match /repair_services/{id} {
-      allow read: if isHardened() && belongsToBranch(existing());
-      allow create: if isHardened() && belongsToBranch(incoming());
-      allow update: if isHardened() && belongsToBranch(existing()) && incoming().branchId == existing().branchId;
+      allow list: if isHardened() && isSignedIn();
+      allow get: if isHardened() && belongsToBranch(resource.data);
+      allow create: if isHardened() && belongsToBranch(incoming()) && incoming().createdAt == request.time;
+      allow update: if isHardened() && belongsToBranch(existing()) && incoming().branchId == existing().branchId 
+        && incoming().updatedAt == request.time;
       allow delete: if isHardened() && isManager() && belongsToBranch(existing());
     }
 
     match /transactions/{id} {
-      allow read: if isHardened() && belongsToBranch(existing());
-      allow create: if isHardened() && belongsToBranch(incoming()) && (incoming().get('secureData', '').size() <= 1000000);
-      allow update: if isHardened() && belongsToBranch(existing()) && incoming().branchId == existing().branchId && (incoming().get('secureData', '').size() <= 1000000);
+      allow list: if isHardened() && isSignedIn();
+      allow get: if isHardened() && belongsToBranch(resource.data);
+      allow create: if isHardened() && belongsToBranch(incoming()) && isValidTransaction(incoming()) && incoming().createdAt == request.time;
+      allow update: if isHardened() && belongsToBranch(existing()) && incoming().branchId == existing().branchId 
+        && incoming().updatedAt == request.time;
       allow delete: if isHardened() && isManager() && belongsToBranch(existing());
     }
 
     match /shifts/{id} {
-      allow read: if isHardened() && belongsToBranch(existing());
-      allow create: if isHardened() && belongsToBranch(incoming());
-      allow update: if isHardened() && belongsToBranch(existing()) && incoming().branchId == existing().branchId;
+      allow list: if isHardened() && isSignedIn();
+      allow get: if isHardened() && belongsToBranch(resource.data);
+      allow create: if isHardened() && belongsToBranch(incoming()) && isValidShift(incoming()) && incoming().createdAt == request.time;
+      allow update: if isHardened() && belongsToBranch(existing()) && incoming().branchId == existing().branchId 
+        && incoming().updatedAt == request.time;
       allow delete: if isHardened() && isManager() && belongsToBranch(existing());
     }
 
     match /petty_cash/{id} {
-      allow read: if isHardened() && belongsToBranch(existing());
-      allow create: if isHardened() && belongsToBranch(incoming());
-      allow update: if isHardened() && belongsToBranch(existing()) && incoming().branchId == existing().branchId;
+      allow list: if isHardened() && isSignedIn();
+      allow get: if isHardened() && belongsToBranch(resource.data);
+      allow create: if isHardened() && belongsToBranch(incoming()) && isValidPettyCash(incoming()) && incoming().createdAt == request.time;
+      allow update: if isHardened() && belongsToBranch(existing()) && incoming().branchId == existing().branchId 
+        && incoming().updatedAt == request.time;
       allow delete: if isHardened() && isManager() && belongsToBranch(existing());
     }
 
     match /gold_buyback/{id} {
-      allow read: if isHardened() && isManager() && belongsToBranch(existing());
-      allow create: if isHardened() && isManager() && belongsToBranch(incoming());
-      allow update: if isHardened() && isManager() && belongsToBranch(existing()) && incoming().branchId == existing().branchId;
+      allow list: if isHardened() && isManager();
+      allow get: if isHardened() && isManager() && belongsToBranch(resource.data);
+      allow create: if isHardened() && isManager() && belongsToBranch(incoming()) && isValidGoldBuyback(incoming()) && incoming().createdAt == request.time;
+      allow update: if isHardened() && isManager() && belongsToBranch(existing()) && incoming().branchId == existing().branchId 
+        && incoming().updatedAt == request.time;
       allow delete: if isHardened() && isManager() && belongsToBranch(existing());
     }
 

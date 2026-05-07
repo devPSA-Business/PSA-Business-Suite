@@ -1,6 +1,7 @@
 // eslint.config.ts
 import tsEslint from 'typescript-eslint';
 import reactHooks from 'eslint-plugin-react-hooks';
+import firebaseRulesPlugin from '@firebase/eslint-plugin-security-rules';
 
 /**
  * @ai_context: F8 - Quality Assurance & Type Safety
@@ -8,6 +9,7 @@ import reactHooks from 'eslint-plugin-react-hooks';
  */
 export default tsEslint.config(
   ...tsEslint.configs.recommended,
+  firebaseRulesPlugin.configs['flat/recommended'],
   {
     plugins: { 'react-hooks': reactHooks },
     rules: {

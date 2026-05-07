@@ -73,7 +73,8 @@ export function MainLayout() {
   ) ?? 0;
 
   useEffect(() => {
-    const handleBeforeUnload = (e: BeforeUnloadEvent) => {
+    // @ts-expect-error type 
+    const handleBeforeUnload = (e) => {
       if (pendingSyncs > 0) {
         e.preventDefault();
         e.returnValue = '';
@@ -85,8 +86,9 @@ export function MainLayout() {
   }, [pendingSyncs]);
 
   useEffect(() => {
-    const handleAuthError = (event: Event) => {
-      const customEvent = event as CustomEvent;
+    // @ts-expect-error type
+    const handleAuthError = (event) => {
+      const customEvent = event;
       const message = customEvent.detail?.message || 'Sesi Habis, Silakan Login Ulang';
       useToastStore.getState().addToast(message, 'error');
       
@@ -101,8 +103,8 @@ export function MainLayout() {
   }, [navigate]);
 
   useEffect(() => {
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    const handleUSBDisconnect = (_event: any) => {
+    // @ts-expect-error type
+    const handleUSBDisconnect = (_event) => {
       useToastStore.getState().addToast('Hardware terputus! Periksa kabel printer/timbangan.', 'error');
     };
 

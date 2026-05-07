@@ -258,6 +258,7 @@ export const useSecurityStore = create<SecurityState>()(
           useAuthStore.getState().login({ id: user.id, name: user.name, role: user.role });
           return true;
         } catch (error) {
+          console.error('VERIFY PIN ERROR:', error);
           return false;
         }
       },

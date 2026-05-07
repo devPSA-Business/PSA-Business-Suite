@@ -7,7 +7,7 @@ import { getFunctions, Functions } from 'firebase/functions';
 import { initializeAppCheck, ReCaptchaEnterpriseProvider } from 'firebase/app-check';
 import { useAuthStore } from '../store/authStore';
 import { logger } from '../../lib/logger';
-const modules = import.meta.glob('../../../firebase-applet-config.json', { eager: true });
+const modules = import.meta.glob('../../../firebase-applet-confi*.json', { eager: true });
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
 const configModule = modules['../../../firebase-applet-config.json'] as any;
 const firebaseConfigJSONRaw = configModule?.default || {};

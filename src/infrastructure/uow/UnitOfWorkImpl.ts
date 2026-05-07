@@ -1,3 +1,4 @@
+import { Dexie } from 'dexie';
 import { IUnitOfWork } from '@application/core/IUnitOfWork';
 import { db, AuditLog } from '../../shared/api/db';
 import { cryptoDB } from '../../lib/cryptoIndexedDB';
@@ -67,17 +68,17 @@ export class UnitOfWorkImpl implements IUnitOfWork {
     const dataString = `${previousHash}|${id}|${timestamp}|${action}|${user}|${details}|${extra?.entityId || ''}|${extra?.correlationId || ''}`;
     const encoder = new TextEncoder();
     const dataBuffer = encoder.encode(dataString);
-    const hashBuffer = await crypto.subtle.digest('SHA-256', dataBuffer);
+    const hashBuffer = await Dexie.waitFor(crypto.subtle.digest('SHA-256', dataBuffer));
     
     // Convert buffer to Hex String
     const hashArray = Array.from(new Uint8Array(hashBuffer));
     const hash = hashArray.map(b => b.toString(16).padStart(2, '0')).join('');
 
     // Encrypt sensitive details & payloadDiff
-    const encryptedDetails = await cryptoDB.encryptRecord({ details });
+    const encryptedDetails = await Dexie.waitFor(cryptoDB.encryptRecord({ details }));
     let encryptedPayloadDiff = undefined;
     if (extra?.payloadDiff) {
-      encryptedPayloadDiff = JSON.stringify(await cryptoDB.encryptRecord({ diff: extra.payloadDiff }));
+      encryptedPayloadDiff = JSON.stringify(await Dexie.waitFor(cryptoDB.encryptRecord({ diff: extra.payloadDiff })));
     }
 
     const log: AuditLog = {

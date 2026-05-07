@@ -70,7 +70,9 @@ describe('CheckoutUseCase', () => {
     const request: CheckoutRequestDTO = {
       total: 1000,
       paymentMethod: 'CASH',
-      items: [],
+      items: [
+        { stockId: 'dummy', name: 'Dummy', quantity: 1, price: 1000, subtotal: 1000 }
+      ],
       userId: 'user-1',
     };
 

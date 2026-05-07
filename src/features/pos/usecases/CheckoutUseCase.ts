@@ -105,10 +105,15 @@ export class CheckoutUseCase {
           const auditLogsToRegister: string[] = [];
 
           // 2. Read Stock and Validate
-          const stockItems = await Promise.all(request.items.map(async (i) => {
-            if (i.isCustomItem) return null;
-            return this.stockRepository.findById(i.stockId);
-          }));
+          const stockItems: (any | null)[] = [];
+          for (const i of request.items) {
+            if (i.isCustomItem) {
+              stockItems.push(null);
+            } else {
+              const item = await this.stockRepository.findById(i.stockId);
+              stockItems.push(item);
+            }
+          }
           
           let calculatedTotal = 0;
           

@@ -1,5 +1,6 @@
 import { db } from '../api/db';
 import { logger } from '../../lib/logger';
+import { Dexie } from 'dexie';
 
 /**
  * @ai_context Auto-Pruner (Zero Maintenance Strategy Phase 2).
@@ -66,7 +67,7 @@ export const archiveOldLogsAndEvents = async (): Promise<{ count: number }> => {
       // Catat penghapusan ke audit log agar tidak dicurigai hilang
       const encoder = new TextEncoder();
       const data = encoder.encode(lastHash + Date.now().toString() + 'LOCAL_PRUNE' + 'System' + details);
-      const hashBuffer = await crypto.subtle.digest('SHA-256', data);
+      const hashBuffer = await Dexie.waitFor(crypto.subtle.digest('SHA-256', data));
       const hashArray = Array.from(new Uint8Array(hashBuffer));
       const hash = hashArray.map(b => b.toString(16).padStart(2, '0')).join('');
 

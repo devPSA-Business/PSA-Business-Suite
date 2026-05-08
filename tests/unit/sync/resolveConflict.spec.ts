@@ -45,6 +45,11 @@ describe('SyncServiceImpl.resolveConflict (SERVER mode)', () => {
     vi.clearAllMocks();
   });
 
+  const mockUow = {
+    execute: vi.fn(async (work) => await work()),
+    registerAudit: vi.fn().mockResolvedValue(undefined)
+  } as any;
+
   it.each([
     'stock',
     'customers',
@@ -60,19 +65,25 @@ describe('SyncServiceImpl.resolveConflict (SERVER mode)', () => {
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     vi.mocked(db.sync_events.get).mockResolvedValue(makeEvent(entityType) as any);
     
-    await service.resolveConflict(1, 'SERVER');
+    await service.resolveConflict(1, 'SERVER', mockUow);
     
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     const targetTable = (db as any)[entityType];
     expect(targetTable.put).toHaveBeenCalledWith(mockServerPayload);
     expect(db.sync_events.delete).toHaveBeenCalledWith(1);
+    expect(mockUow.registerAudit).toHaveBeenCalledWith(
+      'RESOLVE_CONFLICT',
+      expect.any(String),
+      expect.stringContaining('SERVER'),
+      expect.any(Object)
+    );
   });
 
   it('should push to DLQ for unknown entity_type', async () => {
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     vi.mocked(db.sync_events.get).mockResolvedValue(makeEvent('unknown_entity_type') as any);
     
-    await service.resolveConflict(1, 'SERVER');
+    await service.resolveConflict(1, 'SERVER', mockUow);
     
     expect(db.sync_dlq.add).toHaveBeenCalledWith(
       expect.objectContaining({

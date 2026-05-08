@@ -73,7 +73,7 @@ export const useGoldStore = create<GoldStore>((set, get) => ({
         } else {
           set({ marketPricePerGram: 0, isManualPriceRequired: true });
         }
-      } catch(e) {
+      } catch(_e) {
         set({ marketPricePerGram: 0, isManualPriceRequired: true });
       }
     } finally {

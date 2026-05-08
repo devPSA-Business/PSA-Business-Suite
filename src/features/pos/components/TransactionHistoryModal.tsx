@@ -23,7 +23,6 @@ export const TransactionHistoryModal: React.FC<TransactionHistoryModalProps> = (
   const [isVoiding, setIsVoiding] = useState(false);
   const [voidReason, setVoidReason] = useState('');
   const [isAuthOpen, setIsAuthOpen] = useState(false);
-  const [pendingAction, setPendingAction] = useState<string | null>(null);
   const user = useAuthStore(state => state.user);
 
   const transactions = useLiveQuery(
@@ -50,10 +49,6 @@ export const TransactionHistoryModal: React.FC<TransactionHistoryModalProps> = (
     } catch (e) {
       useToastStore.getState().addToast(e instanceof Error ? (e instanceof Error ? e.message : String(e)) : 'Gagal menandai transaksi', 'error');
     }
-  };
-
-  const handleEditSubmit = () => {
-    // Legacy handleEditSubmit removed as it was unused
   };
 
   const handleReprint = async () => {
@@ -266,7 +261,6 @@ export const TransactionHistoryModal: React.FC<TransactionHistoryModalProps> = (
                           <button onClick={() => setIsVoiding(false)} className="px-3 sm:px-4 py-1.5 sm:py-2 text-stone-600 font-bold text-sm sm:text-base">Batal</button>
                           <button 
                             onClick={() => {
-                              setPendingAction('VOID');
                               setIsAuthOpen(true);
                             }}
                             disabled={!voidReason.trim()}

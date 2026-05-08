@@ -1,6 +1,6 @@
 import { create } from 'zustand';
 import { persist } from 'zustand/middleware';
-import { QuickActionTile, TileDivision } from '../../domain/models/Tile';
+import { QuickActionTile } from '../../domain/models/Tile';
 
 interface TileState {
   tiles: QuickActionTile[];

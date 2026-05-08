@@ -144,7 +144,7 @@ export const useSecurityStore = create<SecurityState>()(
              return true;
           }
           return false;
-        } catch(e) {
+        } catch(_e) {
           return false;
         }
       },
@@ -258,6 +258,7 @@ export const useSecurityStore = create<SecurityState>()(
           useAuthStore.getState().login({ id: user.id, name: user.name, role: user.role });
           return true;
         } catch (error) {
+          console.error('VERIFY PIN ERROR:', error);
           return false;
         }
       },
@@ -276,7 +277,7 @@ export const useSecurityStore = create<SecurityState>()(
            wrappedKeyMeta.wrappedKeysByPin[targetUserId] = pinWrappedKey;
            await cryptoKeyStore.saveWrappedKey(wrappedKeyMeta);
            return true;
-         } catch (err) {
+         } catch (_err) {
            return false;
          }
       },

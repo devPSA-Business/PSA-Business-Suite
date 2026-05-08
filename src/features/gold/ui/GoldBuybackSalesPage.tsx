@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState } from 'react';
 import { useLiveQuery } from 'dexie-react-hooks';
 import { DIContainer } from '@infrastructure/di/Container';
 import { Scale, Landmark, ArrowDownRight, ArrowUpRight, Plus, ExternalLink } from 'lucide-react';
@@ -6,7 +6,6 @@ import { GoldBuyback } from '../../../shared/api/db';
 import { BuybackForm } from './BuybackForm';
 import { GoldLiquidationForm } from '../components/GoldLiquidationForm';
 import { BackButton } from '../../../shared/components/BackButton';
-import { useToastStore } from '../../../shared/store/toastStore';
 import { MathUtils } from '../../../shared/utils/decimalUtils';
 
 /**
@@ -17,8 +16,6 @@ export function GoldBuybackSalesPage() {
   const [isBuybackOpen, setIsBuybackOpen] = useState(false);
   const [isLiquidationOpen, setIsLiquidationOpen] = useState(false);
   
-  const addToast = useToastStore(s => s.addToast);
-
   const totalBuybackWeight = buybacks.reduce((sum: number, b: GoldBuyback) => sum + b.weightGram, 0);
   const totalSoldWeight = buybacks.filter(b => b.status === 'sold_to_collector').reduce((sum: number, b: GoldBuyback) => sum + b.weightGram, 0);
   const currentGoldAssetWeight = totalBuybackWeight - totalSoldWeight;

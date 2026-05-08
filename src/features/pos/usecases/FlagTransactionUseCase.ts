@@ -23,16 +23,13 @@ export class FlagTransactionUseCase {
       const flaggedTransaction = transaction.flagTransaction(dto.reason);
       await this.retailRepo.save(flaggedTransaction);
 
-      // Explicitly register audit
-      if ('registerAudit' in this.unitOfWork) {
-        // eslint-disable-next-line @typescript-eslint/no-explicit-any
-        await (this.unitOfWork as any).registerAudit(
-          'FLAG_RETAIL_TRANSACTION',
-          dto.userId,
-          `Flagging transaction ${dto.transactionId} over reason: ${dto.reason}`,
-          { entityId: dto.transactionId }
-        );
-      }
+      // Explicitly register audit - Type-safe
+      await this.unitOfWork.registerAudit(
+        'FLAG_RETAIL_TRANSACTION',
+        dto.userId,
+        `Flagging transaction ${dto.transactionId} over reason: ${dto.reason}`,
+        { entityId: dto.transactionId }
+      );
 
       return flaggedTransaction;
     }, ['transactions']);

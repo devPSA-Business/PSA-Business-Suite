@@ -37,7 +37,7 @@ describe('CheckoutUseCase', () => {
       save: vi.fn(),
       calculateExpectedCash: vi.fn(),
       findById: vi.fn(),
-      checkCloudForActiveShift: vi.fn(), incrementShiftSales: vi.fn(),
+      checkCloudForActiveShift: vi.fn(), incrementShiftSales: vi.fn(), revertShiftSales: vi.fn(),
     };
     mockUow = {
       execute: vi.fn((work) => work()),

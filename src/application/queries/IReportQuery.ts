@@ -1,4 +1,4 @@
-import { Transaction } from '../../shared/api/db';
+import { Transaction, AuditLog } from '../../shared/api/db';
 import { StockItem } from '../../domain/models/StockItem';
 
 export interface DailyStats {
@@ -79,7 +79,6 @@ export interface IReportQuery {
   getRevenueByPaymentMethod(startDate: number, endDate: number): Promise<PaymentMethodRevenue[]>;
   getLowStockItems(): Promise<StockItem[]>;
   getTopCustomers(startDate: number, endDate: number, limit: number): Promise<CustomerRevenue[]>;
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  getAuditLogs(page: number, pageSize: number): Promise<any[]>;
+  getAuditLogs(page: number, pageSize: number): Promise<AuditLog[]>;
   getCustomerSegmentation(): Promise<{ segment: string; count: number; revenue: number }[]>;
 }

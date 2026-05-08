@@ -27,8 +27,8 @@ export function SyncStatusPage() {
     try {
       await DIContainer.syncService.processSyncQueue();
       addToast('Sinkronisasi manual selesai.', 'success');
-    } catch (error) {
-      console.error('Manual sync failed:', error);
+    } catch (_error) {
+      console.error('Manual sync failed:', _error);
       addToast('Terjadi kesalahan saat sinkronisasi manual.', 'error');
     } finally {
       setIsSyncing(false);
@@ -40,7 +40,7 @@ export function SyncStatusPage() {
       await db.sync_events.update(eventId, { status: 'PENDING', retry_count: 0 });
       addToast('Status antrean di-reset ke PENDING.', 'success');
       handleManualSync();
-    } catch (error) {
+    } catch (_error) {
       addToast('Gagal mereset status.', 'error');
     }
   };

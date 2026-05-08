@@ -33,7 +33,7 @@ describe('GoldLiquidationUseCase', () => {
       save: vi.fn(),
       calculateExpectedCash: vi.fn(),
       findById: vi.fn(),
-      checkCloudForActiveShift: vi.fn(), incrementShiftSales: vi.fn(),
+      checkCloudForActiveShift: vi.fn(), incrementShiftSales: vi.fn(), revertShiftSales: vi.fn(),
     };
     mockInternalNoteRepo = {
       save: vi.fn(),

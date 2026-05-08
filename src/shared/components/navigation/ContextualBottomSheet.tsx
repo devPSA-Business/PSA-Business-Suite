@@ -2,8 +2,8 @@ import React from 'react';
 import { useRouterState, useNavigate } from '@tanstack/react-router';
 import { motion, AnimatePresence } from 'motion/react';
 import { 
-  X, Plus, Printer, AlertTriangle, 
-  History, Download, RefreshCw, Wrench, Home, PackagePlus
+  X, Printer, 
+  RefreshCw, Wrench, Home, PackagePlus
 } from 'lucide-react';
 import { useUIStore } from '../../store/useUIStore';
 

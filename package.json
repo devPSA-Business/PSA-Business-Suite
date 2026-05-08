@@ -44,7 +44,8 @@
     "zustand": "^5.0.12"
   },
   "devDependencies": {
-    "@google/genai": "^1.51.0",
+    "@firebase/eslint-plugin-security-rules": "^0.0.2",
+    "@firebase/rules-unit-testing": "^5.0.0",
     "@tailwindcss/vite": "^4.1.14",
     "@types/express": "^5.0.6",
     "@types/node": "^22.19.17",
@@ -64,7 +65,7 @@
     "firebase-functions": "^7.2.5",
     "husky": "^9.1.7",
     "jsdom": "^29.1.1",
-    "lint-staged": "^17.0.2",
+    "lint-staged": "^15.4.3",
     "sharp": "^0.33.5",
     "tailwindcss": "^4.1.14",
     "tsx": "^4.21.0",

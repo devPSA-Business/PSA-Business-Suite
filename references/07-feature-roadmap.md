@@ -31,8 +31,9 @@ Toko perhiasan tanpa modul buyback = kehilangan segmen bisnis utama (estimasi 30
    - Kalkulasi: harga pasar × faktor karatase × kondisi
    - HPP Emas: Specific Identification (setiap lot berbeda)
    
-2. **Jual Emas** — likuidasi gold treasury ke supplier
-   - Tracking: lot number, HPP, margin per lot
+2. **Jual Emas ke Pengepul** — likuidasi gold treasury ke pengepul (BUKAN ke konsumen)
+   - Emas hasil buyback dari pelanggan dikumpulkan → dijual ke pengepul dalam jumlah tertentu
+   - Tracking: lot number, HPP beli dari pelanggan, harga jual ke pengepul, margin per lot
    
 3. **Gold Treasury Dashboard** — stok emas real-time
    - Total berat per karatase

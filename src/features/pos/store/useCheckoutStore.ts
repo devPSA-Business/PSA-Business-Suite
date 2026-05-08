@@ -1,9 +1,11 @@
+import { logger } from '@lib/logger';
 import { VersionConflictError, InsufficientStockError } from '@domain/errors';
 import { create } from 'zustand';
 import { useCartStore } from './useCartStore';
 import { DIContainer } from '@infrastructure/di/Container';
 import { useAuthStore } from '../../../shared/store/authStore';
 import { useToastStore } from '../../../shared/store/toastStore';
+import { mapErrorToUser } from '../../../shared/utils/errorMapper';
 import { Customer } from '../../../domain/models/Customer';
 
 type PaymentMethod = 'CASH' | 'QRIS' | 'SPLIT';
@@ -117,12 +119,12 @@ export const useCheckoutStore = create<CheckoutState>((set, get) => ({
             try {
               await DIContainer.printService.triggerCashDrawer();
             } catch (drawerErr) {
-              console.error('Gagal membuka laci kasir:', drawerErr);
+              logger.error('Gagal membuka laci kasir:', drawerErr);
             }
           }
         }
       } catch (printError) {
-        console.error('Gagal mencetak struk:', printError);
+        logger.error('Gagal mencetak struk:', printError);
         useToastStore.getState().addToast('Transaksi berhasil, namun gagal mencetak struk', 'info');
       }
 
@@ -130,13 +132,14 @@ export const useCheckoutStore = create<CheckoutState>((set, get) => ({
       cartState.clearCart();
       get().closeCheckoutModal();
     } catch (error) {
-      console.error('Gagal menyelesaikan transaksi:', error);
+      logger.error('Gagal menyelesaikan transaksi:', error);
       
       if (error instanceof InsufficientStockError) {
         get().setCheckoutError(error);
         useToastStore.getState().addToast('Stok tidak mencukupi untuk beberapa item.', 'error');
       } else {
-        useToastStore.getState().addToast((error as Error).message || 'Terjadi kesalahan saat memproses transaksi.', 'error');
+        const mapped = mapErrorToUser(error);
+        useToastStore.getState().addToast(mapped.userMessage, 'error');
         if (error instanceof VersionConflictError) {
           useCartStore.getState().clearCart();
           get().closeCheckoutModal();

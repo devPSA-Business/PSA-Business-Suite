@@ -1,3 +1,4 @@
+import { logger } from '@lib/logger';
 import { IRepairRepository } from '@domain/repositories/IRepairRepository';
 import { ICustomerRepository } from '@domain/repositories/ICustomerRepository';
 import { ICommunicationService } from '@application/services/ICommunicationService';
@@ -67,7 +68,7 @@ export class UpdateRepairStatusUseCase {
           }
         } catch (error) {
           // Log error but don't fail the transaction
-          console.error('[UpdateRepairStatusUseCase] Gagal mengirim notifikasi:', error);
+          logger.error('[UpdateRepairStatusUseCase] Gagal mengirim notifikasi:', error);
         }
       }
     }, ['repair_services']);

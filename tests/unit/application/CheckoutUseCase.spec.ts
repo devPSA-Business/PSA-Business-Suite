@@ -37,7 +37,7 @@ describe('CheckoutUseCase', () => {
       save: vi.fn(),
       calculateExpectedCash: vi.fn(),
       findById: vi.fn(),
-      checkCloudForActiveShift: vi.fn(), incrementShiftSales: vi.fn(),
+      checkCloudForActiveShift: vi.fn(), incrementShiftSales: vi.fn(), revertShiftSales: vi.fn(),
     };
     mockUow = {
       execute: vi.fn((work) => work()),
@@ -70,7 +70,9 @@ describe('CheckoutUseCase', () => {
     const request: CheckoutRequestDTO = {
       total: 1000,
       paymentMethod: 'CASH',
-      items: [],
+      items: [
+        { stockId: 'dummy', name: 'Dummy', quantity: 1, price: 1000, subtotal: 1000 }
+      ],
       userId: 'user-1',
     };
 

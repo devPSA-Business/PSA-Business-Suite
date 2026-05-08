@@ -338,7 +338,6 @@ async function calculateProductRanking(startDateMs: number, endDateMs: number) {
 
     // Gunakan Normalized Margin. >= 1 berarti mencapai baseline harapan. > 1.2 berarti tinggi.
     const isHighMargin = (p.normalizedMarginPct || 0) >= 1.0;
-    const isLowMargin = (p.normalizedMarginPct || 0) <= 0.6; // Di bawah 60% baseline = low
     const isFastMover = p.qtySold >= averageSoldInCategory;
 
     if (isFastMover && isHighMargin) category = "STAR (Fast Mover - Margin Optimal)";

@@ -4,7 +4,6 @@ import { Store, User, Lock, ArrowRight, Loader2, ShieldCheck, MapPin, Beaker } f
 import { useToastStore } from '../../shared/store/toastStore';
 import { DIContainer } from '../../infrastructure/di/Container';
 import { useSecurityStore } from '../../shared/store/useSecurityStore';
-import { isConfigValid } from '../../shared/api/firebase';
 import { db } from '../../shared/api/db';
 
 export function OnboardingPage() {

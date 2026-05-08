@@ -10,7 +10,6 @@ export function QuickCatalogWidget() {
     async () => {
       if (!searchQuery.trim()) return [];
       
-      const lowerQuery = searchQuery.toLowerCase();
       // Gunakan indeks 'name' dan 'barcode' untuk pencarian O(1)
       const resultsByName = await db.stock
         .where('name')

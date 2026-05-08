@@ -1,6 +1,6 @@
 import React from 'react';
 import { Link } from '@tanstack/react-router';
-import { Clock, Wallet, TrendingUp } from 'lucide-react';
+import { Clock, Wallet } from 'lucide-react';
 import { Shift } from '../../../domain/models/Shift';
 import { useLiveQuery } from 'dexie-react-hooks';
 import { DIContainer } from '../../../infrastructure/di/Container';

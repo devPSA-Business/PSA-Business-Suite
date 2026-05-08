@@ -57,7 +57,7 @@ describe('Domain Separation: Retail vs Gold Asset Trading', () => {
       save: vi.fn(),
       calculateExpectedCash: vi.fn(),
       findById: vi.fn(),
-      checkCloudForActiveShift: vi.fn(), incrementShiftSales: vi.fn(),
+      checkCloudForActiveShift: vi.fn(), incrementShiftSales: vi.fn(), revertShiftSales: vi.fn(),
     };
     mockInternalNoteRepo = {
       save: vi.fn(),
@@ -68,7 +68,8 @@ describe('Domain Separation: Retail vs Gold Asset Trading', () => {
       findAll: vi.fn(),
     };
     mockUserRepo = {
-      findByName: vi.fn().mockResolvedValue({ role: 'MANAGER' }),
+      findById: vi.fn().mockResolvedValue({ role: 'MANAGER' }),
+      findByName: vi.fn(),
       findAll: vi.fn(),
       save: vi.fn(),
       delete: vi.fn(),
@@ -137,7 +138,7 @@ describe('Domain Separation: Retail vs Gold Asset Trading', () => {
   it('B2B Gold Sales (Trading) should NOT call registerStockHistory', async () => {
     // Setup asset
     vi.mocked(mockGoldBuybackRepo.findById).mockResolvedValue({ 
-      id: 'bb-1', markAsSoldToCollector: vi.fn(), weightGram: 10, buybackPrice: 9000000
+      id: 'bb-1', markAsSoldToCollector: vi.fn(), weightGram: 10, buybackPrice: 9000000, status: 'stored', customerName: 'John', kadar: 0.75
     } as any);
 
     await goldSales.execute({

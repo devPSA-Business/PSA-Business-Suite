@@ -1,3 +1,4 @@
+import { logger } from '@lib/logger';
 import React, { useState } from 'react';
 import { motion, AnimatePresence } from 'motion/react';
 import { X, Search, AlertTriangle, CheckCircle, Clock, Printer } from 'lucide-react';
@@ -19,10 +20,9 @@ export const TransactionHistoryModal: React.FC<TransactionHistoryModalProps> = (
   const [selectedTrx, setSelectedTrx] = useState<RetailTransaction | null>(null);
   const [isFlagging, setIsFlagging] = useState(false);
   const [flagReason, setFlagReason] = useState('');
-  const [isEditing, setIsEditing] = useState(false);
-  const [pin, setPin] = useState('');
+  const [isVoiding, setIsVoiding] = useState(false);
+  const [voidReason, setVoidReason] = useState('');
   const [isAuthOpen, setIsAuthOpen] = useState(false);
-  const [pendingAction, setPendingAction] = useState<'VOID' | null>(null);
   const user = useAuthStore(state => state.user);
 
   const transactions = useLiveQuery(
@@ -51,10 +51,6 @@ export const TransactionHistoryModal: React.FC<TransactionHistoryModalProps> = (
     }
   };
 
-  const handleEditSubmit = () => {
-    useToastStore.getState().addToast('Fungsi Edit belum diaktifkan', 'info');
-  };
-
   const handleReprint = async () => {
     if (!selectedTrx) return;
     try {
@@ -77,28 +73,30 @@ export const TransactionHistoryModal: React.FC<TransactionHistoryModalProps> = (
       await DIContainer.printService.print(mockTxData);
       useToastStore.getState().addToast('Mencetak ulang struk...', 'info');
     } catch (error) {
-      console.error('Reprint failed', error);
+      logger.error('Reprint failed', error);
       useToastStore.getState().addToast('Gagal mencetak ulang struk', 'error');
     }
   };
 
   const handleRequestVoid = () => {
-    setPendingAction('VOID');
-    setIsAuthOpen(true);
+    setIsFlagging(false);
+    setIsVoiding(true);
   };
 
-  const executeVoid = async (pin?: string) => {
+  const executeVoid = async () => {
     setIsAuthOpen(false);
     if (!selectedTrx) return;
     try {
       await DIContainer.voidTransactionUseCase.execute({
         transactionId: selectedTrx.id,
-        reason: 'Authorized Void by Manager',
+        reason: voidReason,
         authorizedBy: user?.name || 'System'
       });
       useToastStore.getState().addToast('Transaksi dibatalkan (VOID) dan stok dikembalikan', 'success');
+      setIsVoiding(false);
+      setVoidReason('');
     } catch (e) {
-      console.error(e);
+      logger.error(e);
       useToastStore.getState().addToast(e instanceof Error ? (e instanceof Error ? e.message : String(e)) : 'Gagal membatalkan transaksi', 'error');
     }
   };
@@ -152,7 +150,7 @@ export const TransactionHistoryModal: React.FC<TransactionHistoryModalProps> = (
                     onClick={() => {
                       setSelectedTrx(trx);
                       setIsFlagging(false);
-                      setIsEditing(false);
+                      setIsVoiding(false);
                     }}
                   >
                     <div className="flex justify-between items-start mb-1 sm:mb-2">
@@ -213,7 +211,7 @@ export const TransactionHistoryModal: React.FC<TransactionHistoryModalProps> = (
                         <Printer size={18} className="sm:w-[18px] sm:h-[18px] w-4 h-4" /> Cetak Ulang
                       </button>
                       <button 
-                        onClick={() => { setIsFlagging(true); setIsEditing(false); }}
+                        onClick={() => { setIsFlagging(true); setIsVoiding(false); }}
                         className="flex-1 py-2.5 sm:py-3 bg-amber-100 text-amber-700 font-bold rounded-xl hover:bg-amber-200 transition-colors flex items-center justify-center gap-2 text-sm sm:text-base"
                       >
                         <AlertTriangle size={18} className="sm:w-[18px] sm:h-[18px] w-4 h-4" /> Tandai Masalah
@@ -244,6 +242,31 @@ export const TransactionHistoryModal: React.FC<TransactionHistoryModalProps> = (
                             className="px-3 sm:px-4 py-1.5 sm:py-2 bg-amber-600 text-white font-bold rounded-lg disabled:opacity-50 text-sm sm:text-base"
                           >
                             Simpan Penanda
+                          </button>
+                        </div>
+                      </div>
+                    )}
+
+                    {/* Voiding Form */}
+                    {isVoiding && (
+                      <div className="mt-3 sm:mt-4 p-3 sm:p-4 bg-red-50 rounded-xl border border-red-200">
+                        <label className="block text-xs sm:text-sm font-bold text-red-900 mb-1 sm:mb-2">Alasan Pembatalan (VOID)</label>
+                        <textarea 
+                          value={voidReason}
+                          onChange={(e) => setVoidReason(e.target.value)}
+                          placeholder="Wajib mengisi alasan pembatalan..."
+                          className="w-full p-2.5 sm:p-3 rounded-lg border border-red-300 focus:ring-2 focus:ring-red-500 bg-white text-stone-900 min-h-[80px] sm:min-h-[100px] text-sm sm:text-base"
+                        />
+                        <div className="flex justify-end gap-2 mt-2 sm:mt-3">
+                          <button onClick={() => setIsVoiding(false)} className="px-3 sm:px-4 py-1.5 sm:py-2 text-stone-600 font-bold text-sm sm:text-base">Batal</button>
+                          <button 
+                            onClick={() => {
+                              setIsAuthOpen(true);
+                            }}
+                            disabled={!voidReason.trim()}
+                            className="px-3 sm:px-4 py-1.5 sm:py-2 bg-red-600 text-white font-bold rounded-lg disabled:opacity-50 text-sm sm:text-base"
+                          >
+                            Otorisasi Void
                           </button>
                         </div>
                       </div>

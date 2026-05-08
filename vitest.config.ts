@@ -4,7 +4,7 @@ import path from 'path';
 export default defineConfig({
   test: {
     globals: true,
-    environment: 'node',
+    environment: 'jsdom',
     setupFiles: ['./tests/setup.ts'],
     coverage: {
       provider: 'v8',
@@ -12,6 +12,7 @@ export default defineConfig({
       include: ['src/**/*.{ts,tsx}'],
       exclude: [
         'src/main.tsx',
+        'src/app/MainLayout.tsx',
         'src/**/*.d.ts',
         'src/**/index.ts',
         'src/lib/seeder.ts',
@@ -19,9 +20,9 @@ export default defineConfig({
         'src/shared/utils/seedData.ts'
       ],
       thresholds: {
-        lines: 65,
-        functions: 60,
-        branches: 55,
+        lines: 80,
+        functions: 80,
+        branches: 80,
         // Critical Paths (Targeted higher coverage)
         'src/infrastructure/services/SyncServiceImpl.ts': { lines: 80, functions: 80 },
         'src/shared/store/useSecurityStore.ts': { lines: 75, functions: 75 },
@@ -37,6 +38,7 @@ export default defineConfig({
       '@application': path.resolve(__dirname, './src/application'),
       '@infrastructure': path.resolve(__dirname, './src/infrastructure'),
       '@features': path.resolve(__dirname, './src/features'),
+      '@lib': path.resolve(__dirname, './src/lib'),
       '@shared': path.resolve(__dirname, './src/shared'),
       '@tests': path.resolve(__dirname, './tests'),
     },

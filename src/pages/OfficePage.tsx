@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { Link } from '@tanstack/react-router';
-import { BarChart3, Wallet, Package, Wrench, ShieldAlert, DollarSign, TrendingUp, Clock, User, Activity, CloudCog, Settings, Database, ShieldCheck, AlertTriangle, Loader2, Lightbulb } from 'lucide-react';
+import { BarChart3, Wallet, Package, Wrench, ShieldAlert, DollarSign, TrendingUp, Clock, User, Activity, Settings, ShieldCheck, AlertTriangle, Loader2 } from 'lucide-react';
 import { useLiveQuery } from 'dexie-react-hooks';
 import { DIContainer } from '../infrastructure/di/Container';
 import { BackButton } from '../shared/components/BackButton';
@@ -43,17 +43,6 @@ export function OfficePage() {
   };
 
   const recentLogs = auditLogs;
-
-  const menuItems = [
-    { to: '/dashboard', icon: BarChart3, label: 'Dashboard Analitik', description: 'Ringkasan performa bisnis.', color: 'bg-blue-50 text-blue-600' },
-    { to: '/finance', icon: Wallet, label: 'Laporan Keuangan', description: 'Analisis pendapatan & arus kas.', color: 'bg-emerald-50 text-emerald-600' },
-    { to: '/inventory', icon: Package, label: 'Gudang & Penerimaan', description: 'Kontrol stok & pergerakan.', color: 'bg-amber-50 text-amber-600' },
-    { to: '/customers', icon: User, label: 'Data Pelanggan', description: 'Kelola CRM & Loyalitas.', color: 'bg-indigo-50 text-indigo-600' },
-    { to: '/services', icon: Wrench, label: 'Layanan & Reparasi', description: 'Pantau status perbaikan.', color: 'bg-stone-100 text-stone-600' },
-    { to: '/audit', icon: ShieldAlert, label: 'Audit Log', description: 'Catatan aktivitas sistem.', color: 'bg-rose-50 text-rose-600' },
-    { to: '/office/sync-status', icon: CloudCog, label: 'Status Sinkronisasi', description: 'Pantau antrean data cloud.', color: 'bg-sky-50 text-sky-600' },
-    { to: '/settings', icon: Settings, label: 'Pengaturan Sistem', description: 'Konfigurasi aplikasi.', color: 'bg-stone-100 text-stone-600' },
-  ];
 
   return (
     <div className="flex flex-col h-full max-h-screen max-w-4xl mx-auto relative pb-12 animate-in fade-in duration-500" data-testid="W-O-01">

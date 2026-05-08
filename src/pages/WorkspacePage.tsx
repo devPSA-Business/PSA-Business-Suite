@@ -48,7 +48,7 @@ export function WorkspacePage() {
   const totalPettyCash = pettyCashRecords?.reduce((sum: number, record: any) => sum + (record.category === 'KELUHAN' ? 0 : record.amount), 0) || 0; 
   // Note: Adjust the reduce based on your actual petty_cash struct if needed
 
-  const handleCloseShift = async (notes: string) => {
+  const handleCloseShift = async (_notes: string) => {
     setShowReview(false);
     navigate({ to: '/shift' });
   };

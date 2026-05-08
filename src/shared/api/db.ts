@@ -6,7 +6,9 @@ export interface StockItem {
   id: string;
   name: string;
   category: StockCategory;
+  /** @precision Selalu gunakan MathUtils untuk aritmatika. Jangan gunakan JS native math. */
   price: number;
+  /** @precision Selalu gunakan MathUtils untuk aritmatika. Jangan gunakan JS native math. */
   cost: number;
   quantity: number;
   barcode: string;
@@ -24,8 +26,11 @@ export interface TransactionItem {
   stockId: string;
   name: string;
   quantity: number;
+  /** @precision Selalu gunakan MathUtils untuk aritmatika. Jangan gunakan JS native math. */
   price: number;
+  /** @precision Selalu gunakan MathUtils untuk aritmatika. Jangan gunakan JS native math. */
   subtotal: number;
+  /** @precision Selalu gunakan MathUtils untuk aritmatika. Jangan gunakan JS native math. */
   unitCost?: number;
   maxStock?: number;
   isCustomItem?: boolean;
@@ -34,6 +39,7 @@ export interface TransactionItem {
 export interface Transaction {
   id: string;
   date: number;
+  /** @precision Selalu gunakan MathUtils untuk aritmatika. Jangan gunakan JS native math. */
   total: number;
   paymentMethod: 'CASH' | 'QRIS' | 'TRANSFER' | 'SPLIT';
   items: TransactionItem[];
@@ -466,6 +472,43 @@ export class PsaDatabase extends Dexie {
       sync_events: '++id, entity_type, status, timestamp, idempotency_key',
       users: 'id, name, role, status, branchId',
       customers: 'id, name, phoneNumber, loyaltyPoints, version, branchId, secureData',
+      notifications: 'id, recipient, timestamp, status',
+      gold_liquidations: 'id, date, status, paymentMethod, branchId',
+      gold_price: 'id',
+      daily_gold_price: 'date, branchId',
+      gold_buyback: 'id, date, customerName, paymentMethod, status, branchId',
+      stock_history: 'id, stockId, timestamp, action',
+      gold_asset_history: 'id, timestamp, action',
+      suspended_carts: 'id, timestamp, user, branchId',
+      handovers: 'id, timestamp, category, branchId',
+      petty_cash: 'id, date, category',
+      appointments: 'id, date, status',
+      custom_orders: 'id, date, status',
+      internal_notes: 'id, date, category',
+      keys_meta: 'id, keyId',
+      keyval: 'key',
+      sync_dlq: '++id, entity_type, status, timestamp, idempotency_key',
+      shift_totals: 'id, startTime',
+      analytics_cache: 'id, expiresAt',
+      fraud_anomalies: 'id, txId, cashierId, status, severity, timestamp',
+      telemetry_events: 'id, timestamp, eventType, userId',
+      ai_cache: 'queryHash, expiresAt',
+      ai_access_logs: 'id, timestamp, queryHash',
+      ai_feedback_tickets: 'id, timestamp, status, sync_status, category',
+      financial_closures: 'id, date, branchId',
+      store_profile: 'id, isSetupComplete'
+    });
+
+    // Version 41: Remove secureData from customers index
+    this.version(41).stores({
+      stock: 'id, name, category, barcode, quantity, branchId',
+      transactions: 'id, date, status, sessionId, customerId, branchId',
+      repair_services: 'id, date, customerName, status, paymentMethod, branchId',
+      audit_logs: 'id, timestamp, action, user, userId, branchId, entityId',
+      shifts: 'id, startTime, status, user, branchId',
+      sync_events: '++id, entity_type, status, timestamp, idempotency_key',
+      users: 'id, name, role, status, branchId',
+      customers: 'id, name, phoneNumber, loyaltyPoints, version, branchId',
       notifications: 'id, recipient, timestamp, status',
       gold_liquidations: 'id, date, status, paymentMethod, branchId',
       gold_price: 'id',

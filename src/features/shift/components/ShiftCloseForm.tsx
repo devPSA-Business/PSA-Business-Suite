@@ -1,3 +1,4 @@
+import { logger } from '@lib/logger';
 import { useState, useEffect, useCallback } from 'react';
 import { DIContainer } from '@infrastructure/di/Container';
 import { useAuthStore } from '../../../shared/store/authStore';
@@ -6,10 +7,11 @@ import { UI_REGISTRY } from '../../../shared/constants/ui_registry';
 import { useToastStore } from '../../../shared/store/toastStore';
 import { TransactionHistoryModal } from '../../pos/components/TransactionHistoryModal';
 import { useSecurityStore } from '../../../shared/store/useSecurityStore';
+import { ConfirmActionDialog } from '../../../shared/components/ConfirmActionDialog';
 import { CustomNumpad } from '../../pos/components/CustomNumpad';
 import { ERROR_MESSAGES } from '../../../shared/constants/errorMessages';
+import { mapErrorToUser } from '../../../shared/utils/errorMapper';
 
-    import { MathUtils } from '../../../shared/utils/decimalUtils';
 import { Decimal } from 'decimal.js';
 
 const DISCREPANCY_THRESHOLD = 50000;
@@ -35,7 +37,7 @@ export function ShiftCloseForm({ shiftId, onShiftClosed }: { shiftId: string, on
         const expected = await DIContainer.shiftRepository.calculateExpectedCash(shiftId);
         setExpectedCash(expected);
       } catch (error) {
-        console.error(error);
+        logger.error(error);
       }
     };
     fetchExpected();
@@ -45,8 +47,9 @@ export function ShiftCloseForm({ shiftId, onShiftClosed }: { shiftId: string, on
   const discrepancy = expectedCash !== null ? actualCash - expectedCash : 0;
   const needsAuthorization = Math.abs(discrepancy) > DISCREPANCY_THRESHOLD;
 
-  const handleSubmit = async (e?: React.FormEvent) => {
-    if (e) e.preventDefault();
+  const [isConfirmOpen, setIsConfirmOpen] = useState(false);
+
+  const executeSubmit = useCallback(async () => {
     
     if (!user) {
       addToast('Anda harus login terlebih dahulu.', 'error');
@@ -61,6 +64,7 @@ export function ShiftCloseForm({ shiftId, onShiftClosed }: { shiftId: string, on
 
     // Check for authorization if discrepancy is high
     if (needsAuthorization && !isPinVerified) {
+      setIsConfirmOpen(false);
       setShowPinModal(true);
       return;
     }
@@ -75,12 +79,27 @@ export function ShiftCloseForm({ shiftId, onShiftClosed }: { shiftId: string, on
       addToast('Shift berhasil ditutup.', 'success');
       onShiftClosed();
     } catch (error) {
-      const message = error instanceof Error ? (error instanceof Error ? error.message : String(error)) : String(error);
-      addToast(`Gagal menutup shift: ${message}`, 'error');
+      const mapped = mapErrorToUser(error);
+      addToast(`Gagal menutup shift: ${mapped.userMessage}`, 'error');
     } finally {
       setIsProcessing(false);
+      setIsConfirmOpen(false);
     }
-  };
+  }, [user, endCash, needsAuthorization, isPinVerified, addToast, shiftId, onShiftClosed]);
+
+  const handlePreSubmit = useCallback((e?: React.FormEvent) => {
+    if (e) e.preventDefault();
+    if (!user) {
+      addToast('Anda harus login terlebih dahulu.', 'error');
+      return;
+    }
+    const cashAmount = new Decimal(endCash.replace(/[^0-9]/g, '') || '0').toNumber();
+    if (cashAmount < 0) {
+      addToast('Masukkan jumlah saldo akhir yang valid.', 'error');
+      return;
+    }
+    setIsConfirmOpen(true);
+  }, [user, endCash, addToast]);
 
   const handlePinSubmit = useCallback(async () => {
     if (pinInput.length === 6) {
@@ -88,7 +107,7 @@ export function ShiftCloseForm({ shiftId, onShiftClosed }: { shiftId: string, on
       if (isValid) {
         setShowPinModal(false);
         setPinInput('');
-        handleSubmit(); // Retry submission
+        executeSubmit(); // Retry submission
       } else {
         setPinError(true);
         setTimeout(() => {
@@ -97,7 +116,7 @@ export function ShiftCloseForm({ shiftId, onShiftClosed }: { shiftId: string, on
         }, 500);
       }
     }
-  }, [pinInput, verifyAdminPin, handleSubmit]);
+  }, [pinInput, verifyAdminPin, executeSubmit]);
 
   useEffect(() => {
     if (pinInput.length === 6) {
@@ -154,7 +173,7 @@ export function ShiftCloseForm({ shiftId, onShiftClosed }: { shiftId: string, on
         </div>
       )}
 
-      <form onSubmit={handleSubmit} className="space-y-8">
+      <form onSubmit={handlePreSubmit} className="space-y-8">
         <div>
           <label className="block text-xs font-bold text-stone-400 uppercase tracking-widest mb-3">Saldo Fisik Aktual (Cash Counted)</label>
           <div className="relative group">
@@ -247,6 +266,17 @@ export function ShiftCloseForm({ shiftId, onShiftClosed }: { shiftId: string, on
       )}
 
       <TransactionHistoryModal isOpen={isHistoryModalOpen} onClose={() => setIsHistoryModalOpen(false)} />
+      
+      <ConfirmActionDialog
+        isOpen={isConfirmOpen}
+        title="Tutup Shift Kasir"
+        description={`Apakah Anda yakin uang fisik sudah dihitung dengan benar sejumlah Rp ${actualCash.toLocaleString('id-ID')}? Operasi ini tidak dapat dibatalkan.`}
+        confirmLabel="Ya, Tutup Shift"
+        confirmWord="TUTUP"
+        dangerLevel="warn"
+        onConfirm={executeSubmit}
+        onCancel={() => setIsConfirmOpen(false)}
+      />
     </div>
   );
 }

@@ -1,8 +1,8 @@
 import React, { useState } from 'react';
-import { Plus, Trash2, Edit2, LayoutGrid, X, Save, Keyboard, Lock, Unlock } from 'lucide-react';
+import { Plus, Trash2, Edit2, X, Lock, Unlock, Keyboard } from 'lucide-react';
 import * as LucideIcons from 'lucide-react';
 import { useTileStore } from '../../../shared/store/useTileStore';
-import { QuickActionTile, TileDivision, TileAction } from '../../../domain/models/Tile';
+import { QuickActionTile, TileDivision } from '../../../domain/models/Tile';
 import { cn } from '../../../lib/utils';
 
 const ICON_OPTIONS = [
@@ -13,7 +13,6 @@ const ICON_OPTIONS = [
 ];
 
 const DIVISION_OPTIONS: TileDivision[] = ['SALES', 'SERVICE', 'INVENTORY', 'ADMIN'];
-const ACTION_OPTIONS: TileAction[] = ['NAVIGATE', 'EXECUTE'];
 
 export function TileManager() {
   const { tiles, addTile, updateTile, removeTile } = useTileStore();

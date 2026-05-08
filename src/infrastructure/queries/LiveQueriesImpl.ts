@@ -1,4 +1,4 @@
-import { db, StockItem, Transaction, RepairService, Handover, AuditLog, SuspendedCart, StockHistory, Shift, GoldBuyback, GoldLiquidation } from '../../shared/api/db';
+import { db, StockItem, RepairService, Handover, AuditLog, SuspendedCart, StockHistory, Shift, GoldBuyback, GoldLiquidation } from '../../shared/api/db';
 import { ILiveQueries } from '../../application/queries/ILiveQueries';
 import { PromiseExtended, liveQuery } from 'dexie';
 import { cryptoDB } from '../../lib/cryptoIndexedDB';

@@ -1,13 +1,14 @@
-import React, { useEffect, useState, useMemo, useRef } from 'react';
+import { logger } from '@lib/logger';
+import React, { useEffect, useState, useMemo } from 'react';
 import { useNavigate } from '@tanstack/react-router';
 import { useAuthStore } from '../../../shared/store/authStore';
-import { analyticsService, DailyMetricData, ProductMetricData } from '../../../application/services/AnalyticsService';
+import { analyticsService, DailyMetricData, ProductMetricData, MissingCostTx } from '../../../application/services/AnalyticsService';
 import { UserRole } from '../../../domain/models/User';
 import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip as RechartsTooltip, ResponsiveContainer, BarChart, Bar, Legend, ScatterChart, Scatter, ZAxis } from 'recharts';
-import { TrendingUp, AlertTriangle, Package, DollarSign, Activity, Settings, ArrowRight, Save, LayoutGrid, Filter, ShieldAlert, CheckCircle2, MessageSquare } from 'lucide-react';
-import { db } from '../../../shared/api/db';
+import { TrendingUp, AlertTriangle, DollarSign, Activity, ArrowRight, LayoutGrid } from 'lucide-react';
 import { SmartInsights } from '../components/SmartInsights';
 import { useToastStore } from '../../../shared/store/toastStore';
+import { MathUtils } from '../../../shared/utils/decimalUtils';
 
 /**
  * @ai_context Halaman Dashboard Khusus Owner (Phase 7.1 & 7.2 Extension + SPRINT 7.3 Fraud Watchdog).
@@ -31,21 +32,7 @@ const CustomScatterTooltip = ({ active, payload }: { active?: boolean, payload?:
   return null;
 };
 
-interface TxItem {
-  stockId: string;
-  name: string;
-  unitCost: number;
-  quantity: number;
-  price: number;
-  suggestedCost?: number;
-}
-
-interface Tx {
-  id: string;
-  date: string;
-  items: TxItem[];
-}
-
+  // (Removed interfaces TxItem and Tx)
 export const OwnerDashboardPage: React.FC = () => {
   const navigate = useNavigate();
   const user = useAuthStore(state => state.user);
@@ -54,19 +41,15 @@ export const OwnerDashboardPage: React.FC = () => {
   const [dailyData, setDailyData] = useState<DailyMetricData[]>([]);
   const [productData, setProductData] = useState<ProductMetricData[]>([]);
   const [productRanking, setProductRanking] = useState<ProductMetricData[]>([]);
-  const [missingCostTxs, setMissingCostTxs] = useState<Tx[]>([]);
+  const [missingCostTxs, setMissingCostTxs] = useState<MissingCostTx[]>([]);
 
   const [isLoading, setIsLoading] = useState(true);
   const [isPatching, setIsPatching] = useState(false);
   const [showCostModal, setShowCostModal] = useState(false);
   const [pendingCostPatch, setPendingCostPatch] = useState<Record<string, Record<string, string>>>({});
 
-  // Feature flags SPRINT 7.4 Soft Launch
-  const [flags] = useState({ nlq: true, nlqCache: true, nlqFallback: true });
-
   // 7.2 Extension: Category Filters
   const [selectedCategory, setSelectedCategory] = useState<string>('ALL');
-  const prevCategoryRef = useRef<string>('ALL');
 
   const endDateMs = Date.now();
   const startDateMs = endDateMs - 30 * 24 * 60 * 60 * 1000;
@@ -88,8 +71,7 @@ export const OwnerDashboardPage: React.FC = () => {
       const initPatches: Record<string, Record<string, string>> = {};
       anomalies.forEach(tx => {
         initPatches[tx.id] = {};
-        // eslint-disable-next-line @typescript-eslint/no-explicit-any
-        tx.items.forEach((item: any) => {
+        tx.items.forEach((item) => {
           if (!item.unitCost || item.unitCost === 0) {
             initPatches[tx.id][item.stockId] = (item.suggestedCost || 0).toString();
           }
@@ -98,29 +80,21 @@ export const OwnerDashboardPage: React.FC = () => {
       setPendingCostPatch(initPatches);
 
       if (!sessionStorage.getItem('dashboard_audited')) {
-        const lastLog = await db.audit_logs.orderBy('timestamp').last();
-        const lastHash = lastLog ? lastLog.hash : '0';
         const details = `Owner mengakses Profit Analytics Dashboard (Cost Anomaly: ${anomalies.length})`;
-        const encoder = new TextEncoder();
-        const data = encoder.encode(lastHash + Date.now().toString() + 'ACCESS_ANALYTICS' + user!.id + details);
-        const hashBuffer = await crypto.subtle.digest('SHA-256', data);
-        const hashArray = Array.from(new Uint8Array(hashBuffer));
-        const hash = hashArray.map(b => b.toString(16).padStart(2, '0')).join('');
-
-        await db.audit_logs.add({
-          id: crypto.randomUUID(),
-          timestamp: Date.now(),
-          action: 'ACCESS_ANALYTICS',
-          user: user!.id,
-          details,
-          hash,
-          previousHash: lastHash
-        });
+        
+        // VULNERABILITY FIX: Use DIContainer for audit logs to maintain offline-first sync guarantees
+        // and ensure the audit log reaches the UnitOfWork and gets synchronized to Firebase.
+        await (await import('../../../infrastructure/di/Container')).DIContainer.logAuditUseCase.execute(
+          'ACCESS_ANALYTICS',
+          user!.id,
+          details
+        );
+        
         sessionStorage.setItem('dashboard_audited', 'true');
       }
 
     } catch (e) {
-      console.error(e);
+      logger.error(e);
     } finally {
       setIsLoading(false);
     }
@@ -355,7 +329,7 @@ export const OwnerDashboardPage: React.FC = () => {
                  <b className="font-bold">Info Keamanan Bisnis (Emas vs Imitasi):</b> HPP untuk emas dinamis setiap hari. Sistem menyarankan Cost berdasarkan harga stok hari ini, namun Anda WAJIB memvalidasi dan memodifikasi angkanya menjadi harga beli riil di masa lalu agar laporan valid.
               </div>
 
-              {missingCostTxs.map((tx: Tx) => {
+              {missingCostTxs.map((tx) => {
                 const isReady = Object.values(pendingCostPatch[tx.id] || {}).every(v => parseInt(v.replace(/\D/g, '') || '0', 10) > 0);
                 return (
                   <div key={tx.id} className="bg-white border border-stone-200 rounded-xl overflow-hidden shadow-sm">
@@ -364,11 +338,11 @@ export const OwnerDashboardPage: React.FC = () => {
                       <div className="text-stone-500">{new Date(tx.date).toLocaleDateString()}</div>
                     </div>
                     <div className="p-4 space-y-4">
-                      {tx.items.filter((i: TxItem) => i.unitCost === 0 || !i.unitCost).map((item: TxItem) => (
+                      {tx.items.filter((i) => i.unitCost === 0 || !i.unitCost).map((item) => (
                         <div key={item.stockId} className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 p-3 bg-stone-50 rounded-lg border border-rose-100 border-l-4 border-l-rose-500">
                            <div className="flex-1">
                              <div className="font-bold text-stone-800">{item.name}</div>
-                             <div className="text-xs text-stone-500">Terjual: {item.quantity} | Revenue: {formatRupiah(item.price * item.quantity)}</div>
+                             <div className="text-xs text-stone-500">Terjual: {item.quantity} | Revenue: {formatRupiah(MathUtils.mul(item.price, item.quantity))}</div>
                            </div>
                            <div className="flex flex-col gap-1 w-full sm:w-64">
                              <label className="text-[10px] font-bold text-stone-500 uppercase">Perbaiki HPP per Unit <span className="text-rose-500">*</span></label>

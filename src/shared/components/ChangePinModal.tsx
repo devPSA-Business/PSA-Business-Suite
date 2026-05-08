@@ -1,7 +1,7 @@
 import React, { useState } from 'react';
-import { X, Key, ShieldCheck } from 'lucide-react';
+import { X, ShieldCheck } from 'lucide-react';
 import { useAuthStore } from '../store/authStore';
-import { useSecurityStore, hashPin } from '../store/useSecurityStore';
+import { hashPin } from '../store/useSecurityStore';
 import { db } from '../api/db';
 import { useToastStore } from '../store/toastStore';
 

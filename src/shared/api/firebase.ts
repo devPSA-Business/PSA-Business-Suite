@@ -3,8 +3,26 @@ import { initializeApp, getApp, getApps, FirebaseApp } from 'firebase/app';
 import { getFirestore, Firestore } from 'firebase/firestore';
 import { getStorage, FirebaseStorage } from 'firebase/storage';
 import { getAuth, Auth, setPersistence, browserLocalPersistence } from 'firebase/auth';
-import { initializeAppCheck, ReCaptchaEnterpriseProvider, AppCheck } from 'firebase/app-check';
+import { getFunctions, Functions } from 'firebase/functions';
+import { initializeAppCheck, ReCaptchaEnterpriseProvider } from 'firebase/app-check';
 import { useAuthStore } from '../store/authStore';
+import { logger } from '../../lib/logger';
+const modules = import.meta.glob('../../../firebase-applet-confi*.json', { eager: true });
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+const configModule = modules['../../../firebase-applet-config.json'] as any;
+const firebaseConfigJSONRaw = configModule?.default || {};
+
+interface FirebaseConfigJSON {
+  apiKey?: string;
+  authDomain?: string;
+  projectId?: string;
+  storageBucket?: string;
+  messagingSenderId?: string;
+  appId?: string;
+  firestoreDatabaseId?: string;
+}
+
+const firebaseConfigJSON: FirebaseConfigJSON = firebaseConfigJSONRaw as FirebaseConfigJSON;
 
 /**
  * PSA Business Suite: Firebase Configuration Management
@@ -12,21 +30,20 @@ import { useAuthStore } from '../store/authStore';
  */
 const getFirebaseConfig = () => {
   const config = {
-    apiKey: import.meta.env.VITE_FIREBASE_API_KEY,
-    authDomain: import.meta.env.VITE_FIREBASE_AUTH_DOMAIN,
-    projectId: import.meta.env.VITE_FIREBASE_PROJECT_ID,
-    storageBucket: import.meta.env.VITE_FIREBASE_STORAGE_BUCKET,
-    messagingSenderId: import.meta.env.VITE_FIREBASE_MESSAGING_SENDER_ID,
-    appId: import.meta.env.VITE_FIREBASE_APP_ID,
-    firestoreDatabaseId: import.meta.env.VITE_FIREBASE_DATABASE_ID || '(default)'
+    apiKey: firebaseConfigJSON.apiKey || import.meta.env.VITE_FIREBASE_API_KEY,
+    authDomain: firebaseConfigJSON.authDomain || import.meta.env.VITE_FIREBASE_AUTH_DOMAIN,
+    projectId: firebaseConfigJSON.projectId || import.meta.env.VITE_FIREBASE_PROJECT_ID,
+    storageBucket: firebaseConfigJSON.storageBucket || import.meta.env.VITE_FIREBASE_STORAGE_BUCKET,
+    messagingSenderId: firebaseConfigJSON.messagingSenderId || import.meta.env.VITE_FIREBASE_MESSAGING_SENDER_ID,
+    appId: firebaseConfigJSON.appId || import.meta.env.VITE_FIREBASE_APP_ID,
+    firestoreDatabaseId: firebaseConfigJSON.firestoreDatabaseId || import.meta.env.VITE_FIREBASE_DATABASE_ID || '(default)'
   };
-
   return config;
 };
 
 const firebaseConfig = getFirebaseConfig();
-const isDummy = (val: string | undefined) => !val || val === '' || val.startsWith('dummy-');
-export const isConfigValid = !isDummy(firebaseConfig.apiKey);
+// Simple validation
+export const isConfigValid = !!firebaseConfig.apiKey && firebaseConfig.apiKey !== 'YOUR_API_KEY';
 
 // Notify store about configuration status
 if (isConfigValid && typeof window !== 'undefined') {
@@ -34,7 +51,7 @@ if (isConfigValid && typeof window !== 'undefined') {
     useAuthStore.getState().setFirebaseReady(true);
   }, 0);
 } else if (typeof window !== 'undefined') {
-  console.warn('[Firebase] Warning: VITE_FIREBASE_API_KEY is missing or invalid. Cloud features will be disabled. App will continue in Offline-First mode.');
+  logger.warn('[Firebase] Warning: Firebase configuration is missing or invalid. Cloud features will be disabled. App will continue in Offline-First mode.');
   setTimeout(() => {
     useAuthStore.getState().setFirebaseReady(false);
     useAuthStore.getState().setFirebaseUser(null);
@@ -47,7 +64,7 @@ if (isConfigValid) {
   try {
     firebaseApp = getApps().length === 0 ? initializeApp(firebaseConfig) : getApp();
   } catch (error) {
-    console.error('[Firebase] Failed to initialize App:', error);
+    logger.error('[Firebase] Failed to initialize App', error);
   }
 }
 
@@ -100,10 +117,16 @@ const getSafeStorage = (): FirebaseStorage => {
   return getStorage(firebaseApp);
 };
 
+const getSafeFunctions = (): Functions => {
+  if (!firebaseApp) return createUnconfiguredProxy<Functions>('Firebase Functions');
+  return getFunctions(firebaseApp, 'asia-southeast2'); // Or default
+};
+
 // Initialize Services Safely
 export const auth = getSafeAuth();
 export const firestoreDb = getSafeFirestore();
 export const storage = getSafeStorage();
+export const functions = getSafeFunctions();
 
 // App Check (Anti-Bot)
 if (typeof window !== 'undefined' && firebaseApp && isConfigValid) {
@@ -119,8 +142,8 @@ if (typeof window !== 'undefined' && firebaseApp && isConfigValid) {
         provider: new ReCaptchaEnterpriseProvider(recaptchaKey),
         isTokenAutoRefreshEnabled: true
       });
-    } catch (e) {
-      console.warn('[Firebase] App Check initialization failed');
+    } catch (_e) {
+      logger.warn('[Firebase] App Check initialization failed');
     }
   }
 }
@@ -128,7 +151,7 @@ if (typeof window !== 'undefined' && firebaseApp && isConfigValid) {
 // FASE 3.2: Set persistence to LOCAL for Offline-First resilience
 if (firebaseApp) {
   setPersistence(auth, browserLocalPersistence)
-    .catch((err) => console.error('[Firebase] Persistence Error:', err));
+    .catch((err) => logger.error('[Firebase] Persistence Error', err));
 }
 
 export const safeFirestoreCall = async <T>(operation: () => Promise<T>): Promise<T> => {
@@ -138,7 +161,54 @@ export const safeFirestoreCall = async <T>(operation: () => Promise<T>): Promise
   try {
     return await operation();
   } catch (error) {
-    console.error('Firestore operation failed:', error);
+    logger.error('Firestore operation failed', error);
     throw error;
   }
 };
+
+export enum OperationType {
+  CREATE = 'create',
+  UPDATE = 'update',
+  DELETE = 'delete',
+  LIST = 'list',
+  GET = 'get',
+  WRITE = 'write',
+}
+
+export interface FirestoreErrorInfo {
+  error: string;
+  operationType: OperationType;
+  path: string | null;
+  authInfo: {
+    userId?: string | null;
+    email?: string | null;
+    emailVerified?: boolean | null;
+    isAnonymous?: boolean | null;
+    tenantId?: string | null;
+    providerInfo?: {
+      providerId?: string | null;
+      email?: string | null;
+    }[];
+  }
+}
+
+export function handleFirestoreError(error: unknown, operationType: OperationType, path: string | null): never {
+  const errInfo: FirestoreErrorInfo = {
+    error: error instanceof Error ? error.message : String(error),
+    authInfo: {
+      userId: auth.currentUser?.uid,
+      email: auth.currentUser?.email,
+      emailVerified: auth.currentUser?.emailVerified,
+      isAnonymous: auth.currentUser?.isAnonymous,
+      tenantId: auth.currentUser?.tenantId,
+      providerInfo: auth.currentUser?.providerData?.map(provider => ({
+        providerId: provider.providerId,
+        email: provider.email,
+      })) || []
+    },
+    operationType,
+    path
+  }
+  logger.error('Firestore Error', { details: errInfo });
+  throw new Error(JSON.stringify(errInfo));
+}

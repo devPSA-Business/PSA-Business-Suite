@@ -12,8 +12,7 @@ export interface IUnitOfWork {
       correlationId?: string;
     }
   ): Promise<void>;
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  registerSync(entityType: string, action: 'INSERT' | 'UPDATE' | 'DELETE' | 'UPDATE_DELTA', payload: Record<string, any>): Promise<void>;
+  registerSync(entityType: string, action: 'INSERT' | 'UPDATE' | 'DELETE' | 'UPDATE_DELTA', payload: Record<string, unknown>): Promise<void>;
   registerStockHistory(params: {
     stockId: string;
     action: 'ADD' | 'REMOVE' | 'UPDATE' | 'ADJUST';

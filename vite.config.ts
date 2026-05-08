@@ -16,6 +16,7 @@ export default defineConfig(({mode}) => {
         registerType: 'autoUpdate',
         includeAssets: ['icon.svg', 'icon-192.png', 'icon-512.png', 'icon-180.png'],
         manifest: {
+          id: '/psa-business-suite/',
           name: 'PSA Business Suite',
           short_name: 'PSA Suite',
           description: 'Sistem Manajemen Operasional & Kasir Terpadu untuk PSA Jewellery',
@@ -25,9 +26,10 @@ export default defineConfig(({mode}) => {
           orientation: 'any',
           start_url: '/',
           icons: [
-            { src: 'icon-192.png', sizes: '192x192', type: 'image/png' },
-            { src: 'icon-512.png', sizes: '512x512', type: 'image/png', purpose: 'any' },
-            { src: 'icon-512.png', sizes: '512x512', type: 'image/png', purpose: 'maskable' },
+            { src: 'icon-180.png', sizes: '180x180', type: 'image/png' },
+            { src: 'icon-192.png', sizes: '192x192', type: 'image/png', purpose: 'any' },
+            { src: 'icon-192.png', sizes: '192x192', type: 'image/png', purpose: 'maskable' },
+            { src: 'icon-512.png', sizes: '512x512', type: 'image/png', purpose: 'any maskable' },
             { src: 'icon.svg', sizes: 'any', type: 'image/svg+xml' }
           ]
         },
@@ -35,13 +37,31 @@ export default defineConfig(({mode}) => {
           globPatterns: ['**/*.{js,css,html,ico,png,svg,webp}'],
           navigateFallback: 'index.html',
           cleanupOutdatedCaches: true,
-          maximumFileSizeToCacheInBytes: 5 * 1024 * 1024,
+          maximumFileSizeToCacheInBytes: 8 * 1024 * 1024,
+          navigateFallbackDenylist: [/^\/api\//, /^\/auth\//],
           runtimeCaching: [
             {
-              // Aset statis: Ambil dari cache dulu untuk loading super cepat, update di background.
-              urlPattern: /\.(?:js|css|html|png|svg|webp)$/,
+              urlPattern: /\/assets\/.*\.[a-f0-9]{8,}\.(js|css)$/,
+              handler: 'CacheFirst',
+              options: { cacheName: 'immutable-assets', expiration: { maxAgeSeconds: 31536000 } }
+            },
+            {
+              urlPattern: /\.(?:png|svg|webp|ico)$/,
               handler: 'StaleWhileRevalidate',
               options: { cacheName: 'static-assets-cache' }
+            },
+            {
+              urlPattern: /\/index\.html$/,
+              handler: 'NetworkFirst',
+              options: { cacheName: 'html-cache', networkTimeoutSeconds: 3 }
+            },
+            {
+              urlPattern: /^https:\/\/(identitytoolkit|securetoken|firestore)\.googleapis\.com\/.*/i,
+              handler: 'NetworkOnly',
+            },
+            {
+              urlPattern: /cloudfunctions\.net/i,
+              handler: 'NetworkOnly',
             }
           ]
         }
@@ -55,6 +75,7 @@ export default defineConfig(({mode}) => {
         '@infrastructure': path.resolve(__dirname, './src/infrastructure'),
         '@shared': path.resolve(__dirname, './src/shared'),
         '@features': path.resolve(__dirname, './src/features'),
+        '@lib': path.resolve(__dirname, './src/lib'),
         '@tests': path.resolve(__dirname, './tests'),
       },
     },
@@ -66,7 +87,8 @@ export default defineConfig(({mode}) => {
           manualChunks: {
             'vendor-react': ['react', 'react-dom', '@tanstack/react-router'],
             'vendor-db': ['dexie', 'dexie-react-hooks', 'firebase/app', 'firebase/firestore'],
-            'vendor-ui': ['lucide-react', 'motion', 'recharts']
+            'vendor-ui': ['lucide-react', 'motion'],
+            'vendor-chart': ['recharts']
           }
         }
       }

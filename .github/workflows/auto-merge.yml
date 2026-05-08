@@ -27,9 +27,7 @@ jobs:
 
       # Auto-merge HANYA untuk patch dan minor — major butuh review manusia
       - name: Enable auto-merge for patch and minor updates
-        if: |
-          steps.metadata.outputs.update-type == 'version-update:semver-patch' ||
-          steps.metadata.outputs.update-type == 'version-update:semver-minor'
+        if: ${{ steps.metadata.outputs.update-type == 'version-update:semver-patch' || steps.metadata.outputs.update-type == 'version-update:semver-minor' }}
         run: gh pr merge --auto --squash "$PR_URL"
         env:
           PR_URL: ${{ github.event.pull_request.html_url }}
@@ -37,10 +35,11 @@ jobs:
 
       # Tinggalkan komentar di PR major agar tidak terlewat
       - name: Flag major updates for manual review
-        if: steps.metadata.outputs.update-type == 'version-update:semver-major'
+        if: ${{ steps.metadata.outputs.update-type == 'version-update:semver-major' }}
         run: |
+          gh pr reviewer "$PR_URL" --add "devPSA-Business" || true
           gh pr comment "$PR_URL" \
-            --body "⚠️ **Major version update detected.** PR ini TIDAK akan di-merge otomatis. Harap periksa breaking changes sebelum merge manual."
+            --body "⚠️ **Major version update detected.** @devPSA-Business PR ini TIDAK akan di-merge otomatis. Harap periksa breaking changes sebelum merge manual."
         env:
           PR_URL: ${{ github.event.pull_request.html_url }}
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}

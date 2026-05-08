@@ -3,6 +3,21 @@ import { User } from '@domain/models/User';
 import { db } from '../../shared/api/db';
 
 export class UserRepositoryImpl implements IUserRepository {
+  async findById(id: string): Promise<User | null> {
+    const userRecord = await db.users.get(id);
+    if (!userRecord) return null;
+    
+    return {
+      id: userRecord.id,
+      name: userRecord.name,
+      role: userRecord.role,
+      pinHash: userRecord.pinHash,
+      status: userRecord.status,
+      createdAt: userRecord.createdAt,
+      branchId: userRecord.branchId,
+    };
+  }
+
   async findByName(name: string): Promise<User | null> {
     const userRecord = await db.users.where('name').equals(name).first();
     if (!userRecord) return null;

@@ -139,4 +139,16 @@ export class ShiftRepositoryImpl implements IShiftRepository {
       });
     }
   }
+
+  async revertShiftSales(shiftId: string, removedCash: number, voidAmount: number): Promise<void> {
+    const shiftTotal = await db.shift_totals.get(shiftId);
+    if (shiftTotal) {
+      await db.shift_totals.put({
+        ...shiftTotal,
+        cashIn: Math.max(0, Math.round(shiftTotal.cashIn - removedCash)),
+        salesTotal: Math.max(0, Math.round(shiftTotal.salesTotal - voidAmount)),
+        lastUpdatedAt: Date.now()
+      });
+    }
+  }
 }

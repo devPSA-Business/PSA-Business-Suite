@@ -5,8 +5,6 @@ import { useSecurityStore, hashPin } from '../shared/store/useSecurityStore';
 import { CustomNumpad } from '../features/pos/components/CustomNumpad';
 import { db, User } from '../shared/api/db';
 import { useToastStore } from '../shared/store/toastStore';
-import { UserRole } from '../domain/models/User';
-import { isConfigValid } from '../shared/api/firebase';
 
 export function LockedPage() {
   const { isPinVerified, verifyUserPin } = useSecurityStore();
@@ -51,6 +49,18 @@ export function LockedPage() {
     }
   }, [isPinVerified, navigate, search.redirect, requirePinChange]);
 
+  const handlePress = useCallback((value: string) => {
+    if (pinInput.length < 6 && value !== '.') {
+      setPinInput((prev) => prev + value);
+      setError(false);
+    }
+  }, [pinInput.length]);
+
+  const handleDelete = useCallback(() => {
+    setPinInput((prev) => prev.slice(0, -1));
+    setError(false);
+  }, []);
+
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
       if (!selectedUser || showResetConfirm) return;
@@ -65,7 +75,7 @@ export function LockedPage() {
 
     window.addEventListener('keydown', handleKeyDown);
     return () => window.removeEventListener('keydown', handleKeyDown);
-  }, [pinInput, selectedUser, showResetConfirm]);
+  }, [pinInput, selectedUser, showResetConfirm, handlePress, handleDelete]);
 
   useEffect(() => {
     if (pinInput.length === 6 && selectedUser && !requirePinChange) {
@@ -91,18 +101,6 @@ export function LockedPage() {
       checkPin();
     }
   }, [pinInput, selectedUser, verifyUserPin, requirePinChange]);
-
-  const handlePress = useCallback((value: string) => {
-    if (pinInput.length < 6 && value !== '.') {
-      setPinInput((prev) => prev + value);
-      setError(false);
-    }
-  }, [pinInput.length]);
-
-  const handleDelete = useCallback(() => {
-    setPinInput((prev) => prev.slice(0, -1));
-    setError(false);
-  }, []);
 
   const handleSaveNewPin = async () => {
     setPinChangeError('');

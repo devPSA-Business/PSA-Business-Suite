@@ -2,8 +2,11 @@ import { ISyncService } from '../../application/services/ISyncService';
 import { db, SyncEvent } from '../../shared/api/db';
 import { firestoreDb, safeFirestoreCall, isConfigValid } from '../../shared/api/firebase';
 import { writeBatch, doc, collection, increment, updateDoc, setDoc, deleteDoc, getDoc } from 'firebase/firestore';
-import { metrics } from '../../lib/metrics';
 import { useAuthStore } from '../../shared/store/authStore';
+import { logger } from '../../lib/logger';
+import { IUnitOfWork } from '../../application/core/IUnitOfWork';
+
+import { guardSyncEnqueue } from '../../shared/utils/syncGuard';
 
 /**
  * @ai_context Sistem penjaminan sampainya data Offline ke Cloud (Firebase Firestore).
@@ -24,8 +27,16 @@ export class SyncServiceImpl implements ISyncService {
       payload.branchId = branchId;
     }
 
+    const idempotency_key = event.idempotency_key || crypto.randomUUID();
+    const docId = String(payload.client_txn_id || payload.id || crypto.randomUUID());
+    
+    // G-06: Validasi via guardSyncEnqueue sebelum queueing
+    const isSafe = await guardSyncEnqueue(event.entity_type, docId, idempotency_key);
+    if (!isSafe) {
+      return 0; // Ditolak karena duplikat
+    }
+
     return await db.transaction('rw', db.sync_events, async () => {
-      const idempotency_key = event.idempotency_key || crypto.randomUUID();
       // Phase 1.1 Hotfix/Optimization: Use indexed query
       const existing = await db.sync_events
         .where('idempotency_key')
@@ -52,12 +63,48 @@ export class SyncServiceImpl implements ISyncService {
       .toArray();
       
     for (const event of stuckEvents) {
-      await db.sync_events.update(event.id!, { status: 'PENDING', timestamp: Date.now() });
+      const currentHeals = event.retry_count || 0;
+      if (currentHeals >= 5) {
+          const eventToDlq = { ...event, status: 'FAILED', error_message: 'Max healing attempts reached' } as SyncEvent;
+          if (eventToDlq.payload && typeof eventToDlq.payload.photoBeforeBase64 === 'string') {
+             eventToDlq.payload.photoBeforeBase64 = '[TRIMMED_FOR_DLQ]';
+          }
+          await db.transaction('rw', db.sync_events, db.sync_dlq, async () => {
+             await db.sync_dlq.add(eventToDlq);
+             await db.sync_events.delete(event.id!);
+          });
+      } else {
+          await db.sync_events.update(event.id!, { status: 'PENDING', timestamp: Date.now(), retry_count: currentHeals + 1 });
+      }
+    }
+  }
+
+  private async checkRealConnectivity(): Promise<boolean> {
+    if (!navigator.onLine) return false;
+    try {
+      // Validate with a lightweight HEAD request to Firestore
+      const controller = new AbortController();
+      const timeoutId = setTimeout(() => controller.abort(), 3000);
+      await fetch('https://firestore.googleapis.com/', { 
+        method: 'HEAD', 
+        signal: controller.signal 
+      });
+      clearTimeout(timeoutId);
+      return true;
+    } catch {
+      return false;
     }
   }
 
   async processSyncQueue(): Promise<void> {
     if (!navigator.onLine || !isConfigValid) return;
+
+    const isReallyOnline = await this.checkRealConnectivity();
+    if (!isReallyOnline) {
+      logger.warn('[SyncService] Device appears online but cannot reach Firestore. Aborting sync.');
+      return;
+    }
+    logger.info('[SyncService] Proceeding with sync as real connectivity confirmed.');
 
     try {
       await navigator.locks.request('psa-sync-lock', { ifAvailable: true }, async (lock) => {
@@ -139,7 +186,7 @@ export class SyncServiceImpl implements ISyncService {
                 }
               }
             } catch (fetchErr) {
-              console.warn('[SyncService] Failed batched pre-fetch for conflict check:', fetchErr);
+              logger.warn('[SyncService] Failed batched pre-fetch for conflict check', fetchErr);
             }
           }
 
@@ -157,7 +204,7 @@ export class SyncServiceImpl implements ISyncService {
             // Fast conflict detection logic (Using pre-fetched data)
             if ((event.action === 'UPDATE' || event.action === 'UPDATE_DELTA') && event.payload.version !== undefined) {
               const serverData = serverDocsMap.get(event.id);
-              if (serverData && serverData.version && serverData.version > Number(event.payload.version)) {
+              if (serverData && serverData.version && serverData.version >= Number(event.payload.version)) {
                 // Conflict detected!
                 conflictEvents.push({ eventId: event.id, serverPayload: serverData });
                 continue; // Skip adding to batch
@@ -223,7 +270,7 @@ export class SyncServiceImpl implements ISyncService {
                   safePayload.photoBeforeUrl = downloadUrl;
                   delete safePayload.photoBeforeBase64;
                 } catch (imgError) {
-                  console.error('[SyncService] Failed to upload repair image to storage:', imgError);
+                  logger.error('[SyncService] Failed to upload repair image to storage', imgError);
                   // FIX: Jangan throw error. Tandai event ini FAILED, dan lanjutkan loop ke event berikutnya.
                   await db.sync_events.update(event.id, { 
                     status: 'FAILED', 
@@ -258,24 +305,17 @@ export class SyncServiceImpl implements ISyncService {
 
           await new Promise((resolve) => setTimeout(resolve, 50));
 
-          // SEC/SYNC-01: Set to SYNCED before commit to prevent ghost data on crash
-          await db.transaction('rw', db.sync_events, async () => {
-            for (const op of individualOperations) {
-              await db.sync_events.update(op.eventId, { status: 'SYNCED', retry_count: 0 });
-            }
-          });
-
           try {
             await safeFirestoreCall(async () => { await batch.commit(); });
-          } catch (error) {
-            console.warn('[SyncService] Batch commit failed. Falling back to individual writes.', error);
             
-            // Revert status for individual retry
+            // SEC/SYNC-01: Set to SYNCED AFTER successful commit to prevent data loss on crash
             await db.transaction('rw', db.sync_events, async () => {
               for (const op of individualOperations) {
-                await db.sync_events.update(op.eventId, { status: 'PENDING' });
+                await db.sync_events.update(op.eventId, { status: 'SYNCED', retry_count: 0 });
               }
             });
+          } catch (error) {
+            logger.warn('[SyncService] Batch commit failed. Falling back to individual writes.', error);
 
             // eslint-disable-next-line @typescript-eslint/no-explicit-any
             const errCode = (error as any)?.code;
@@ -331,13 +371,16 @@ export class SyncServiceImpl implements ISyncService {
         }
       });
     } catch (error) {
-      console.error('[SyncService] Failed to process sync queue.', error);
+      logger.error('[SyncService] Failed to process sync queue.', error);
     }
   }
 
-  async resolveConflict(eventId: number, resolution: 'LOCAL' | 'SERVER'): Promise<void> {
+  async resolveConflict(eventId: number, resolution: 'LOCAL' | 'SERVER', uow: IUnitOfWork): Promise<void> {
     const event = await db.sync_events.get(eventId);
     if (!event) throw new Error('Sync event not found');
+
+    const currentUser = useAuthStore.getState().user;
+    const userIdentifier = currentUser?.name || 'SYSTEM';
 
     if (resolution === 'LOCAL') {
       // Force local update by incrementing version
@@ -347,7 +390,7 @@ export class SyncServiceImpl implements ISyncService {
         version: serverVersion + 1
       };
 
-      await db.transaction('rw', db.sync_events, async () => {
+      await uow.execute(async () => {
         await db.sync_events.update(eventId, {
           status: 'PENDING',
           payload: updatedPayload,
@@ -355,31 +398,38 @@ export class SyncServiceImpl implements ISyncService {
           next_retry_time: 0,
           server_payload: undefined
         });
-      });
+
+        await uow.registerAudit(
+          'RESOLVE_CONFLICT',
+          userIdentifier,
+          `Konflik sinkronisasi pada ${event.entity_type} diselesaikan: Memaksa versi LOKAL (ID: ${event.payload.id || event.payload.client_txn_id})`,
+          { entityId: String(event.payload.id || event.payload.client_txn_id), payloadDiff: JSON.stringify({ resolution: 'LOCAL' }) }
+        );
+      }, ['sync_events', 'audit_logs']);
       
       // Trigger sync
       this.processSyncQueue();
     } else {
       // Accept server changes (F6: Expanded to all relevant tables)
       const ALL_CONFLICT_TABLES = [
-        db.sync_events, 
-        db.stock, 
-        db.customers, 
-        db.repair_services,
-        db.gold_buyback,
-        db.shifts,
-        db.petty_cash,
-        db.transactions,
-        db.gold_liquidations,
-        db.custom_orders,
-        db.appointments
+        'sync_events', 
+        'stock', 
+        'customers', 
+        'repair_services',
+        'gold_buyback',
+        'shifts',
+        'petty_cash',
+        'transactions',
+        'gold_liquidations',
+        'custom_orders',
+        'appointments',
+        'audit_logs'
       ];
 
-      await db.transaction('rw', ALL_CONFLICT_TABLES, async () => {
+      await uow.execute(async () => {
         await db.sync_events.delete(eventId);
         
         if (event.server_payload && (event.payload.id || event.payload.client_txn_id)) {
-          const docId = String(event.payload.client_txn_id || event.payload.id);
           // eslint-disable-next-line @typescript-eslint/no-explicit-any
           const payload = event.server_payload as any;
           
@@ -415,7 +465,7 @@ export class SyncServiceImpl implements ISyncService {
               await db.appointments.put(payload);
               break;
             default:
-              console.error(`[SyncService] resolveConflict: unhandled entity_type "${event.entity_type}"`);
+              logger.error(`[SyncService] resolveConflict: unhandled entity_type "${event.entity_type}"`);
               await db.sync_dlq.add({
                 ...event,
                 status: 'FAILED',
@@ -423,19 +473,26 @@ export class SyncServiceImpl implements ISyncService {
               });
           }
         }
-      });
+
+        await uow.registerAudit(
+          'RESOLVE_CONFLICT',
+          userIdentifier,
+          `Konflik sinkronisasi pada ${event.entity_type} diselesaikan: Menerima versi SERVER (ID: ${event.payload.id || event.payload.client_txn_id})`,
+          { entityId: String(event.payload.id || event.payload.client_txn_id), payloadDiff: JSON.stringify({ resolution: 'SERVER' }) }
+        );
+      }, ALL_CONFLICT_TABLES);
     }
   }
 
   private handleAuthError(): void {
-    console.error('[SyncService] Authentication error detected. Pausing sync.');
+    logger.error('[SyncService] Authentication error detected. Pausing sync.');
     this.stopAutoSync();
     window.dispatchEvent(new CustomEvent('psa:auth-error', { detail: { message: 'Sesi Habis, Silakan Login Ulang untuk Menyinkronkan Data' } }));
   }
 
   private handleOnline = () => {
-    console.log('[SyncService] Device is online, triggering sync...');
-    this.processSyncQueue().catch(console.error);
+    logger.info('[SyncService] Device is online, triggering sync...');
+    this.processSyncQueue().catch(e => logger.error('[SyncService] Sync catch-all', e));
   };
 
   private emitSyncStatus(detail: { ok: boolean; lastSyncAt?: number; failures?: number }): void {
@@ -449,7 +506,7 @@ export class SyncServiceImpl implements ISyncService {
         this.lastSyncAt = Date.now();
         this.emitSyncStatus({ ok: true, lastSyncAt: this.lastSyncAt });
     }).catch(err => 
-      console.error('[SyncService] Initial sync failed:', err)
+      logger.error('[SyncService] Initial sync failed', err)
     );
     
     // 2. Periodic sync every 15 minutes (cost-efficient heartbeat)
@@ -460,7 +517,7 @@ export class SyncServiceImpl implements ISyncService {
         this.consecutiveFailures = 0;
         this.emitSyncStatus({ ok: true, lastSyncAt: this.lastSyncAt });
       } catch (err) {
-        console.error('[SyncService] Periodic sync failed:', err);
+        logger.error('[SyncService] Periodic sync failed', err);
         this.consecutiveFailures++;
         this.emitSyncStatus({ ok: false, failures: this.consecutiveFailures });
       }

@@ -12,6 +12,8 @@ interface GoldLiquidationFormProps {
   onSuccess: () => void;
 }
 
+import { mapErrorToUser } from '../../../shared/utils/errorMapper';
+
 export const GoldLiquidationForm: React.FC<GoldLiquidationFormProps> = ({ currentStoredItems, onSuccess }) => {
   const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
   const [totalSoldPrice, setTotalSoldPrice] = useState<string>('');
@@ -58,7 +60,8 @@ export const GoldLiquidationForm: React.FC<GoldLiquidationFormProps> = ({ curren
       setPaymentMethod('CASH');
       onSuccess();
     } catch (error) {
-      addToast(error instanceof Error ? error.message : 'Gagal mencatat likuidasi', 'error');
+      const mapped = mapErrorToUser(error);
+      addToast(mapped.userMessage, 'error');
     } finally {
       setIsLoading(false);
     }

@@ -60,11 +60,4 @@ export class DatabaseAdminServiceImpl implements IDatabaseAdminService {
       await db.audit_logs.clear();
     });
   }
-
-  async cleanupOldLogs(): Promise<void> {
-    const ninetyDaysAgo = Date.now() - 90 * 24 * 60 * 60 * 1000;
-    await db.transaction('rw', db.audit_logs, async () => {
-      await db.audit_logs.where('timestamp').below(ninetyDaysAgo).delete();
-    });
-  }
 }

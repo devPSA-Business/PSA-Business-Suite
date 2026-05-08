@@ -35,7 +35,8 @@ describe('BuybackUseCase', () => {
       list: vi.fn(),
     };
     mockUserRepo = {
-      findByName: vi.fn().mockResolvedValue({ role: 'MANAGER' }),
+      findById: vi.fn().mockResolvedValue({ role: 'MANAGER' }),
+      findByName: vi.fn(),
       findAll: vi.fn(),
       save: vi.fn(),
       delete: vi.fn(),
@@ -57,7 +58,7 @@ describe('BuybackUseCase', () => {
   });
 
   it('should throw error if user is not MANAGER or ADMIN', async () => {
-    vi.mocked(mockUserRepo.findByName).mockResolvedValue({ role: 'CASHIER' } as any);
+    vi.mocked(mockUserRepo.findById).mockResolvedValue({ role: 'CASHIER' } as any);
 
     const request: BuybackRequestDTO = {
       customerName: 'John Doe',
@@ -95,8 +96,9 @@ describe('BuybackUseCase', () => {
     expect(mockGoldBuybackRepo.save).toHaveBeenCalled();
     expect(mockUow.registerGoldAssetHistory).toHaveBeenCalledWith(expect.objectContaining({
       action: 'BUYBACK',
-      weightChange: 9,
-      newTotalWeight: 9 // PGE of 10g 90% is 9g
+      weightChange: 10,
+      newTotalWeight: 10, // 0 + 10g
+      user: 'user-1',
     }));
     expect(mockUow.registerAudit).toHaveBeenCalled();
   });

@@ -4,7 +4,8 @@
   "version": "1.4.0",
   "type": "module",
   "scripts": {
-    "dev": "vite",
+    "start": "node --experimental-strip-types server.ts",
+    "dev": "tsx server.ts",
     "build": "vite build",
     "preview": "vite preview",
     "build:staging": "vite build --mode staging",
@@ -30,7 +31,9 @@
     "dexie": "^4.4.1",
     "dexie-export-import": "^4.4.0",
     "dexie-react-hooks": "^4.4.0",
+    "express": "^5.2.1",
     "firebase": "^11.0.0",
+    "glob": "^13.0.6",
     "html5-qrcode": "^2.3.8",
     "lucide-react": "^0.546.0",
     "motion": "^12.23.24",
@@ -41,7 +44,10 @@
     "zustand": "^5.0.12"
   },
   "devDependencies": {
+    "@firebase/eslint-plugin-security-rules": "^0.0.2",
+    "@firebase/rules-unit-testing": "^5.0.0",
     "@tailwindcss/vite": "^4.1.14",
+    "@types/express": "^5.0.6",
     "@types/node": "^22.19.17",
     "@types/react": "^19.2.14",
     "@types/react-dom": "^19.2.3",
@@ -58,6 +64,7 @@
     "firebase-admin": "^13.8.0",
     "firebase-functions": "^7.2.5",
     "husky": "^9.1.7",
+    "jsdom": "^29.1.1",
     "lint-staged": "^15.4.3",
     "sharp": "^0.33.5",
     "tailwindcss": "^4.1.14",
@@ -74,5 +81,10 @@
       "eslint --fix",
       "tsc --noEmit"
     ]
+  },
+  "overrides": {
+    "serialize-javascript": "^7.0.5",
+    "uuid": "^11.0.5",
+    "@tootallnate/once": "^3.0.1"
   }
 }

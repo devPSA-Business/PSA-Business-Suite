@@ -90,8 +90,7 @@ export class AuditIntegrityService {
       };
 
       await db.financial_closures.put(newClosure);
-      // eslint-disable-next-line @typescript-eslint/no-explicit-any
-      await this.uow.registerSync('financial_closures', 'INSERT', newClosure as any);
+      await this.uow.registerSync('financial_closures', 'INSERT', newClosure as unknown as Record<string, unknown>);
       await this.uow.registerAudit('DAILY_CLOSURE', 'System', `Tutup buku otoritatif untuk ${branchId} pada ${dateStr}. Hash: ${currentHash.substring(0, 8)}...`);
 
       return newClosure;
@@ -121,6 +120,32 @@ export class AuditIntegrityService {
 
       if (current.hash !== recalculatedHash) {
         return { isValid: false, brokenLink: current.id };
+      }
+    }
+
+    return { isValid: true };
+  }
+
+  /**
+   * MEMOTONG RANTAI (Spot Check): Memverifikasi integritas Crypto-Audit Logs.
+   * Karena prune menghapus data lama, kita mulai dari log tertua yang ada.
+   */
+  async verifyAuditChain(limit: number = 100): Promise<{ isValid: boolean; brokenLink?: string }> {
+    const logs = await db.audit_logs.orderBy('timestamp').reverse().limit(limit).toArray();
+    // Reverse again to get chronological order for verification
+    logs.reverse();
+
+    if (logs.length <= 1) return { isValid: true };
+
+    for (let i = 1; i < logs.length; i++) {
+      const current = logs[i];
+      const previous = logs[i - 1];
+
+      if (current.previousHash !== previous.hash) {
+        // Jika previousHash bukan GENESIS (berarti terputus di tengah jalan)
+        if (current.previousHash !== 'GENESIS_BLOCK_0000000000000000' && current.previousHash !== '0') {
+           return { isValid: false, brokenLink: current.id };
+        }
       }
     }
 

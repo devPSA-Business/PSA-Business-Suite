@@ -1,5 +1,5 @@
 import React from 'react';
-import { Sparkles, TrendingUp, DollarSign, Package, Activity } from 'lucide-react';
+import { Sparkles, Package, Activity } from 'lucide-react';
 import { DailyMetricData, ProductMetricData } from '../../../application/services/AnalyticsService';
 
 interface SmartInsightsProps {

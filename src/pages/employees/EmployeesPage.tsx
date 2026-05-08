@@ -1,6 +1,6 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import { BackButton } from '../../shared/components/BackButton';
-import { Users, UserPlus, Shield, Key, Trash2, Edit2, Check, X, AlertCircle } from 'lucide-react';
+import { Users, UserPlus, Shield, Key, Trash2, Edit2, Check, AlertCircle } from 'lucide-react';
 import { db, User } from '../../shared/api/db';
 import { UserRole } from '../../domain/models/User';
 import { useToastStore } from '../../shared/store/toastStore';
@@ -24,20 +24,20 @@ export function EmployeesPage() {
     confirmPin: ''
   });
 
-  useEffect(() => {
-    fetchUsers();
-  }, []);
-
-  const fetchUsers = async () => {
+  const fetchUsers = useCallback(async () => {
     try {
       const allUsers = await db.users.toArray();
       setUsers(allUsers);
-    } catch (err) {
+    } catch (_err) {
       addToast('Gagal memuat data pegawai.', 'error');
     } finally {
       setIsLoading(false);
     }
-  };
+  }, [addToast]);
+
+  useEffect(() => {
+    fetchUsers();
+  }, [fetchUsers]);
 
   const handleSave = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -90,7 +90,7 @@ export function EmployeesPage() {
       
       resetForm();
       fetchUsers();
-    } catch (err) {
+    } catch (_err) {
       addToast('Gagal menyimpan data.', 'error');
     }
   };
@@ -107,7 +107,7 @@ export function EmployeesPage() {
       await db.users.delete(id);
       addToast('Pegawai dihapus.', 'success');
       fetchUsers();
-    } catch (err) {
+    } catch (_err) {
       addToast('Gagal menghapus pegawai.', 'error');
     }
   };

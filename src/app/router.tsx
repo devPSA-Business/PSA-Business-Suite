@@ -35,7 +35,7 @@ const requireRole = (allowedRoles: UserRole[]) => ({ location }: { location: { h
   }
 };
 
-const requireAdminOrManager = requireRole([UserRole.ADMIN, UserRole.MANAGER]);
+const _requireAdminOrManager = requireRole([UserRole.ADMIN, UserRole.MANAGER]);
 
 // --- PUBLIC ROUTES (Lazy Loaded) ---
 const indexRoute = createRoute({ 

@@ -1,3 +1,4 @@
+import { logger } from '@lib/logger';
 import React from 'react';
 import { useLiveQuery } from 'dexie-react-hooks';
 import { db, SyncEvent } from '../../../shared/api/db';
@@ -14,7 +15,7 @@ export function DeadLetterQueueViewer() {
         await db.sync_dlq.delete(event.id!);
         
         // Pindahkan kembali ke antrean utama dengan reset retry
-        const { id, ...rest } = event; // Buang ID lama agar auto-increment di sync_events
+        const { id: _, ...rest } = event; // Buang ID lama agar auto-increment di sync_events
         await db.sync_events.add({
           ...rest,
           status: 'PENDING',
@@ -23,7 +24,7 @@ export function DeadLetterQueueViewer() {
         });
       });
     } catch (e) {
-      console.error("Gagal mencoba ulang sinkronisasi:", e);
+      logger.error("Gagal mencoba ulang sinkronisasi:", { error: e instanceof Error ? e.message : String(e) });
     }
   };
 
@@ -33,7 +34,7 @@ export function DeadLetterQueueViewer() {
         await db.sync_dlq.delete(id);
       }
     } catch (e) {
-      console.error("Gagal menghapus event DLQ:", e);
+      logger.error("Gagal menghapus event DLQ:", { error: e instanceof Error ? e.message : String(e) });
     }
   };
 

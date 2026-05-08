@@ -1,6 +1,7 @@
 // eslint.config.ts
 import tsEslint from 'typescript-eslint';
 import reactHooks from 'eslint-plugin-react-hooks';
+import firebaseRulesPlugin from '@firebase/eslint-plugin-security-rules';
 
 /**
  * @ai_context: F8 - Quality Assurance & Type Safety
@@ -8,12 +9,18 @@ import reactHooks from 'eslint-plugin-react-hooks';
  */
 export default tsEslint.config(
   ...tsEslint.configs.recommended,
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  firebaseRulesPlugin.configs['flat/recommended'] as any,
   {
     plugins: { 'react-hooks': reactHooks },
     rules: {
       // Zero-tolerance for 'any' in Domain/Application layer
       '@typescript-eslint/no-explicit-any': 'error',
-      '@typescript-eslint/no-unused-vars': ['warn', { argsIgnorePattern: '^_' }],
+      '@typescript-eslint/no-unused-vars': ['warn', { 
+        argsIgnorePattern: '^_',
+        caughtErrorsIgnorePattern: '^_',
+        varsIgnorePattern: '^_'
+      }],
       'react-hooks/rules-of-hooks': 'error',
       'react-hooks/exhaustive-deps': 'warn',
       'no-empty': ['error', { allowEmptyCatch: false }],

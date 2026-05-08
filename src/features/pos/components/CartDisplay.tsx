@@ -1,8 +1,11 @@
 import { useCartStore } from '../store/useCartStore';
 import { useCheckoutStore } from '../store/useCheckoutStore';
 import { Minus, Plus, Trash2 } from 'lucide-react';
+import { useState } from 'react';
 import { CheckoutModal } from './CheckoutModal';
+import { ConfirmActionDialog } from '../../../shared/components/ConfirmActionDialog';
 import { DIContainer } from '@infrastructure/di/Container';
+import { logger } from '@lib/logger';
 import { useAuthStore } from '../../../shared/store/authStore';
 
 export function CartDisplay() {
@@ -17,6 +20,8 @@ export function CartDisplay() {
   
   const openCheckoutModal = useCheckoutStore((state) => state.openCheckoutModal);
   const user = useAuthStore((state) => state.user);
+  
+  const [isClearConfirmOpen, setIsClearConfirmOpen] = useState(false);
 
   if (!_hasHydrated) {
     return (
@@ -60,7 +65,7 @@ export function CartDisplay() {
         'REMOVE_ITEM',
         user ? user.name : 'System',
         `Menghapus item ${itemToRemove.name} dari keranjang.`
-      ).catch(console.error);
+      ).catch((err) => logger.error('[Cart] Gagal log audit REMOVE_ITEM:', err));
     }
   };
 
@@ -72,8 +77,9 @@ export function CartDisplay() {
         'CLEAR_CART',
         user ? user.name : 'System',
         `Mengosongkan keranjang yang berisi ${itemCount} item.`
-      ).catch(console.error);
+      ).catch((err) => logger.error('[Cart] Gagal log audit CLEAR_CART:', err));
     }
+    setIsClearConfirmOpen(false);
   };
 
   if (cartItems.length === 0) {
@@ -98,7 +104,7 @@ export function CartDisplay() {
             Pesanan Saat Ini <span className="text-xs sm:text-sm font-normal text-stone-500 ml-1 sm:ml-2">({totalItems} item)</span>
           </h3>
           <button
-            onClick={handleClearCart}
+            onClick={() => setIsClearConfirmOpen(true)}
             className="text-[10px] sm:text-xs font-medium text-red-500 hover:text-red-700 hover:bg-red-50 px-2 sm:px-3 py-1 sm:py-1.5 rounded-lg transition-colors"
           >
             Kosongkan
@@ -170,6 +176,17 @@ export function CartDisplay() {
         </div>
       </div>
       <CheckoutModal />
+
+      {/* G-10 FIX: Konfirmasi sebelum mengosongkan keranjang */}
+      <ConfirmActionDialog
+        isOpen={isClearConfirmOpen}
+        title="Kosongkan Keranjang?"
+        description="Semua barang yang sudah di-scan akan dihapus dari keranjang. Anda harus melakukan scan ulang."
+        dangerLevel="warn"
+        confirmLabel="Ya, Kosongkan"
+        onConfirm={handleClearCart}
+        onCancel={() => setIsClearConfirmOpen(false)}
+      />
     </>
   );
 }

@@ -1,4 +1,4 @@
-import { db, AiCache, AiAccessLog } from '../../shared/api/db';
+import { db } from '../../shared/api/db';
 
 const CACHE_TTL_MS = 60 * 60 * 1000; // 1 hour
 

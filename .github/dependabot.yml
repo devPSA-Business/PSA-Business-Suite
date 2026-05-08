@@ -34,9 +34,6 @@ updates:
       prefix: "build(deps)"
       prefix-development: "build(deps-dev)"
       include: "scope"
-    ignore:
-      - dependency-name: "*"
-        update-types: ["version-update:semver-major"]
 
   - package-ecosystem: "github-actions"
     directory: "/"

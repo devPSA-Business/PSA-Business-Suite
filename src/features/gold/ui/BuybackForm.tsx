@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState } from 'react';
 import { DIContainer } from '@infrastructure/di/Container';
 import { useAuthStore } from '../../../shared/store/authStore';
 import { useGoldStore } from '../../../shared/store/useGoldStore';
@@ -14,6 +14,8 @@ import { handleNumberInputKeyDown, isValidNumericValue, sanitizeNumberInput } fr
 interface BuybackFormProps {
   hideBackButton?: boolean;
 }
+
+import { mapErrorToUser } from '../../../shared/utils/errorMapper';
 
 export function BuybackForm({ hideBackButton }: BuybackFormProps = {}) {
   const user = useAuthStore((state) => state.user);
@@ -103,8 +105,8 @@ export function BuybackForm({ hideBackButton }: BuybackFormProps = {}) {
       setTimeout(() => setIsSuccess(false), 3000);
       addToast('Aset emas berhasil disimpan ke Treasury!', 'success');
     } catch (error) {
-      const message = error instanceof Error ? error.message : 'Gagal memproses buyback.';
-      addToast(message, 'error');
+      const mapped = mapErrorToUser(error);
+      addToast(mapped.userMessage, 'error');
     } finally {
       setIsLoading(false);
     }

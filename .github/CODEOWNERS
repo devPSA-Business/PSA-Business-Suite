@@ -1,5 +1,1 @@
-* @psa-owner
-/firestore.rules @psa-owner
-/src/domain/ @psa-owner
-/src/application/ @psa-owner
-/src/lib/cryptoIndexedDB.ts @psa-owner
+*       @devPSA-Business

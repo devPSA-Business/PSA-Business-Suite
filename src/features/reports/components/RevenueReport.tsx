@@ -26,12 +26,7 @@ const useFinancialReport = (startDate: number, endDate: number) => {
   });
 };
 
-interface RevenueReportProps {
-  startDate: number;
-  endDate: number;
-}
-
-export const RevenueReport: React.FC<RevenueReportProps> = ({ startDate, endDate }) => {
+export const RevenueReport: React.FC = () => {
   // Default: Hari ini
   const [startDateStr, setStartDate] = useState<string>(
     new Date().toISOString().split('T')[0]

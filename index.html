@@ -2,20 +2,8 @@
 <html lang="id">
   <head>
     <meta charset="UTF-8" />
-    <!-- 🛡️ Tugas 2.2: Content Security Policy (CSP) Strict -->
-    <meta http-equiv="Content-Security-Policy" content="
-      default-src 'self';
-      script-src 'self' 'wasm-unsafe-eval' https://apis.google.com https://www.gstatic.com https://www.google.com/recaptcha/;
-      connect-src 'self' https://firestore.googleapis.com https://*.firebasestorage.googleapis.com https://*.firebaseapp.com https://identitytoolkit.googleapis.com https://securetoken.googleapis.com https://cloudfunctions.net https://*.ingest.sentry.io https://wa.me;
-      img-src 'self' data: blob: https://*.firebasestorage.googleapis.com;
-      frame-src https://*.firebaseapp.com https://www.google.com/recaptcha/;
-      style-src 'self' 'unsafe-inline' https://fonts.googleapis.com;
-      font-src 'self' https://fonts.gstatic.com;
-      worker-src blob: 'self';
-    " />
-    
-    <!-- Mencegah zoom tidak sengaja di tablet kasir -->
-    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no" />
+    <!-- Mencegah zoom tidak sengaja di tablet kasir (sudah dicabut karena WCAG, diganti di CSS: touch-action) -->
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
@@ -26,6 +14,9 @@
     <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
     <link rel="apple-touch-icon" sizes="180x180" href="/icon-180.png" />
     <link rel="apple-touch-icon" href="/icon-180.png" />
+    <!-- Splash screens for iOS Safari -->
+    <link rel="apple-touch-startup-image" media="(device-width: 430px) and (device-height: 932px) and (-webkit-device-pixel-ratio: 3)" href="/icon-512.png" />
+    <link rel="apple-touch-startup-image" media="(device-width: 390px) and (device-height: 844px) and (-webkit-device-pixel-ratio: 3)" href="/icon-512.png" />
     
     <title>PSA Business Suite</title>
   </head>

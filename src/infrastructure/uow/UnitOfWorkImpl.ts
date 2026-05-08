@@ -1,3 +1,4 @@
+import { Dexie } from 'dexie';
 import { IUnitOfWork } from '@application/core/IUnitOfWork';
 import { db, AuditLog } from '../../shared/api/db';
 import { cryptoDB } from '../../lib/cryptoIndexedDB';
@@ -26,8 +27,8 @@ export class UnitOfWorkImpl implements IUnitOfWork {
         ? this.FULL_SCOPE
         : Array.from(new Set([...tables, ...this.MANDATORY_TABLES]));
 
-      // eslint-disable-next-line @typescript-eslint/no-explicit-any
-      return await (db as any).transaction('rw', tableNames, work);
+      // Use typed transaction
+      return await db.transaction('rw', tableNames, work);
     } catch (err) {
       if (err instanceof Error) {
         if (err.name === 'QuotaExceededError' || (err as { inner?: { name?: string } }).inner?.name === 'QuotaExceededError') {
@@ -67,17 +68,17 @@ export class UnitOfWorkImpl implements IUnitOfWork {
     const dataString = `${previousHash}|${id}|${timestamp}|${action}|${user}|${details}|${extra?.entityId || ''}|${extra?.correlationId || ''}`;
     const encoder = new TextEncoder();
     const dataBuffer = encoder.encode(dataString);
-    const hashBuffer = await crypto.subtle.digest('SHA-256', dataBuffer);
+    const hashBuffer = await Dexie.waitFor(crypto.subtle.digest('SHA-256', dataBuffer));
     
     // Convert buffer to Hex String
     const hashArray = Array.from(new Uint8Array(hashBuffer));
     const hash = hashArray.map(b => b.toString(16).padStart(2, '0')).join('');
 
     // Encrypt sensitive details & payloadDiff
-    const encryptedDetails = await cryptoDB.encryptRecord({ details });
+    const encryptedDetails = await Dexie.waitFor(cryptoDB.encryptRecord({ details }));
     let encryptedPayloadDiff = undefined;
     if (extra?.payloadDiff) {
-      encryptedPayloadDiff = JSON.stringify(await cryptoDB.encryptRecord({ diff: extra.payloadDiff }));
+      encryptedPayloadDiff = JSON.stringify(await Dexie.waitFor(cryptoDB.encryptRecord({ diff: extra.payloadDiff })));
     }
 
     const log: AuditLog = {
@@ -99,12 +100,10 @@ export class UnitOfWorkImpl implements IUnitOfWork {
     await db.audit_logs.add(log);
     
     // 3. Auto-sync audit logs ke Cloud (Immutable Backup)
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    await this.registerSync('audit_logs', 'INSERT', log as any as Record<string, any>);
+    await this.registerSync('audit_logs', 'INSERT', log as unknown as Record<string, unknown>);
   }
 
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  async registerSync(entityType: string, action: 'INSERT' | 'UPDATE' | 'DELETE' | 'UPDATE_DELTA', payload: Record<string, any>): Promise<void> {
+  async registerSync(entityType: string, action: 'INSERT' | 'UPDATE' | 'DELETE' | 'UPDATE_DELTA', payload: Record<string, unknown>): Promise<void> {
     await this.syncService.enqueueSync({
       entity_type: entityType,
       action,
@@ -130,8 +129,7 @@ export class UnitOfWorkImpl implements IUnitOfWork {
     await db.stock_history.add(history);
     
     // Auto-sync stock history
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    await this.registerSync('stock_history', 'INSERT', history as any as Record<string, any>);
+    await this.registerSync('stock_history', 'INSERT', history as unknown as Record<string, unknown>);
   }
 
   async registerGoldAssetHistory(params: {
@@ -149,7 +147,6 @@ export class UnitOfWorkImpl implements IUnitOfWork {
     await db.gold_asset_history.add(history);
     
     // Auto-sync gold asset history
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    await this.registerSync('gold_asset_history', 'INSERT', history as any as Record<string, any>);
+    await this.registerSync('gold_asset_history', 'INSERT', history as unknown as Record<string, unknown>);
   }
 }

@@ -77,7 +77,7 @@ class MetricsEmitter {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(metric),
-      }).catch(err => {
+      }).catch(_err => {
         // Silent catch to prevent cascade failures on telemetry fail
       });
     }

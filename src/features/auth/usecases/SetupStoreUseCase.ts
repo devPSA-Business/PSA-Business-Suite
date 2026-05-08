@@ -83,8 +83,7 @@ export class SetupStoreUseCase {
       await db.users.add(newUser);
 
       // Sinkronisasikan Pembuatan User ke Cloud
-      // eslint-disable-next-line @typescript-eslint/no-explicit-any
-      await this.unitOfWork.registerSync('users', 'INSERT', newUser as any);
+      await this.unitOfWork.registerSync('users', 'INSERT', newUser as unknown as Record<string, unknown>);
 
       // 4. Audit Log Eksekusi Genesis
       await this.unitOfWork.registerAudit(

@@ -3,6 +3,7 @@ import { Shift } from '@domain/models/Shift';
 import { db, GoldBuyback } from '../../shared/api/db';
 import { firestoreDb, isConfigValid } from '../../shared/api/firebase';
 import { collection, query, where, getDocs } from 'firebase/firestore';
+import { MathUtils } from '../../shared/utils/decimalUtils';
 
 export class ShiftRepositoryImpl implements IShiftRepository {
   async hasOpenShift(): Promise<boolean> {
@@ -133,8 +134,8 @@ export class ShiftRepositoryImpl implements IShiftRepository {
     if (shiftTotal) {
       await db.shift_totals.put({
         ...shiftTotal,
-        cashIn: Math.round(shiftTotal.cashIn + addedCash),
-        salesTotal: Math.round(shiftTotal.salesTotal + finalTotal),
+        cashIn: MathUtils.roundInt(MathUtils.add(shiftTotal.cashIn, addedCash)),
+        salesTotal: MathUtils.roundInt(MathUtils.add(shiftTotal.salesTotal, finalTotal)),
         lastUpdatedAt: Date.now()
       });
     }
@@ -145,8 +146,8 @@ export class ShiftRepositoryImpl implements IShiftRepository {
     if (shiftTotal) {
       await db.shift_totals.put({
         ...shiftTotal,
-        cashIn: Math.max(0, Math.round(shiftTotal.cashIn - removedCash)),
-        salesTotal: Math.max(0, Math.round(shiftTotal.salesTotal - voidAmount)),
+        cashIn: Math.max(0, MathUtils.roundInt(MathUtils.sub(shiftTotal.cashIn, removedCash))),
+        salesTotal: Math.max(0, MathUtils.roundInt(MathUtils.sub(shiftTotal.salesTotal, voidAmount))),
         lastUpdatedAt: Date.now()
       });
     }

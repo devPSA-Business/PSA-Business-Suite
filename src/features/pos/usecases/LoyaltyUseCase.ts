@@ -35,7 +35,7 @@ export class LoyaltyUseCase {
     const maxPointsNeeded = Math.ceil(MathUtils.div(request.transactionAmount, this.IDR_PER_POINT));
     const pointsRedeemed = Math.min(request.pointsToRedeem, customer.loyaltyPoints, maxPointsNeeded);
     const loyaltyDiscountAmount = MathUtils.roundInt(MathUtils.mul(pointsRedeemed, this.IDR_PER_POINT));
-    const netTotal = Math.max(0, MathUtils.sub(request.transactionAmount, loyaltyDiscountAmount));
+    const netTotal = Math.max(0, MathUtils.roundInt(MathUtils.sub(request.transactionAmount, loyaltyDiscountAmount)));
 
     // 2. Calculate Earned Points (based on net total after discount)
     const pointsEarned = Math.floor(MathUtils.div(netTotal, this.POINTS_PER_IDR));

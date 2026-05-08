@@ -1,6 +1,7 @@
 import { IUnitOfWork } from '@application/core/IUnitOfWork';
 import { IPettyCashRepository } from '@domain/repositories/IPettyCashRepository';
 import { PettyCash, db } from '@shared/api/db';
+import { MathUtils } from '@shared/utils/decimalUtils';
 
 export class RecordPettyCashUseCase {
   constructor(
@@ -19,8 +20,8 @@ export class RecordPettyCashUseCase {
         if (shiftTotal) {
           await db.shift_totals.put({
             ...shiftTotal,
-            cashOut: shiftTotal.cashOut + pettyCash.amount,
-            pettyCashTotal: shiftTotal.pettyCashTotal + pettyCash.amount,
+            cashOut: MathUtils.roundInt(MathUtils.add(shiftTotal.cashOut, pettyCash.amount)),
+            pettyCashTotal: MathUtils.roundInt(MathUtils.add(shiftTotal.pettyCashTotal, pettyCash.amount)),
             lastUpdatedAt: Date.now()
           });
         }
@@ -41,8 +42,7 @@ export class RecordPettyCashUseCase {
         }
       );
       
-      // eslint-disable-next-line @typescript-eslint/no-explicit-any
-      await this.unitOfWork.registerSync('petty_cash', 'INSERT', pettyCash as any as Record<string, any>);
+      await this.unitOfWork.registerSync('petty_cash', 'INSERT', pettyCash as unknown as Record<string, unknown>);
     }, ['petty_cash', 'shift_totals']);
   }
 }

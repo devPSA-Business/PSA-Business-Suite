@@ -136,8 +136,9 @@ service cloud.firestore {
     match /customers/{id} {
       allow list: if isHardened() && isSignedIn();
       allow get: if isHardened() && belongsToBranch(resource.data);
-      allow create: if isHardened() && belongsToBranch(incoming()) && incoming().createdAt == request.time;
+      allow create: if isHardened() && isValidId(id) && isValidCustomer(incoming()) && belongsToBranch(incoming()) && incoming().createdAt == request.time;
       allow update: if isHardened() && belongsToBranch(existing()) && incoming().branchId == existing().branchId 
+        && incoming().diff(existing()).affectedKeys().hasOnly(['name', 'phone', 'email', 'address', 'updatedAt'])
         && incoming().updatedAt == request.time;
       allow delete: if isHardened() && isManager() && belongsToBranch(existing());
     }
@@ -146,8 +147,14 @@ service cloud.firestore {
     match /repair_services/{id} {
       allow list: if isHardened() && isSignedIn();
       allow get: if isHardened() && belongsToBranch(resource.data);
-      allow create: if isHardened() && belongsToBranch(incoming()) && incoming().createdAt == request.time;
+      allow create: if isHardened() && isValidId(id) && belongsToBranch(incoming()) && isValidRepair(incoming()) && incoming().createdAt == request.time;
       allow update: if isHardened() && belongsToBranch(existing()) && incoming().branchId == existing().branchId 
+        && (
+          // Action: Update Status (Staff)
+          incoming().diff(existing()).affectedKeys().hasOnly(['status', 'updatedAt']) ||
+          // Action: Full Edit (Manager)
+          (isManager() && incoming().diff(existing()).affectedKeys().hasOnly(['status', 'description', 'price', 'updatedAt']))
+        )
         && incoming().updatedAt == request.time;
       allow delete: if isHardened() && isManager() && belongsToBranch(existing());
     }
@@ -155,10 +162,13 @@ service cloud.firestore {
     match /transactions/{id} {
       allow list: if isHardened() && isSignedIn();
       allow get: if isHardened() && belongsToBranch(resource.data);
-      allow create: if isHardened() && belongsToBranch(incoming()) && isValidTransaction(incoming()) && incoming().createdAt == request.time;
-      allow update: if isHardened() && belongsToBranch(existing()) && incoming().branchId == existing().branchId 
+      allow create: if isHardened() && isValidId(id) && belongsToBranch(incoming()) && isValidTransaction(incoming()) && incoming().createdAt == request.time;
+      allow update: if isHardened() && isManager() && belongsToBranch(existing()) 
+        && existing().status != 'FINAL' // Terminal State Locking
+        && incoming().branchId == existing().branchId 
+        && incoming().diff(existing()).affectedKeys().hasOnly(['status', 'paymentMethod', 'updatedAt'])
         && incoming().updatedAt == request.time;
-      allow delete: if isHardened() && isManager() && belongsToBranch(existing());
+      allow delete: if isHardened() && isAdmin(); // Void restricted to Admin
     }
 
     match /shifts/{id} {

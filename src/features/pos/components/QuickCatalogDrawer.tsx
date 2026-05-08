@@ -2,10 +2,16 @@ import React, { useState } from 'react';
 import { useLiveQuery } from 'dexie-react-hooks';
 import { X, Search, PackageSearch } from 'lucide-react';
 import { db } from '../../../shared/api/db';
+import { StockItemProps } from '../../../domain/models/StockItem';
+import { StockCategory } from '../../../domain/models/StockCategory';
 
 interface QuickCatalogDrawerProps {
   isOpen: boolean;
   onClose: () => void;
+}
+
+interface StockItemWithId extends StockItemProps {
+  id: string;
 }
 
 export function QuickCatalogDrawer({ isOpen, onClose }: QuickCatalogDrawerProps) {
@@ -13,21 +19,19 @@ export function QuickCatalogDrawer({ isOpen, onClose }: QuickCatalogDrawerProps)
   const [tab, setTab] = useState<'perhiasan' | 'bahan'>('perhiasan');
 
   const products = useLiveQuery(async () => {
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    let collection: any;
+    let collection;
     if (searchTerm) {
       collection = db.stock.where('name').startsWithIgnoreCase(searchTerm).or('barcode').startsWithIgnoreCase(searchTerm);
     } else {
       collection = db.stock;
     }
-    const results = await collection.toArray();
+    const results: StockItemWithId[] = await collection.toArray();
     
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    return results.filter((item: any) => {
+    return results.filter((item: StockItemWithId) => {
       if (tab === 'perhiasan') {
-        return item.category === 'CINCIN' || item.category === 'KALUNG' || item.category === 'GELANG' || item.category === 'ANTING' || item.category === 'LIONTIN';
+        return item.category === StockCategory.GOLD_JEWELLERY || item.category === StockCategory.IMITATION;
       } else {
-        return item.category === 'BAHAN' || item.category === 'KOTAK' || item.category === 'LAINNYA';
+        return item.category === StockCategory.GOLD_BAR || item.category === StockCategory.ACCESSORIES;
       }
     }).slice(0, 30); // limit for quick viewing
   }, [searchTerm, tab]);
@@ -81,8 +85,7 @@ export function QuickCatalogDrawer({ isOpen, onClose }: QuickCatalogDrawerProps)
             <p className="text-stone-500 text-sm">Produk tidak di temukan</p>
           </div>
         ) : (
-          // eslint-disable-next-line @typescript-eslint/no-explicit-any
-          products?.map((item: any) => (
+          products?.map((item: StockItemProps & { id: string }) => (
             <div key={item.id} className="bg-white p-3 rounded-2xl border border-stone-200 shadow-sm flex items-center justify-between">
               <div className="min-w-0 pr-4">
                 <p className="font-bold text-stone-800 text-sm truncate">{item.name}</p>

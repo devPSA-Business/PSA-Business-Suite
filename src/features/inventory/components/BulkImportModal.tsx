@@ -63,11 +63,11 @@ export function BulkImportModal({ isOpen, onClose, onSuccess }: BulkImportModalP
         const validatedData: BulkReceiveStockItemDTO[] = [];
         const validationErrors: string[] = [];
 
-        // eslint-disable-next-line @typescript-eslint/no-explicit-any
-        data.forEach((item: any, index: number) => {
+        // data is initially any[] from JSON.parse
+        (data as Array<Record<string, unknown>>).forEach((item, index) => {
           if (!item.barcode || !item.name || !item.category || item.quantity === undefined || item.cost === undefined || item.price === undefined) {
             validationErrors.push(`Baris ${index + 1}: Data tidak lengkap.`);
-          } else if (!Object.values(StockCategory).includes(item.category)) {
+          } else if (!Object.values(StockCategory).includes(item.category as StockCategory)) {
             validationErrors.push(`Baris ${index + 1}: Kategori "${item.category}" tidak valid.`);
           } else {
             validatedData.push({

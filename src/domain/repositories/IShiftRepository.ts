@@ -14,4 +14,5 @@ export interface IShiftRepository {
   findById(id: string): Promise<Shift | null>;
   checkCloudForActiveShift(userId: string): Promise<CloudShiftCheckResult>;
   incrementShiftSales(shiftId: string, addedCash: number, finalTotal: number): Promise<void>;
+  revertShiftSales(shiftId: string, removedCash: number, voidAmount: number): Promise<void>;
 }

@@ -9,7 +9,7 @@ import {
   ReportFilters,
   CustomerRevenue
 } from '@application/queries/IReportQuery';
-import { db, Transaction } from '../../shared/api/db';
+import { db, Transaction, AuditLog } from '../../shared/api/db';
 import { StockItem } from '../../domain/models/StockItem';
 import { cryptoDB } from '../../lib/cryptoIndexedDB';
 
@@ -371,7 +371,7 @@ export class ReportQueryImpl implements IReportQuery {
     ];
   }
 
-  async getAuditLogs(page: number, pageSize: number): Promise<unknown[]> {
+  async getAuditLogs(page: number, pageSize: number): Promise<AuditLog[]> {
     return await db.audit_logs
       .orderBy('timestamp')
       .reverse()

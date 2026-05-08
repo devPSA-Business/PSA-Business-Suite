@@ -70,8 +70,7 @@ export function ProductList() {
   // Global Barcode Scanner Listener (Zero-Click)
   useEffect(() => {
     let barcodeBuffer = '';
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    let timeoutId: any;
+    let timeoutId: NodeJS.Timeout | undefined;
 
     const handleGlobalKeyDown = (e: KeyboardEvent) => {
       // Abaikan jika user sedang mengetik manual di input/textarea/select lain

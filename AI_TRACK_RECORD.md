@@ -30,3 +30,5 @@ Catatan perubahan besar untuk PSA Business Suite v1.4+.
 - Mengonversi `error` (unknown) ke `instanceof Error` handling.
 - Memperbaiki Recharts formatter types.
 - Menyelaraskan mapping data `User` dan `Customer` di infrastructure layer.
+
+| 2026-05-08 | **IMPLEMENTASI MASTER INSTRUCTION v4.0**: Update `AGENTS.md` dari v1.5 ke v4.0 (6 Pilar, FSD canonical, Protokol Fatal, Zero-Cost Blueprint). Tambah folder `references/` dengan 7 file referensi lengkap (arsitektur, firebase, sync engine, CI/CD, AI, security, roadmap). Deploy 3 GitHub Actions baru: `smart-auto-heal.yml`, `psa-error-uploader.yml`, `psa-resource-optimizer.yml`. Tambah `psa-smart-fix.sh` (local automation script). | Selesai | Rendah |

@@ -91,8 +91,7 @@ const ensureUserSalt = async (user: User): Promise<Uint8Array> => {
       return typeof user.salt === 'string' ? new TextEncoder().encode(user.salt) : (user.salt as Uint8Array);
    }
    const newSalt = crypto.getRandomValues(new Uint8Array(32));
-   // eslint-disable-next-line @typescript-eslint/no-explicit-any
-   await db.users.update(user.id, { salt: newSalt as any });
+   await db.users.update(user.id, { salt: newSalt });
    return newSalt;
 };
 
@@ -232,8 +231,7 @@ export const useSecurityStore = create<SecurityState>()(
             };
             await cryptoKeyStore.saveWrappedKey(wrappedKeyMeta);
             const updatedHash = await hashPin(pin, newSalt, true, HASH_ITERATIONS_V2);
-            // eslint-disable-next-line @typescript-eslint/no-explicit-any
-            await db.users.update(user.id, { salt: newSalt as any, pinHash: updatedHash });
+            await db.users.update(user.id, { salt: newSalt, pinHash: updatedHash });
             cryptoDB.setKey(deviceKey, wrappedKeyMeta.keyId);
           } else {
             if (!wrappedKeyMeta.wrappedKeysByPin) wrappedKeyMeta.wrappedKeysByPin = {};
@@ -248,7 +246,7 @@ export const useSecurityStore = create<SecurityState>()(
               await cryptoKeyStore.saveWrappedKey(wrappedKeyMeta);
               const updatedHash = await hashPin(pin, newSalt, true, HASH_ITERATIONS_V2);
               // eslint-disable-next-line @typescript-eslint/no-explicit-any
-              await db.users.update(user.id, { salt: newSalt as any, pinHash: updatedHash });
+              await db.users.update(user.id, { salt: newSalt, pinHash: updatedHash });
               await cryptoDB.unwrapKeyWithPin(newPinWrappedKey, pin, newSalt);
             } else {
               await cryptoDB.unwrapKeyWithPin(userOfflineKey, pin, await ensureUserSalt(user));

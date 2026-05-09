@@ -295,7 +295,7 @@ export interface User {
   name: string;
   role: UserRole;
   pinHash: string;
-  salt?: string; // Phase 1.2: Random UUID salt for PBKDF2
+  salt?: string | Uint8Array; // Phase 1.2: Per-user random salt (Uint8Array baru, string = legacy)
   status: 'ACTIVE' | 'INACTIVE';
   createdAt: number;
   branchId?: string;

@@ -225,13 +225,13 @@ export const OwnerDashboardPage: React.FC = () => {
               <LayoutGrid className="text-brand-900" /> Matrix Margin vs Kecepatan Penjualan
             </h2>
             <div className="flex gap-2 overflow-x-auto pb-2 md:pb-0 hide-scrollbar">
-              {['ALL', 'GOLD_BAR', 'GOLD_JEWELLERY', 'ACCESSORIES'].map(cat => (
+              {['ALL', 'IMITATION', 'ACCESSORIES', 'BUYBACK_GOLD'].map(cat => (
                 <button
                   key={cat}
                   onClick={() => setSelectedCategory(cat)}
                   className={`px-4 py-1.5 rounded-full text-xs font-bold whitespace-nowrap transition-colors ${selectedCategory === cat ? 'bg-brand-900 text-white' : 'bg-stone-100 text-stone-600 hover:bg-stone-200'}`}
                 >
-                  {cat === 'ALL' ? 'Semua Produk' : cat === 'GOLD_BAR' ? 'Logam Mulia (24K)' : cat === 'GOLD_JEWELLERY' ? 'Perhiasan' : 'Jasa/Aksesoris'}
+                  {cat === 'ALL' ? 'Semua Produk' : cat === 'IMITATION' ? 'Perhiasan Imitasi' : cat === 'ACCESSORIES' ? 'Aksesoris' : 'Emas Buyback'}
                 </button>
               ))}
             </div>

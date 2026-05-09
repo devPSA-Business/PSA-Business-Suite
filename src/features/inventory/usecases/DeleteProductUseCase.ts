@@ -1,3 +1,8 @@
+/**
+ * @ai_context: UseCase hapus produk dari inventaris perhiasan imitasi
+ * @business_rule: Soft delete (isDeleted=true). Tidak bisa hapus jika ada transaksi aktif.
+ * @security_tier: MEDIUM
+ */
 import { IStockRepository } from '@domain/repositories/IStockRepository';
 import { IUnitOfWork } from '@application/core/IUnitOfWork';
 import { UserRole } from '@domain/models/User';

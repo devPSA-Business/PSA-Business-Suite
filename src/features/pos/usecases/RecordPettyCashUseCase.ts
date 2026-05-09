@@ -1,3 +1,8 @@
+/**
+ * @ai_context: UseCase catat pengeluaran petty cash operasional toko harian
+ * @business_rule: Petty cash dikurangi dari kas shift. Harus ada shift aktif.
+ * @security_tier: MEDIUM
+ */
 import { IUnitOfWork } from '@application/core/IUnitOfWork';
 import { IPettyCashRepository } from '@domain/repositories/IPettyCashRepository';
 import { PettyCash, db } from '@shared/api/db';

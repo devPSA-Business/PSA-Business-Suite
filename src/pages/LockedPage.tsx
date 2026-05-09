@@ -1,7 +1,8 @@
 import React, { useState, useEffect, useCallback } from 'react';
 import { useNavigate, useSearch } from '@tanstack/react-router';
 import { Lock, ArrowLeft, User as UserIcon, ChevronRight, AlertTriangle, Beaker, RotateCcw } from 'lucide-react';
-import { useSecurityStore, hashPin } from '../shared/store/useSecurityStore';
+import { useSecurityStore } from '../shared/store/useSecurityStore';
+import { userManagementUseCase } from '../features/admin/usecases/UserManagementUseCase';
 import { CustomNumpad } from '../features/pos/components/CustomNumpad';
 import { db, User } from '../shared/api/db';
 import { useToastStore } from '../shared/store/toastStore';
@@ -115,8 +116,15 @@ export function LockedPage() {
     if (!selectedUser) return;
 
     try {
-      const hashedNewPin = await hashPin(newPin, selectedUser.id);
-      await db.users.update(selectedUser.id, { pinHash: hashedNewPin });
+      // Gunakan UseCase — tidak boleh direct db write dari UI (FSD Rule)
+      const result = await userManagementUseCase.updateUser({
+        id: selectedUser.id,
+        name: selectedUser.name,
+        role: selectedUser.role,
+        branchId: selectedUser.branchId || 'HQ',
+        pin: newPin
+      });
+      if (!result.success) throw new Error(result.error);
       addToast('PIN berhasil diperbarui. Silakan masuk dengan PIN baru Anda.', 'success');
       
       // Reset state agar kembali ke layar input PIN untuk menguji PIN baru

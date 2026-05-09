@@ -1,3 +1,8 @@
+/**
+ * @ai_context: UseCase catat audit log — setiap aksi kritis harus melewati ini
+ * @business_rule: Audit log immutable. Hash chained untuk deteksi tamper.
+ * @security_tier: CRITICAL
+ */
 import { IUnitOfWork } from '@application/core/IUnitOfWork';
 
 export class LogAuditUseCase {

@@ -1,3 +1,8 @@
+/**
+ * @ai_context: UseCase kelola custom order perhiasan (pesanan khusus pelanggan)
+ * @business_rule: Custom order tidak mengurangi stok langsung. Progress diupdate manual oleh Manager.
+ * @security_tier: MEDIUM
+ */
 import { IUnitOfWork } from '@application/core/IUnitOfWork';
 import { ICustomOrderRepository } from '@domain/repositories/ICustomOrderRepository';
 import { CustomOrder } from '@shared/api/db';

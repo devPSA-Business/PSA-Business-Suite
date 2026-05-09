@@ -1,3 +1,8 @@
+/**
+ * @ai_context: UseCase tandai transaksi mencurigakan untuk review Manager
+ * @business_rule: Flag tidak mengubah status transaksi. Hanya menambah metadata review.
+ * @security_tier: HIGH
+ */
 import { IUnitOfWork } from '@application/core/IUnitOfWork';
 import { IRetailRepository } from '@domain/repositories/IRetailRepository';
 

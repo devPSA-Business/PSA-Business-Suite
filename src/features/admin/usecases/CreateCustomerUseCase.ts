@@ -1,3 +1,8 @@
+/**
+ * @ai_context: UseCase membuat data pelanggan baru
+ * @business_rule: Nama dan HP wajib diisi. Data pelanggan disimpan lokal dulu lalu sync ke cloud.
+ * @security_tier: HIGH
+ */
 import { ICustomerRepository } from '@domain/repositories/ICustomerRepository';
 import { Customer, CustomerProps } from '@domain/models/Customer';
 import { IUnitOfWork } from '@application/core/IUnitOfWork';

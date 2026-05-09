@@ -1,3 +1,8 @@
+/**
+ * @ai_context: UseCase terima stok massal perhiasan imitasi dari supplier
+ * @business_rule: Validasi duplikat barcode. HPP Moving Average dihitung server-side.
+ * @security_tier: MEDIUM
+ */
 import { IStockRepository } from '@domain/repositories/IStockRepository';
 import { IUnitOfWork } from '@application/core/IUnitOfWork';
 import { StockItem } from '@domain/models/StockItem';

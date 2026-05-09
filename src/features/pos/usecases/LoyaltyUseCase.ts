@@ -1,3 +1,8 @@
+/**
+ * @ai_context: UseCase kalkulasi dan redeem poin loyalitas pelanggan toko perhiasan imitasi
+ * @business_rule: Poin berbasis nilai transaksi. Redeem butuh konfirmasi Manager.
+ * @security_tier: MEDIUM
+ */
 import { ICustomerRepository } from '@domain/repositories/ICustomerRepository';
 import { IUnitOfWork } from '@application/core/IUnitOfWork';
 import { MathUtils } from '@shared/utils/decimalUtils';

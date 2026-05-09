@@ -1,3 +1,8 @@
+/**
+ * @ai_context: UseCase resume transaksi yang di-suspend (held cart)
+ * @business_rule: Maksimal 5 cart tersuspend. Resume otomatis bersihkan cart kadaluarsa.
+ * @security_tier: LOW
+ */
 import { ISuspendedCartRepository } from '@domain/repositories/ISuspendedCartRepository';
 import { IUnitOfWork } from '@application/core/IUnitOfWork';
 import { SuspendedCart } from '@domain/models/SuspendedCart';

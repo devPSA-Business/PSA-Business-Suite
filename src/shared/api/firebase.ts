@@ -7,7 +7,10 @@ import { getFunctions, Functions } from 'firebase/functions';
 import { initializeAppCheck, ReCaptchaEnterpriseProvider } from 'firebase/app-check';
 import { useAuthStore } from '../store/authStore';
 import { logger } from '../../lib/logger';
-import firebaseConfigJSONRaw from '../../../firebase-applet-config.json';
+const modules = import.meta.glob('../../../firebase-applet-confi*.json', { eager: true });
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+const configModule = modules['../../../firebase-applet-config.json'] as any;
+const firebaseConfigJSONRaw = configModule?.default || {};
 
 interface FirebaseConfigJSON {
   apiKey?: string;
@@ -139,7 +142,7 @@ if (typeof window !== 'undefined' && firebaseApp && isConfigValid) {
         provider: new ReCaptchaEnterpriseProvider(recaptchaKey),
         isTokenAutoRefreshEnabled: true
       });
-    } catch (e) {
+    } catch (_e) {
       logger.warn('[Firebase] App Check initialization failed');
     }
   }

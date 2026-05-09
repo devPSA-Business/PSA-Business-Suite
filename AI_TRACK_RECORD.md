@@ -30,3 +30,6 @@ Catatan perubahan besar untuk PSA Business Suite v1.4+.
 - Mengonversi `error` (unknown) ke `instanceof Error` handling.
 - Memperbaiki Recharts formatter types.
 - Menyelaraskan mapping data `User` dan `Customer` di infrastructure layer.
+
+| 2026-05-08 | **IMPLEMENTASI MASTER INSTRUCTION v4.0**: Update `AGENTS.md` dari v1.5 ke v4.0 (6 Pilar, FSD canonical, Protokol Fatal, Zero-Cost Blueprint). Tambah folder `references/` dengan 7 file referensi lengkap (arsitektur, firebase, sync engine, CI/CD, AI, security, roadmap). Deploy 3 GitHub Actions baru: `smart-auto-heal.yml`, `psa-error-uploader.yml`, `psa-resource-optimizer.yml`. Tambah `psa-smart-fix.sh` (local automation script). | Selesai | Rendah |
+| 2026-05-09 | **BEDAH & REKONSILIASI v1.3.5→v1.4.1**: Deep-diff lokal ZIP (v1.3.5) vs GitHub (v1.4.0). Fix TD-05 (partial): Perbaiki tipe `salt?: string | Uint8Array` di `db.ts` + hapus `as any` di 3 lokasi `useSecurityStore.ts`. Fix monetary: `Math.round(priceIdrPerGram)` → `MathUtils.roundInt()` di `useGoldStore.ts`. Port 2 feature manifest (gestures + navigation) dari ZIP. Update versi ke v1.4.1. Semua GitHub Actions dipertahankan (13 workflows). | Selesai | Rendah |

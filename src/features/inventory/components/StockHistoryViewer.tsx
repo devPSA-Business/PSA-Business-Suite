@@ -1,4 +1,4 @@
-import React, { useMemo } from 'react';
+import React from 'react';
 import { useLiveQuery } from 'dexie-react-hooks';
 import { StockHistory } from '../../../shared/api/db';
 import { DIContainer } from '@infrastructure/di/Container';

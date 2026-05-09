@@ -1,3 +1,8 @@
+/**
+ * @ai_context: UseCase buyback emas dari pelanggan pasar — emas yang dibeli disimpan sebagai aset treasury
+ * @business_rule: Hanya Manager/Admin. Emas dibeli dari pelanggan TIDAK dijual ke konsumen — hanya ke pengepul.
+ * @security_tier: HIGH
+ */
 import { IGoldBuybackRepository } from '@domain/repositories/IGoldBuybackRepository';
 import { IStockRepository } from '@domain/repositories/IStockRepository';
 import { IUnitOfWork } from '@application/core/IUnitOfWork';
@@ -133,7 +138,7 @@ export class BuybackUseCase {
         });
 
         return buyback.id;
-      }, ['gold_buyback', 'shift_totals', 'gold_asset_history', 'stock', 'stock_history']);
+      }, ['gold_buyback', 'shift_totals', 'gold_asset_history', 'stock', 'stock_history', 'users']);
     } catch (error) {
       throw mapErrorToUser(error);
     }

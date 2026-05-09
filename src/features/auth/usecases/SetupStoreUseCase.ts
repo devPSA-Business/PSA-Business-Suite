@@ -1,3 +1,8 @@
+/**
+ * @ai_context: UseCase setup awal toko — dijalankan sekali saat onboarding pertama
+ * @business_rule: Membuat user ADMIN pertama dan profil toko. Tidak bisa diulang setelah setup selesai.
+ * @security_tier: CRITICAL
+ */
 import { db } from '../../../shared/api/db';
 import { IUnitOfWork } from '@application/core/IUnitOfWork';
 import { UserRole } from '../../../domain/models/User';
@@ -83,8 +88,7 @@ export class SetupStoreUseCase {
       await db.users.add(newUser);
 
       // Sinkronisasikan Pembuatan User ke Cloud
-      // eslint-disable-next-line @typescript-eslint/no-explicit-any
-      await this.unitOfWork.registerSync('users', 'INSERT', newUser as any);
+      await this.unitOfWork.registerSync('users', 'INSERT', newUser as unknown as Record<string, unknown>);
 
       // 4. Audit Log Eksekusi Genesis
       await this.unitOfWork.registerAudit(

@@ -1,3 +1,8 @@
+/**
+ * @ai_context: UseCase manajemen komunikasi internal (handover, catatan)
+ * @business_rule: Pesan internal tidak dikirim ke luar. Hanya untuk serah terima shift.
+ * @security_tier: LOW
+ */
 import { IUnitOfWork } from '@application/core/IUnitOfWork';
 import { IAppointmentRepository } from '@domain/repositories/IAppointmentRepository';
 import { IInternalNoteRepository } from '@domain/repositories/IInternalNoteRepository';

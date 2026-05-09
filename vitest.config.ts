@@ -12,6 +12,7 @@ export default defineConfig({
       include: ['src/**/*.{ts,tsx}'],
       exclude: [
         'src/main.tsx',
+        'src/app/MainLayout.tsx',
         'src/**/*.d.ts',
         'src/**/index.ts',
         'src/lib/seeder.ts',

@@ -1,6 +1,12 @@
+/**
+ * @ai_context: UseCase void/batalkan transaksi yang sudah SUCCESS
+ * @business_rule: Membutuhkan otorisasi Manager PIN. Void membuat void record baru bukan hapus record.
+ * @security_tier: CRITICAL
+ */
 import { IUnitOfWork } from '@application/core/IUnitOfWork';
 import { IRetailRepository } from '@domain/repositories/IRetailRepository';
 import { IStockRepository } from '@domain/repositories/IStockRepository';
+import { IShiftRepository } from '@domain/repositories/IShiftRepository';
 import { MathUtils } from '@shared/utils/decimalUtils';
 
 export interface VoidTransactionDTO {
@@ -13,7 +19,8 @@ export class VoidTransactionUseCase {
   constructor(
     private readonly unitOfWork: IUnitOfWork,
     private readonly retailRepo: IRetailRepository,
-    private readonly stockRepo: IStockRepository
+    private readonly stockRepo: IStockRepository,
+    private readonly shiftRepository: IShiftRepository
   ) {}
 
   async execute(dto: VoidTransactionDTO): Promise<void> {
@@ -76,20 +83,10 @@ export class VoidTransactionUseCase {
       }
 
       // Revert Shift Totals
-      const dbModule = await import('@shared/api/db');
-      const db = dbModule.db;
       if (transaction.sessionId) {
-        const shiftTotal = await db.shift_totals.get(transaction.sessionId);
-        if (shiftTotal) {
-          const voidAmount = transaction.total;
-          const removedCash = transaction.paymentMethod === 'CASH' ? voidAmount : 0;
-          await db.shift_totals.put({
-            ...shiftTotal,
-            cashIn: Math.max(0, MathUtils.sub(shiftTotal.cashIn, removedCash)),
-            salesTotal: Math.max(0, MathUtils.sub(shiftTotal.salesTotal, voidAmount)),
-            lastUpdatedAt: Date.now()
-          });
-        }
+        const voidAmount = transaction.total;
+        const removedCash = transaction.paymentMethod === 'CASH' ? voidAmount : 0;
+        await this.shiftRepository.revertShiftSales(transaction.sessionId, removedCash, voidAmount);
       }
 
       // Explicitly register audit

@@ -17,10 +17,8 @@ export const FinanceReportPage: React.FC = () => {
   const [reportData, setReportData] = useState<any | null>(null);
   const [transactions, setTransactions] = useState<Transaction[] | null>(null);
   const [cashiers, setCashiers] = useState<string[] | null>(null);
-  const [loading, setLoading] = useState(true);
 
   const fetchData = useCallback(async () => {
-    setLoading(true);
     try {
       const txs = await DIContainer.reportQuery.getTransactionsByDateRange(startTimestamp, endTimestamp);
       const uniqueCashiers = Array.from(new Set(txs.map(t => t.user)));
@@ -38,8 +36,6 @@ export const FinanceReportPage: React.FC = () => {
       setReportData(report);
     } catch (e) {
       console.error("Failed to fetch finance report data", e);
-    } finally {
-      setLoading(false);
     }
   }, [startTimestamp, endTimestamp, cashier, paymentMethod]);
 

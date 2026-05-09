@@ -73,7 +73,7 @@ async function checkDLQSize(): Promise<number> {
   try {
     const count = await db.sync_dlq.count();
     return count;
-  } catch (err) {
+  } catch (_err) {
     return 0;
   }
 }
@@ -99,7 +99,7 @@ async function spotCheckHashChain(count: number): Promise<boolean> {
         }
     }
     return true;
-  } catch (err) {
+  } catch (_err) {
     return true; 
   }
 }

@@ -4,6 +4,7 @@ import { IShiftRepository } from '@domain/repositories/IShiftRepository';
 import { IUnitOfWork } from '@application/core/IUnitOfWork';
 import { LoyaltyUseCase } from './LoyaltyUseCase';
 import { RetailTransaction, RetailTransactionItem } from '@domain/models/RetailTransaction';
+import { StockItem } from '@domain/models/StockItem';
 import { VersionConflictError, InsufficientStockError } from '@domain/errors';
 import { metrics } from '../../../lib/metrics';
 import { logger } from '../../../lib/logger';
@@ -61,16 +62,15 @@ export class CheckoutUseCase {
     const lockKey = `checkout:${request.userId}`;
     return withLock(lockKey, async () => {
       return metrics.measure('psa_checkout_operation', async () => {
-        // Phase 1.6: Financial Guard (Anti-Zero & High Discount Check)
-      const subTotal = request.items.reduce((sum, item) => MathUtils.add(sum, MathUtils.mul(item.price, item.quantity)), 0);
-      const totalDiscount = MathUtils.add((request.manualDiscountAmount || 0), (request.loyaltyDiscountAmount || 0));
-      const discountPercentage = subTotal > 0 ? (totalDiscount / subTotal) : 0;
-      const hasPhysicalItem = request.items.some(item => !item.isCustomItem);
-
       // Rule 0: Empty cart validation
       if (!request.items || request.items.length === 0) {
         throw new Error('Tidak dapat memproses transaksi: Keranjang belanja kosong.');
       }
+
+      // Phase 1.6: Financial Guard (Anti-Zero & High Discount Check)
+      const subTotal = request.items.reduce((sum, item) => MathUtils.add(sum, MathUtils.mul(item.price, item.quantity)), 0);
+      const totalDiscount = MathUtils.add((request.manualDiscountAmount || 0), (request.loyaltyDiscountAmount || 0));
+      const discountPercentage = subTotal > 0 ? MathUtils.div(totalDiscount, subTotal) : 0;
 
       // Rule 1: High Discount (> 30%) requires authorization
       if (discountPercentage > 0.3 && !request.authorizedBy && request.userRole !== 'ADMIN') {
@@ -105,10 +105,15 @@ export class CheckoutUseCase {
           const auditLogsToRegister: string[] = [];
 
           // 2. Read Stock and Validate
-          const stockItems = await Promise.all(request.items.map(async (i) => {
-            if (i.isCustomItem) return null;
-            return this.stockRepository.findById(i.stockId);
-          }));
+          const stockItems: (StockItem | null)[] = [];
+          for (const i of request.items) {
+            if (i.isCustomItem) {
+              stockItems.push(null);
+            } else {
+              const item = await this.stockRepository.findById(i.stockId);
+              stockItems.push(item);
+            }
+          }
           
           let calculatedTotal = 0;
           
@@ -124,7 +129,7 @@ export class CheckoutUseCase {
             }
 
             // F-13: Validate price against DB
-            if (MathUtils.sub(item.price, stockItem.price) !== 0) {
+            if (MathUtils.roundInt(item.price) !== MathUtils.roundInt(stockItem.price)) {
               throw new Error(`Manipulasi Harga Terdeteksi: Produk ${stockItem.name}. Harga Database: ${stockItem.price}, Harga Klien: ${item.price}`);
             }
 
@@ -143,7 +148,7 @@ export class CheckoutUseCase {
 
           // Validate total against calculated total
           calculatedTotal = MathUtils.roundInt(calculatedTotal);
-          if (MathUtils.sub(request.total, calculatedTotal) !== 0) {
+          if (MathUtils.roundInt(request.total) !== calculatedTotal) {
               throw new Error(`Manipulasi Total Terdeteksi: Total Klien: ${request.total}, Total DB: ${calculatedTotal}`);
           }
 
@@ -231,7 +236,7 @@ export class CheckoutUseCase {
           const manualDiscountAmount = request.manualDiscountAmount || 0;
           const manualDiscountNote = request.manualDiscountNote;
           if (manualDiscountAmount > 0) {
-            finalTotal = MathUtils.roundInt(Math.max(0, MathUtils.sub(finalTotal, manualDiscountAmount)));
+            finalTotal = Math.max(0, MathUtils.roundInt(MathUtils.sub(finalTotal, manualDiscountAmount)));
           }
 
           // ANOMALY DETECTION: Flagging transaksi Rp 0 akibat diskon

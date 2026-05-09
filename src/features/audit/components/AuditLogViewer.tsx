@@ -2,7 +2,7 @@ import { logger } from '@lib/logger';
 import { useState, useEffect, useRef, useMemo } from 'react';
 import { useVirtualizer } from '@tanstack/react-virtual';
 import { DIContainer } from '@infrastructure/di/Container';
-import { Search, Filter, ArrowUpDown, User, Activity, Calendar } from 'lucide-react';
+import { Search, ArrowUpDown, User, Activity, Calendar } from 'lucide-react';
 
 export function AuditLogViewer() {
   const [searchTerm, setSearchTerm] = useState('');

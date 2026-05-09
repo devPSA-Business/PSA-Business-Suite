@@ -1,0 +1,407 @@
+name: 🛠️ PSA Smart Auto-Heal
+
+# ─────────────────────────────────────────────────────────
+#  Workflow ini OTOMATIS:
+#  1. Mendeteksi & memperbaiki isu NON-KRITIS (lint, format,
+#     imports, dead-code di layer UI)
+#  2. Commit & push perbaikan langsung ke branch yang sama
+#  3. Upload artefak error report ke GitHub
+#  4. Kirim notifikasi ringkasan ke Telegram
+#
+#  Yang TIDAK disentuh (kritis):
+#  - Domain entities, UseCases, Repository
+#  - Dexie schema (db.ts)
+#  - Enkripsi / SecurityStore
+#  - Financial calculation (MathUtils)
+#  - firestore.rules
+# ─────────────────────────────────────────────────────────
+
+on:
+  push:
+    branches: [main, develop, 'feature/**', 'fix/**', 'hotfix/**']
+    paths:
+      - 'src/**'
+      - 'tests/**'
+      - 'package.json'
+  schedule:
+    # Setiap Senin & Kamis pukul 01:00 WIB (18:00 UTC Minggu/Rabu)
+    - cron: '0 18 * * 0,3'
+  workflow_dispatch:
+    inputs:
+      fix_mode:
+        description: 'Mode perbaikan'
+        required: false
+        default: 'safe'
+        type: choice
+        options:
+          - safe       # Hanya lint + format (default)
+          - aggressive # Tambah: unused-vars, dead-import
+      dry_run:
+        description: 'Dry run (tidak commit, hanya laporan)'
+        required: false
+        default: 'false'
+        type: boolean
+
+concurrency:
+  group: smart-heal-${{ github.ref }}
+  cancel-in-progress: true
+
+env:
+  NODE_VERSION: '22'
+  FIX_MODE: ${{ github.event.inputs.fix_mode || 'safe' }}
+  DRY_RUN: ${{ github.event.inputs.dry_run || 'false' }}
+  # ── Layer NON-KRITIS yang boleh di-autofix ──
+  SAFE_PATHS: "src/features/*/ui src/features/*/store src/pages src/app/components"
+  # ── Layer KRITIS yang TIDAK boleh disentuh autofix ──
+  CRITICAL_PATHS: "src/features/*/usecases src/shared/db.ts src/shared/MathUtils src/shared/security"
+
+jobs:
+  # ════════════════════════════════════════════════════════
+  #  JOB 1: DETECT — Scan & Classify Issues
+  # ════════════════════════════════════════════════════════
+  detect:
+    name: 🔍 Detect Issues
+    runs-on: ubuntu-latest
+    timeout-minutes: 8
+    outputs:
+      has_lint_issues: ${{ steps.scan.outputs.has_lint_issues }}
+      has_format_issues: ${{ steps.scan.outputs.has_format_issues }}
+      has_type_errors: ${{ steps.scan.outputs.has_type_errors }}
+      critical_touched: ${{ steps.scan.outputs.critical_touched }}
+      issue_summary: ${{ steps.scan.outputs.issue_summary }}
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683
+        with:
+          fetch-depth: 2
+
+      - name: Setup Node.js
+        uses: actions/setup-node@39370e3970a6d050c480ffad4ff0ed4d3fdee5af
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+          cache: 'npm'
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: 🔍 Scan & classify issues
+        id: scan
+        run: |
+          mkdir -p error-reports
+
+          echo "═══════════════════════════════════════" >> error-reports/scan-summary.txt
+          echo "PSA Smart Auto-Heal — Scan Report"      >> error-reports/scan-summary.txt
+          echo "Branch : ${{ github.ref_name }}"        >> error-reports/scan-summary.txt
+          echo "Commit : ${{ github.sha }}"             >> error-reports/scan-summary.txt
+          echo "Waktu  : $(date '+%Y-%m-%d %H:%M WIB')" >> error-reports/scan-summary.txt
+          echo "═══════════════════════════════════════" >> error-reports/scan-summary.txt
+
+          # ── Cek apakah file KRITIS tersentuh pada commit ini ──
+          CHANGED_FILES=$(git diff --name-only HEAD~1 HEAD 2>/dev/null || git diff --name-only HEAD)
+          CRITICAL_TOUCHED="false"
+          for f in $CHANGED_FILES; do
+            if echo "$f" | grep -qE "(usecases|domain|MathUtils|db\.ts|SecurityStore|firestore\.rules)"; then
+              CRITICAL_TOUCHED="true"
+              echo "⚠️  FILE KRITIS TERDETEKSI: $f" >> error-reports/scan-summary.txt
+            fi
+          done
+          echo "critical_touched=$CRITICAL_TOUCHED" >> $GITHUB_OUTPUT
+
+          # ── ESLint scan (output ke file) ──
+          HAS_LINT="false"
+          npx eslint src --ext .ts,.tsx \
+            --format json \
+            --output-file error-reports/eslint-raw.json 2>/dev/null || true
+
+          if [ -f error-reports/eslint-raw.json ]; then
+            ERROR_COUNT=$(node -e "
+              const r = require('./error-reports/eslint-raw.json');
+              const e = r.reduce((a,f)=>a+f.errorCount,0);
+              const w = r.reduce((a,f)=>a+f.warningCount,0);
+              console.log(e + ',' + w);
+            " 2>/dev/null || echo "0,0")
+            ERRORS=$(echo $ERROR_COUNT | cut -d',' -f1)
+            WARNS=$(echo $ERROR_COUNT | cut -d',' -f2)
+            echo "LINT  : $ERRORS error, $WARNS warning" >> error-reports/scan-summary.txt
+            if [ "$ERRORS" -gt 0 ] || [ "$WARNS" -gt 0 ]; then
+              HAS_LINT="true"
+            fi
+          fi
+          echo "has_lint_issues=$HAS_LINT" >> $GITHUB_OUTPUT
+
+          # ── TypeScript strict check ──
+          HAS_TYPE="false"
+          npx tsc --noEmit 2>error-reports/tsc-raw.txt || HAS_TYPE="true"
+          TSC_COUNT=$(grep -c "error TS" error-reports/tsc-raw.txt 2>/dev/null || echo "0")
+          echo "TYPES : $TSC_COUNT TypeScript error" >> error-reports/scan-summary.txt
+          echo "has_type_errors=$HAS_TYPE" >> $GITHUB_OUTPUT
+
+          # ── Prettier check (format) ──
+          HAS_FORMAT="false"
+          npx prettier --check "src/**/*.{ts,tsx,css}" 2>error-reports/prettier-check.txt || HAS_FORMAT="true"
+          echo "FORMAT: $(wc -l < error-reports/prettier-check.txt) file perlu format" >> error-reports/scan-summary.txt
+          echo "has_format_issues=$HAS_FORMAT" >> $GITHUB_OUTPUT
+
+          # ── PSA-specific checks ──
+          echo "" >> error-reports/scan-summary.txt
+          echo "── PSA Guardrail Scan ──" >> error-reports/scan-summary.txt
+
+          ANY_COUNT=$(grep -rn ": any" src/features/*/usecases 2>/dev/null | wc -l || echo "0")
+          echo "any-type di UseCases  : $ANY_COUNT temuan" >> error-reports/scan-summary.txt
+
+          NATIVE_MATH=$(grep -rn "Number\(" src/features 2>/dev/null | grep -v "MathUtils\|// @psa-ok" | wc -l || echo "0")
+          echo "Number() native (uang): $NATIVE_MATH temuan" >> error-reports/scan-summary.txt
+
+          LOCALSTORAGE=$(grep -rn "localStorage" src 2>/dev/null | grep -v "// @psa-ok\|node_modules" | wc -l || echo "0")
+          echo "localStorage kritis   : $LOCALSTORAGE temuan" >> error-reports/scan-summary.txt
+
+          echo "" >> error-reports/scan-summary.txt
+          echo "ISSUE_SUMMARY=LINT:${HAS_LINT}|TYPE:${HAS_TYPE}|FORMAT:${HAS_FORMAT}|CRITICAL:${CRITICAL_TOUCHED}"
+          echo "issue_summary=LINT:${HAS_LINT}|TYPE:${HAS_TYPE}|FORMAT:${HAS_FORMAT}|CRITICAL:${CRITICAL_TOUCHED}" >> $GITHUB_OUTPUT
+
+          cat error-reports/scan-summary.txt
+
+      - name: Upload scan reports
+        uses: actions/upload-artifact@65462800fd760344b1a7b4382951275a0abb4808
+        if: always()
+        with:
+          name: psa-scan-${{ github.run_number }}
+          path: error-reports/
+          retention-days: 30
+
+  # ════════════════════════════════════════════════════════
+  #  JOB 2: AUTO-FIX — Perbaiki isu non-kritis & commit
+  # ════════════════════════════════════════════════════════
+  auto-fix:
+    name: 🔧 Auto-Fix & Commit
+    runs-on: ubuntu-latest
+    timeout-minutes: 12
+    needs: detect
+    # Jalankan hanya jika ada isu DAN file kritis tidak tersentuh
+    if: |
+      needs.detect.outputs.critical_touched == 'false' &&
+      (needs.detect.outputs.has_lint_issues == 'true' ||
+       needs.detect.outputs.has_format_issues == 'true')
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683
+        with:
+          ref: ${{ github.head_ref || github.ref_name }}
+          token: ${{ secrets.GITHUB_TOKEN }}
+          fetch-depth: 0
+
+      - name: Setup Node.js
+        uses: actions/setup-node@39370e3970a6d050c480ffad4ff0ed4d3fdee5af
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+          cache: 'npm'
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: 🔧 Run PSA Smart Fix Script
+        id: fix
+        run: |
+          mkdir -p fix-reports
+
+          echo "Mode   : $FIX_MODE" >> fix-reports/fix-summary.txt
+          echo "DryRun : $DRY_RUN" >> fix-reports/fix-summary.txt
+          echo "" >> fix-reports/fix-summary.txt
+
+          # ── FASE 1: Prettier format (SAFE layer only) ──
+          echo "[1/4] Prettier auto-format UI layer..." | tee -a fix-reports/fix-summary.txt
+          PRETTIER_TARGETS="src/features/pos/ui src/features/inventory/ui \
+            src/features/services/ui src/features/gold_treasury/ui \
+            src/features/shift/ui src/features/reports/ui \
+            src/features/audit/ui src/features/workspace/ui \
+            src/pages src/app"
+          for target in $PRETTIER_TARGETS; do
+            if [ -d "$target" ]; then
+              npx prettier --write "$target/**/*.{ts,tsx}" 2>/dev/null || true
+              echo "  ✓ $target" >> fix-reports/fix-summary.txt
+            fi
+          done
+
+          # ── FASE 2: ESLint auto-fix (SAFE layer only) ──
+          echo "[2/4] ESLint fix UI layer..." | tee -a fix-reports/fix-summary.txt
+          for target in $PRETTIER_TARGETS; do
+            if [ -d "$target" ]; then
+              npx eslint "$target" \
+                --ext .ts,.tsx \
+                --fix \
+                --rule '{"no-console": "warn"}' \
+                2>/dev/null || true
+              echo "  ✓ $target" >> fix-reports/fix-summary.txt
+            fi
+          done
+
+          # ── FASE 3: Aggressive mode (hanya jika diminta) ──
+          if [ "$FIX_MODE" = "aggressive" ]; then
+            echo "[3/4] Aggressive: clean unused imports..." | tee -a fix-reports/fix-summary.txt
+            # Gunakan eslint dengan plugin unused-imports jika tersedia
+            npx eslint src/features/*/ui src/features/*/store src/pages \
+              --ext .ts,.tsx \
+              --fix \
+              --rule '{"@typescript-eslint/no-unused-vars": "error"}' \
+              2>/dev/null || true
+            echo "  ✓ Unused imports cleaned" >> fix-reports/fix-summary.txt
+          else
+            echo "[3/4] Skipped (safe mode)" >> fix-reports/fix-summary.txt
+          fi
+
+          # ── FASE 4: Verifikasi tidak menyentuh file kritis ──
+          echo "[4/4] Verifikasi file kritis..." | tee -a fix-reports/fix-summary.txt
+          CHANGED=$(git diff --name-only)
+          CRITICAL_LEAK="false"
+          for f in $CHANGED; do
+            if echo "$f" | grep -qE "(usecases|MathUtils|db\.ts|SecurityStore|firestore\.rules)"; then
+              CRITICAL_LEAK="true"
+              echo "  ⛔ ABORT: file kritis tersentuh: $f" >> fix-reports/fix-summary.txt
+              git checkout -- "$f"
+              echo "  ↩️  Reverted: $f" >> fix-reports/fix-summary.txt
+            fi
+          done
+
+          if [ "$CRITICAL_LEAK" = "false" ]; then
+            echo "  ✓ Aman — tidak ada file kritis tersentuh" >> fix-reports/fix-summary.txt
+          fi
+
+          # Hitung total perubahan
+          TOTAL_CHANGED=$(git diff --name-only | wc -l)
+          echo "" >> fix-reports/fix-summary.txt
+          echo "Total file diperbaiki: $TOTAL_CHANGED" >> fix-reports/fix-summary.txt
+          echo "total_changed=$TOTAL_CHANGED" >> $GITHUB_OUTPUT
+
+          cat fix-reports/fix-summary.txt
+
+      - name: 📝 Commit auto-fix changes
+        if: env.DRY_RUN == 'false'
+        run: |
+          git config --global user.name "PSA Auto-Heal Bot 🤖"
+          git config --global user.email "41898282+github-actions[bot]@users.noreply.github.com"
+
+          # Cek apakah ada perubahan
+          if git diff --quiet; then
+            echo "✅ Tidak ada perubahan untuk di-commit."
+            exit 0
+          fi
+
+          # Buat commit message yang informatif
+          CHANGED_FILES=$(git diff --name-only | head -20)
+          FILE_COUNT=$(git diff --name-only | wc -l)
+
+          git add src/features/*/ui/ src/features/*/store/ src/pages/ src/app/ 2>/dev/null || true
+
+          # Pastikan tidak ada file kritis yang ter-stage
+          git reset HEAD -- src/features/*/usecases/ 2>/dev/null || true
+          git reset HEAD -- src/shared/db.ts 2>/dev/null || true
+          git reset HEAD -- src/shared/MathUtils* 2>/dev/null || true
+
+          git commit -m "fix(auto-heal): 🛠️ PSA Smart Auto-Fix [${{ github.run_number }}]
+
+          Mode: $FIX_MODE | Branch: ${{ github.ref_name }}
+          Files fixed: $FILE_COUNT
+
+          Changes:
+          - Prettier format: UI & pages layer
+          - ESLint auto-fix: non-critical rules
+          - Layer kritis TIDAK disentuh (usecases, MathUtils, db.ts)
+
+          [skip ci] [auto-generated]" || echo "Nothing to commit"
+
+          git push || echo "Push gagal (mungkin tidak ada perubahan)"
+
+      - name: Upload fix reports
+        uses: actions/upload-artifact@65462800fd760344b1a7b4382951275a0abb4808
+        if: always()
+        with:
+          name: psa-fix-${{ github.run_number }}
+          path: fix-reports/
+          retention-days: 30
+
+  # ════════════════════════════════════════════════════════
+  #  JOB 3: CRITICAL-ALERT — Jika file kritis tersentuh
+  # ════════════════════════════════════════════════════════
+  critical-alert:
+    name: 🚨 Critical File Alert
+    runs-on: ubuntu-latest
+    needs: detect
+    if: needs.detect.outputs.critical_touched == 'true'
+
+    steps:
+      - name: Generate critical alert report
+        run: |
+          echo "=============================" > critical-alert.txt
+          echo "⚠️  FILE KRITIS TERDETEKSI"   >> critical-alert.txt
+          echo "=============================" >> critical-alert.txt
+          echo "Branch : ${{ github.ref_name }}" >> critical-alert.txt
+          echo "Commit : ${{ github.sha }}"       >> critical-alert.txt
+          echo "Actor  : ${{ github.actor }}"     >> critical-alert.txt
+          echo ""                                 >> critical-alert.txt
+          echo "Auto-heal TIDAK dijalankan."      >> critical-alert.txt
+          echo "Review manual diperlukan."        >> critical-alert.txt
+          echo "CI quality-gate tetap berjalan."  >> critical-alert.txt
+          cat critical-alert.txt
+
+      - name: Upload critical alert
+        uses: actions/upload-artifact@65462800fd760344b1a7b4382951275a0abb4808
+        with:
+          name: critical-alert-${{ github.run_number }}
+          path: critical-alert.txt
+          retention-days: 90
+
+      - name: 📢 Telegram notification — Critical File
+        if: env.TELEGRAM_BOT_TOKEN != ''
+        env:
+          TELEGRAM_BOT_TOKEN: ${{ secrets.VITE_TELEGRAM_BOT_TOKEN }}
+          TELEGRAM_CHAT_ID: ${{ secrets.VITE_TELEGRAM_CHAT_ID }}
+        run: |
+          MSG="🚨 *PSA Auto-Heal: File Kritis Tersentuh*%0A"
+          MSG+="Branch: \`${{ github.ref_name }}\`%0A"
+          MSG+="Commit: \`${{ github.sha }}\`%0A"
+          MSG+="Actor: ${{ github.actor }}%0A"
+          MSG+="Auto-fix *TIDAK* dijalankan. Review manual diperlukan."
+          curl -s -X POST \
+            "https://api.telegram.org/bot${TELEGRAM_BOT_TOKEN}/sendMessage" \
+            -d "chat_id=${TELEGRAM_CHAT_ID}&text=${MSG}&parse_mode=Markdown" || true
+
+  # ════════════════════════════════════════════════════════
+  #  JOB 4: REPORT — Kirim ringkasan ke Telegram
+  # ════════════════════════════════════════════════════════
+  notify:
+    name: 📢 Notify Summary
+    runs-on: ubuntu-latest
+    needs: [detect, auto-fix]
+    if: always() && needs.detect.outputs.critical_touched == 'false'
+
+    steps:
+      - name: 📢 Send Telegram summary
+        env:
+          TELEGRAM_BOT_TOKEN: ${{ secrets.VITE_TELEGRAM_BOT_TOKEN }}
+          TELEGRAM_CHAT_ID: ${{ secrets.VITE_TELEGRAM_CHAT_ID }}
+          FIX_RESULT: ${{ needs.auto-fix.result }}
+          ISSUE_SUMMARY: ${{ needs.detect.outputs.issue_summary }}
+        run: |
+          if [ -z "$TELEGRAM_BOT_TOKEN" ] || [ -z "$TELEGRAM_CHAT_ID" ]; then
+            echo "Telegram tidak dikonfigurasi, skip notifikasi."
+            exit 0
+          fi
+
+          STATUS_ICON="✅"
+          if [ "$FIX_RESULT" = "failure" ]; then STATUS_ICON="❌"; fi
+          if [ "$FIX_RESULT" = "skipped" ]; then STATUS_ICON="⏭️"; fi
+
+          MSG="${STATUS_ICON} *PSA Smart Auto-Heal #${{ github.run_number }}*%0A"
+          MSG+="Branch: \`${{ github.ref_name }}\`%0A"
+          MSG+="─────────────────────%0A"
+          MSG+="Scan: \`${ISSUE_SUMMARY}\`%0A"
+          MSG+="Fix : ${FIX_RESULT}%0A"
+          MSG+="Mode: ${{ env.FIX_MODE }}%0A"
+          MSG+="─────────────────────%0A"
+          MSG+="[Lihat Run](${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }})"
+
+          curl -s -X POST \
+            "https://api.telegram.org/bot${TELEGRAM_BOT_TOKEN}/sendMessage" \
+            -d "chat_id=${TELEGRAM_CHAT_ID}&text=${MSG}&parse_mode=Markdown" || true

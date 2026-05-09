@@ -1,4 +1,5 @@
 import { describe, it, expect, beforeEach } from 'vitest';
+import { Dexie } from 'dexie';
 import { db } from '../../src/shared/api/db';
 import { UnitOfWorkImpl } from '../../src/infrastructure/uow/UnitOfWorkImpl';
 import { StockRepositoryImpl } from '../../src/infrastructure/repositories/StockRepositoryImpl';
@@ -45,7 +46,7 @@ describe('CheckoutUseCase Stress Test with Dexie', () => {
     
     // Create Dummy Loyalty
     loyaltyUseCase = {
-      calculateAndApplyLoyalty: async (req: any) => ({
+      calculateAndApplyLoyalty: (req: any) => Dexie.Promise.resolve({
         netTotal: req.transactionAmount,
         pointsEarned: 0,
         pointsRedeemed: 0,

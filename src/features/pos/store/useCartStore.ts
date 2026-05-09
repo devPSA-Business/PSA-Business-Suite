@@ -50,7 +50,7 @@ export const useCartStore = create<CartState>()(
       },
 
       get totalPrice() {
-        return Math.round(get().cartItems.reduce((sum, item) => MathUtils.add(sum, item.subtotal), 0));
+        return MathUtils.roundInt(get().cartItems.reduce((sum, item) => MathUtils.add(sum, item.subtotal), 0));
       },
 
       addItem: (product) =>
@@ -70,7 +70,7 @@ export const useCartStore = create<CartState>()(
                   ? {
                       ...item,
                       quantity: newQuantity,
-                      subtotal: Math.round(Number(MathUtils.mul(newQuantity, item.price))),
+                      subtotal: MathUtils.roundInt(MathUtils.mul(newQuantity, item.price)),
                     }
                   : item
               ),
@@ -85,7 +85,7 @@ export const useCartStore = create<CartState>()(
                 name: product.name,
                 price: product.price,
                 quantity: 1,
-                subtotal: Math.round(Number(product.price)),
+                subtotal: MathUtils.roundInt(product.price),
                 maxStock: product.quantity,
               },
             ],
@@ -102,7 +102,7 @@ export const useCartStore = create<CartState>()(
                   ? {
                       ...item,
                       quantity: item.quantity + customItem.quantity,
-                      subtotal: Math.round(Number(MathUtils.add(item.subtotal, customItem.subtotal))),
+                      subtotal: MathUtils.roundInt(MathUtils.add(item.subtotal, customItem.subtotal)),
                     }
                   : item
               ),
@@ -137,7 +137,7 @@ export const useCartStore = create<CartState>()(
                 ? {
                     ...item,
                     quantity,
-                    subtotal: Math.round(Number(MathUtils.mul(quantity, item.price))),
+                    subtotal: MathUtils.roundInt(MathUtils.mul(quantity, item.price)),
                   }
                 : item
             ),

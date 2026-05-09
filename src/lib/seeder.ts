@@ -1,6 +1,11 @@
+/**
+ * @ai_context: Database seeder untuk mode development — simulasi operasional harian toko perhiasan imitasi PSA
+ * @business_rule: Toko menjual perhiasan IMITASI (bukan emas asli). Layanan: sepuh, perbaikan, custom.
+ *                 Buyback emas dari pelanggan dijual ke PENGEPUL, bukan dipajang/dijual ke konsumen.
+ * @security_tier: LOW (hanya dev, tidak berjalan di production)
+ */
 import { db } from '../shared/api/db';
 import { StockCategory } from '../domain/models/StockCategory';
-import { cryptoKeyStore } from './cryptoKeyStore';
 import { isDevEnvironment } from '../shared/utils/devUtils';
 
 export const seedDatabase = async () => {
@@ -8,121 +13,143 @@ export const seedDatabase = async () => {
   const stockCount = await db.stock.count();
   if (stockCount > 0) return; // Already seeded
 
-  console.log('Seeding database with sample operational data...');
+  console.log('Seeding database with PSA sample data (perhiasan imitasi)...');
 
-  // 1. Seed Stock
+  // 1. Seed Stock — Produk sesuai konteks bisnis: perhiasan imitasi pasar tradisional-modern
   const dummyStock = [
     {
       id: 'STK-001-',
-      name: 'Cincin Emas Kuning 70% Polos (2g)',
-      category: StockCategory.GOLD_JEWELLERY,
-      price: 2100000,
-      cost: 1850000,
-      quantity: 12,
+      name: 'Kalung Xuping Permata Zirconia Putih',
+      category: StockCategory.IMITATION,
+      price: 125000,
+      cost: 55000,
+      quantity: 40,
       barcode: 'PSA-100001',
-      specificCost: 1850000,
       version: 1,
       branchId: 'HQ'
     },
     {
       id: 'STK-002-',
-      name: 'Gelang Rantai Emas Putih 75% (5g)',
-      category: StockCategory.GOLD_JEWELLERY,
-      price: 5250000,
-      cost: 4800000,
-      quantity: 5,
+      name: 'Gelang Rantai Imitasi Gold Plated 3 Lapis',
+      category: StockCategory.IMITATION,
+      price: 85000,
+      cost: 35000,
+      quantity: 60,
       barcode: 'PSA-100002',
-      specificCost: 4800000,
       version: 1,
       branchId: 'HQ'
     },
     {
       id: 'STK-003-',
-      name: 'Kalung Xuping Permata Zirconia',
+      name: 'Cincin Imitasi Batu Akik Oval',
       category: StockCategory.IMITATION,
-      price: 150000,
-      cost: 85000,
-      quantity: 50,
+      price: 45000,
+      cost: 18000,
+      quantity: 80,
       barcode: 'PSA-100003',
       version: 1,
       branchId: 'HQ'
     },
     {
       id: 'STK-004-',
-      name: 'LM Antam 1 Gram CertiEye',
-      category: StockCategory.GOLD_BAR,
-      price: 1450000,
-      cost: 1390000,
-      quantity: 8,
+      name: 'Anting Permata Zirconia Merah Rose Gold',
+      category: StockCategory.IMITATION,
+      price: 65000,
+      cost: 25000,
+      quantity: 55,
       barcode: 'PSA-100004',
-      specificCost: 1390000,
       version: 1,
       branchId: 'HQ'
     },
     {
       id: 'STK-005-',
-      name: 'Kotak Cincin Beludru Merah',
+      name: 'Kotak Cincin Beludru Merah Premium',
       category: StockCategory.ACCESSORIES,
-      price: 35000,
-      cost: 15000,
+      price: 25000,
+      cost: 10000,
       quantity: 100,
       barcode: 'PSA-100005',
       version: 1,
       branchId: 'HQ'
+    },
+    {
+      id: 'STK-006-',
+      name: 'Gelang Tangan Bangle Imitasi Ukir',
+      category: StockCategory.IMITATION,
+      price: 95000,
+      cost: 40000,
+      quantity: 35,
+      barcode: 'PSA-100006',
+      version: 1,
+      branchId: 'HQ'
+    },
+    {
+      id: 'STK-007-',
+      name: 'Kalung Liontin Hati Silver Imitasi',
+      category: StockCategory.IMITATION,
+      price: 110000,
+      cost: 48000,
+      quantity: 45,
+      barcode: 'PSA-100007',
+      version: 1,
+      branchId: 'HQ'
+    },
+    {
+      id: 'STK-008-',
+      name: 'Set Perhiasan Imitasi (Kalung + Anting)',
+      category: StockCategory.IMITATION,
+      price: 185000,
+      cost: 75000,
+      quantity: 20,
+      barcode: 'PSA-100008',
+      version: 1,
+      branchId: 'HQ'
+    },
+    {
+      id: 'STK-009-',
+      name: 'Kotak Penyimpan Perhiasan Kayu Kecil',
+      category: StockCategory.ACCESSORIES,
+      price: 55000,
+      cost: 22000,
+      quantity: 30,
+      barcode: 'PSA-100009',
+      version: 1,
+      branchId: 'HQ'
+    },
+    {
+      id: 'STK-010-',
+      name: 'Cincin Couple Imitasi Silver Minimalis',
+      category: StockCategory.IMITATION,
+      price: 75000,
+      cost: 28000,
+      quantity: 50,
+      barcode: 'PSA-100010',
+      version: 1,
+      branchId: 'HQ'
     }
-  ].map(item => ({...item, id: item.id + crypto.randomUUID().substring(0, 8)}));
+  ].map(item => ({ ...item, id: item.id + crypto.randomUUID().substring(0, 8) }));
 
   await db.stock.bulkAdd(dummyStock);
 
-  // 2. Seed Gold Price
+  // 2. Seed Gold Price — Harga acuan pasar untuk layanan buyback (dibeli dari pelanggan → dijual ke pengepul)
   await db.gold_price.put({
     id: 'CURRENT',
-    pricePerGram: 1350000, // Harga patokan
+    pricePerGram: 1350000, // Harga acuan pasar emas saat ini (bukan harga jual ke konsumen)
     lastUpdated: Date.now()
   });
 
-  // 3. Seed A Custom Order & Repair Service to make dashboard look alive
-  await db.repair_services.add({
-    id: 'REP-DEMO-1',
-    date: Date.now() - 86400000, // 1 day ago
-    customerName: 'Ibu Ratna',
-    phoneNumber: '081234567890',
-    itemDescription: 'Cincin putus perlu disambung dan disepuh',
-    serviceType: 'REPARASI',
-    initialWeight: 2.5,
-    price: 150000,
-    status: 'IN_PROGRESS',
-    paymentMethod: 'CASH',
-    user: 'Administrator',
-    branchId: 'HQ'
-  });
+  // 3. Seed Store Profile
+  const existingProfile = await db.store_profile.get('default');
+  if (!existingProfile) {
+    await db.store_profile.put({
+      id: 'default',
+      name: 'PSA Perhiasan Imitasi',
+      address: 'Pasar Tradisional PSA, Kios No. A-01',
+      receiptFooter: 'Terima kasih telah berbelanja di PSA!\nHubungi kami: 0812-XXXX-XXXX',
+      isSetupComplete: false,
+      updatedAt: Date.now()
+    });
+  }
 
-  await db.petty_cash.add({
-    id: 'PC-DEMO-1',
-    date: Date.now() - 3600000,
-    category: 'OPERASIONAL',
-    amount: 50000,
-    description: 'Beli air galon dan tissue',
-    user: 'Administrator'
-  });
-
-  // 4. Seed Retail Transaction
-  await db.transactions.add({
-    id: 'TXN-DEMO-1',
-    date: Date.now() - 7200000,
-    items: [{ 
-      stockId: dummyStock[0].id, 
-      name: dummyStock[0].name, 
-      quantity: 1, 
-      price: dummyStock[0].price, 
-      subtotal: dummyStock[0].price 
-    }],
-    total: dummyStock[0].price,
-    paymentMethod: 'CASH',
-    status: 'SUCCESS',
-    user: 'Administrator',
-    branchId: 'HQ'
-  });
-
-  console.log('Database seeded successfully.');
+  console.log('Seeding PSA DB complete: 10 produk imitasi + harga acuan emas + profil toko.');
 };

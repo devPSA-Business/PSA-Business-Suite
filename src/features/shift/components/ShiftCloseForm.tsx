@@ -12,7 +12,6 @@ import { CustomNumpad } from '../../pos/components/CustomNumpad';
 import { ERROR_MESSAGES } from '../../../shared/constants/errorMessages';
 import { mapErrorToUser } from '../../../shared/utils/errorMapper';
 
-    import { MathUtils } from '../../../shared/utils/decimalUtils';
 import { Decimal } from 'decimal.js';
 
 const DISCREPANCY_THRESHOLD = 50000;

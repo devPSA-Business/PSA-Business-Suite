@@ -2,7 +2,7 @@ import { logger } from '@lib/logger';
 import React, { useEffect, useState, useMemo } from 'react';
 import { useNavigate } from '@tanstack/react-router';
 import { useAuthStore } from '../../../shared/store/authStore';
-import { analyticsService, DailyMetricData, ProductMetricData } from '../../../application/services/AnalyticsService';
+import { analyticsService, DailyMetricData, ProductMetricData, MissingCostTx } from '../../../application/services/AnalyticsService';
 import { UserRole } from '../../../domain/models/User';
 import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip as RechartsTooltip, ResponsiveContainer, BarChart, Bar, Legend, ScatterChart, Scatter, ZAxis } from 'recharts';
 import { TrendingUp, AlertTriangle, DollarSign, Activity, ArrowRight, LayoutGrid } from 'lucide-react';
@@ -32,21 +32,7 @@ const CustomScatterTooltip = ({ active, payload }: { active?: boolean, payload?:
   return null;
 };
 
-interface TxItem {
-  stockId: string;
-  name: string;
-  unitCost: number;
-  quantity: number;
-  price: number;
-  suggestedCost?: number;
-}
-
-interface Tx {
-  id: string;
-  date: string;
-  items: TxItem[];
-}
-
+  // (Removed interfaces TxItem and Tx)
 export const OwnerDashboardPage: React.FC = () => {
   const navigate = useNavigate();
   const user = useAuthStore(state => state.user);
@@ -55,7 +41,7 @@ export const OwnerDashboardPage: React.FC = () => {
   const [dailyData, setDailyData] = useState<DailyMetricData[]>([]);
   const [productData, setProductData] = useState<ProductMetricData[]>([]);
   const [productRanking, setProductRanking] = useState<ProductMetricData[]>([]);
-  const [missingCostTxs, setMissingCostTxs] = useState<Tx[]>([]);
+  const [missingCostTxs, setMissingCostTxs] = useState<MissingCostTx[]>([]);
 
   const [isLoading, setIsLoading] = useState(true);
   const [isPatching, setIsPatching] = useState(false);
@@ -85,8 +71,7 @@ export const OwnerDashboardPage: React.FC = () => {
       const initPatches: Record<string, Record<string, string>> = {};
       anomalies.forEach(tx => {
         initPatches[tx.id] = {};
-        // eslint-disable-next-line @typescript-eslint/no-explicit-any
-        tx.items.forEach((item: any) => {
+        tx.items.forEach((item) => {
           if (!item.unitCost || item.unitCost === 0) {
             initPatches[tx.id][item.stockId] = (item.suggestedCost || 0).toString();
           }
@@ -240,13 +225,13 @@ export const OwnerDashboardPage: React.FC = () => {
               <LayoutGrid className="text-brand-900" /> Matrix Margin vs Kecepatan Penjualan
             </h2>
             <div className="flex gap-2 overflow-x-auto pb-2 md:pb-0 hide-scrollbar">
-              {['ALL', 'GOLD_BAR', 'GOLD_JEWELLERY', 'ACCESSORIES'].map(cat => (
+              {['ALL', 'IMITATION', 'ACCESSORIES', 'BUYBACK_GOLD'].map(cat => (
                 <button
                   key={cat}
                   onClick={() => setSelectedCategory(cat)}
                   className={`px-4 py-1.5 rounded-full text-xs font-bold whitespace-nowrap transition-colors ${selectedCategory === cat ? 'bg-brand-900 text-white' : 'bg-stone-100 text-stone-600 hover:bg-stone-200'}`}
                 >
-                  {cat === 'ALL' ? 'Semua Produk' : cat === 'GOLD_BAR' ? 'Logam Mulia (24K)' : cat === 'GOLD_JEWELLERY' ? 'Perhiasan' : 'Jasa/Aksesoris'}
+                  {cat === 'ALL' ? 'Semua Produk' : cat === 'IMITATION' ? 'Perhiasan Imitasi' : cat === 'ACCESSORIES' ? 'Aksesoris' : 'Emas Buyback'}
                 </button>
               ))}
             </div>
@@ -344,7 +329,7 @@ export const OwnerDashboardPage: React.FC = () => {
                  <b className="font-bold">Info Keamanan Bisnis (Emas vs Imitasi):</b> HPP untuk emas dinamis setiap hari. Sistem menyarankan Cost berdasarkan harga stok hari ini, namun Anda WAJIB memvalidasi dan memodifikasi angkanya menjadi harga beli riil di masa lalu agar laporan valid.
               </div>
 
-              {missingCostTxs.map((tx: Tx) => {
+              {missingCostTxs.map((tx) => {
                 const isReady = Object.values(pendingCostPatch[tx.id] || {}).every(v => parseInt(v.replace(/\D/g, '') || '0', 10) > 0);
                 return (
                   <div key={tx.id} className="bg-white border border-stone-200 rounded-xl overflow-hidden shadow-sm">
@@ -353,7 +338,7 @@ export const OwnerDashboardPage: React.FC = () => {
                       <div className="text-stone-500">{new Date(tx.date).toLocaleDateString()}</div>
                     </div>
                     <div className="p-4 space-y-4">
-                      {tx.items.filter((i: TxItem) => i.unitCost === 0 || !i.unitCost).map((item: TxItem) => (
+                      {tx.items.filter((i) => i.unitCost === 0 || !i.unitCost).map((item) => (
                         <div key={item.stockId} className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 p-3 bg-stone-50 rounded-lg border border-rose-100 border-l-4 border-l-rose-500">
                            <div className="flex-1">
                              <div className="font-bold text-stone-800">{item.name}</div>

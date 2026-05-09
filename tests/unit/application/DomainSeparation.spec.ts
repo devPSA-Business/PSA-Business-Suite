@@ -57,7 +57,7 @@ describe('Domain Separation: Retail vs Gold Asset Trading', () => {
       save: vi.fn(),
       calculateExpectedCash: vi.fn(),
       findById: vi.fn(),
-      checkCloudForActiveShift: vi.fn(), incrementShiftSales: vi.fn(),
+      checkCloudForActiveShift: vi.fn(), incrementShiftSales: vi.fn(), revertShiftSales: vi.fn(),
     };
     mockInternalNoteRepo = {
       save: vi.fn(),

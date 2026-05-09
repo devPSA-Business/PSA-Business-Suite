@@ -91,7 +91,7 @@ export class PrintServiceImpl implements IPrintService {
       }
       // For Bluetooth or fallback, assume true if config exists
       return true;
-    } catch (error) {
+    } catch (_error) {
       return false;
     }
   }

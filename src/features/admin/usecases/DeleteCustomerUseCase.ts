@@ -1,3 +1,8 @@
+/**
+ * @ai_context: UseCase hapus pelanggan (soft delete)
+ * @business_rule: isDeleted=true bukan hapus fisik. Data tetap ada untuk audit trail.
+ * @security_tier: HIGH
+ */
 import { ICustomerRepository } from '@domain/repositories/ICustomerRepository';
 import { IUnitOfWork } from '@application/core/IUnitOfWork';
 

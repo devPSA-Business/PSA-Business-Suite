@@ -53,6 +53,7 @@ class InMemoryShiftRepository implements IShiftRepository {
   async findById(id: string) { return this.shifts.get(id) || null; }
   async checkCloudForActiveShift() { return { hasActiveShift: false }; }
   async incrementShiftSales(shiftId: string, addedCash: number, finalTotal: number) {}
+  async revertShiftSales(shiftId: string, removedCash: number, voidAmount: number) {}
 }
 
 class InMemoryRetailRepository implements IRetailRepository {

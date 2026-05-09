@@ -13,7 +13,6 @@ export function CustomerSelector({ onSelect, selectedCustomer }: CustomerSelecto
   const user = useAuthStore(state => state.user);
   const [query, setQuery] = useState('');
   const [results, setResults] = useState<Customer[]>([]);
-  const [isSearching, setIsSearching] = useState(false);
   const [isCreating, setIsCreating] = useState(false);
   const [showDropdown, setShowDropdown] = useState(false);
   const dropdownRef = useRef<HTMLDivElement>(null);
@@ -36,10 +35,8 @@ export function CustomerSelector({ onSelect, selectedCustomer }: CustomerSelecto
 
   useEffect(() => {
     if (query.length >= 2) {
-      setIsSearching(true);
       DIContainer.customerRepository.search(query).then((data: Customer[]) => {
         setResults(data);
-        setIsSearching(false);
         setShowDropdown(true);
       });
     } else {

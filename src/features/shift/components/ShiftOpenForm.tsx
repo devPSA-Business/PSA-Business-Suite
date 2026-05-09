@@ -4,10 +4,8 @@ import { useAuthStore } from '../../../shared/store/authStore';
 import { Wallet } from 'lucide-react';
 import { useToastStore } from '../../../shared/store/toastStore';
 import { MorningReadinessUI } from '../../auth/components/MorningReadinessUI';
-import { ERROR_MESSAGES } from '../../../shared/constants/errorMessages';
 import { mapErrorToUser } from '../../../shared/utils/errorMapper';
 
-    import { MathUtils } from '../../../shared/utils/decimalUtils';
 import { Decimal } from 'decimal.js';
 
 export function ShiftOpenForm({ onShiftOpened }: { onShiftOpened: () => void }) {

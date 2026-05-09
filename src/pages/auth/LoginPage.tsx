@@ -1,7 +1,7 @@
 import React, { useState } from 'react';
 import { useNavigate } from '@tanstack/react-router';
 import { signInWithEmailAndPassword } from 'firebase/auth';
-import { auth, isConfigValid } from '../../shared/api/firebase';
+import { auth } from '../../shared/api/firebase';
 import { useToastStore } from '../../shared/store/toastStore';
 import { useAuthStore } from '../../shared/store/authStore';
 import { useSecurityStore } from '../../shared/store/useSecurityStore';

@@ -81,7 +81,14 @@ service cloud.firestore {
 
     function isValidRepair(data) {
         return data.branchId is string && data.branchId.size() > 0
-             && data.status is string && data.status.size() > 0;
+             && data.status is string && data.status.size() > 0
+             && data.customerName is string && data.customerName.size() > 0
+             && data.phoneNumber is string && data.phoneNumber.size() > 0
+             && data.itemDescription is string && data.itemDescription.size() > 0
+             && data.serviceType is string && data.serviceType.size() > 0
+             && data.initialWeight is number && data.initialWeight > 0
+             && data.price is number && data.price >= 0
+             && data.paymentMethod is string && data.paymentMethod.size() > 0;
     }
 
     function isValidShift(data) {
@@ -94,7 +101,16 @@ service cloud.firestore {
     }
 
     function isValidGoldBuyback(data) {
-        return data.branchId is string && data.branchId.size() > 0;
+        return data.branchId is string && data.branchId.size() > 0
+             && data.customerName is string && data.customerName.size() > 0
+             && data.weightGram is number && data.weightGram > 0
+             && data.kadar is number && data.kadar > 0 && data.kadar <= 1
+             && data.pricePerGram is number && data.pricePerGram >= 0
+             && data.margin is number && data.margin >= 0
+             && data.buybackPrice is number && data.buybackPrice >= 0
+             && data.paymentMethod is string && data.paymentMethod.size() > 0
+             && data.cashSource == 'gold_cash'
+             && data.status is string && data.status.size() > 0;
     }
 
     // ===============================================================
@@ -194,6 +210,7 @@ service cloud.firestore {
       allow get: if isHardened() && isManager() && belongsToBranch(resource.data);
       allow create: if isHardened() && isManager() && belongsToBranch(incoming()) && isValidGoldBuyback(incoming()) && incoming().createdAt == request.time;
       allow update: if isHardened() && isManager() && belongsToBranch(existing()) && incoming().branchId == existing().branchId 
+        && incoming().diff(existing()).affectedKeys().hasOnly(['status', 'soldDate', 'soldPrice', 'soldPaymentMethod', 'profitLoss', 'notes', 'updatedAt'])
         && incoming().updatedAt == request.time;
       allow delete: if isHardened() && isManager() && belongsToBranch(existing());
     }

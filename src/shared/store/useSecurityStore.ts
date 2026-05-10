@@ -25,6 +25,8 @@ import { cryptoDB } from '../../lib/cryptoIndexedDB';
 import { cryptoKeyStore } from '../../lib/cryptoKeyStore';
 import { logger } from '../../lib/logger';
 import { dexieSecurityStorage } from '../../infrastructure/storage/dexieSecurityStorage';
+import { functions } from '../api/firebase';
+import { httpsCallable } from 'firebase/functions';
 
 interface SecurityState {
   isPinVerified: boolean;
@@ -65,16 +67,12 @@ export const hashPin = async (
     try {
       // Convert salt to hex string to send over HTTP
       const saltHex = Array.from(salt).map(b => b.toString(16).padStart(2, '0')).join('');
-      const res = await fetch('/api/hash-pin', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ pin, saltHex, usePepper, iterations })
-      });
-      if (res.ok) {
-        const data = await res.json();
-        return data.hash;
-      }
-    } catch (error) {
+      if (!functions) throw new Error('Functions offline');
+      const hashPinCall = httpsCallable(functions, 'hashPin');
+      const res = await hashPinCall({ pin, saltHex, usePepper, iterations });
+      const data = res.data as { hash: string };
+      return data.hash;
+    } catch (_error) {
       console.warn('Backend unavailable for hashPin. Falling back to unpeppered hash if permitted, or unwrap verification.');
       // If offline, we return a special marker so verifyUserPin can rely on unwrapKeyWithPin
       return 'OFFLINE_DEFERRED_VERIFICATION'; 
@@ -200,7 +198,7 @@ export const useSecurityStore = create<SecurityState>()(
         const hashedInputV2 = await hashPin(pin, currentSalt, true, HASH_ITERATIONS_V2);
         const isOfflineVerification = hashedInputV2 === 'OFFLINE_DEFERRED_VERIFICATION';
         let isPinValid = isOfflineVerification ? true : (hashedInputV2 === user.pinHash);
-        let needsHashUpgrade = (!isPinValid && !isOfflineVerification);
+        const needsHashUpgrade = (!isPinValid && !isOfflineVerification);
 
         if (!isPinValid && !isOfflineVerification) {
           const hashedInputV1 = await hashPin(pin, currentSalt, true, HASH_ITERATIONS_V1);
@@ -376,7 +374,7 @@ export const useSecurityStore = create<SecurityState>()(
                      isValid = true;
                      break;
                   }
-               } catch (e) {
+               } catch (_e) {
                   // Fallthrough to try legacy, but mostly meaning wrong PIN since unwrapping failed
                }
             } else if (hashedInputV2 === user.pinHash) {

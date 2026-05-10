@@ -1,6 +1,8 @@
 // src/application/services/NLQService.ts
 
 import { logger } from '../../lib/logger';
+import { functions } from '../../shared/api/firebase';
+import { httpsCallable } from 'firebase/functions';
 
 interface AggregateData {
   customer?: {
@@ -47,16 +49,14 @@ export class NLQService {
     const sanitizedAggregates = this.sanitize(aggregates);
 
     try {
-      const response = await fetch('/api/ask-gemini', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ question, aggregates: sanitizedAggregates, userId }),
-      });
-      if (!response.ok) throw new Error('Backend proxy error');
-      const data = await response.json();
+      if (!functions) throw new Error('Firebase functions not initialized');
+      const queryGeminiCall = httpsCallable(functions, 'queryGemini');
+      const response = await queryGeminiCall({ question, aggregates: sanitizedAggregates, userId });
+      const data = response.data as { answer: string };
       return { answer: data.answer || 'Tidak ada respons dari AI.' };
     } catch (e) {
       logger.error('NLQ Query Error', e instanceof Error ? e : new Error(String(e)));
+
       return { answer: 'Terjadi kesalahan sistem saat menghubungi layar analitik.' };
     }
   }

@@ -134,8 +134,8 @@ export class ShiftRepositoryImpl implements IShiftRepository {
     if (shiftTotal) {
       await db.shift_totals.put({
         ...shiftTotal,
-        cashIn: MathUtils.roundInt(MathUtils.add(shiftTotal.cashIn, addedCash)),
-        salesTotal: MathUtils.roundInt(MathUtils.add(shiftTotal.salesTotal, finalTotal)),
+        cashIn: MathUtils.add(shiftTotal.cashIn, addedCash),
+        salesTotal: MathUtils.add(shiftTotal.salesTotal, finalTotal),
         lastUpdatedAt: Date.now()
       });
     }
@@ -146,8 +146,8 @@ export class ShiftRepositoryImpl implements IShiftRepository {
     if (shiftTotal) {
       await db.shift_totals.put({
         ...shiftTotal,
-        cashIn: Math.max(0, MathUtils.roundInt(MathUtils.sub(shiftTotal.cashIn, removedCash))),
-        salesTotal: Math.max(0, MathUtils.roundInt(MathUtils.sub(shiftTotal.salesTotal, voidAmount))),
+        cashIn: Math.max(0, MathUtils.sub(shiftTotal.cashIn, removedCash)),
+        salesTotal: Math.max(0, MathUtils.sub(shiftTotal.salesTotal, voidAmount)),
         lastUpdatedAt: Date.now()
       });
     }

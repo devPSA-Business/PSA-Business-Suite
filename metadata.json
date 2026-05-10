@@ -1,6 +1,6 @@
 {
   "name": "PSA Business Suite",
-  "description": "v1.4.1-stable-enterprise: Offline-First POS & CRM for PSA Jewellery — TD-05 salt type fix, monetary MathUtils enforcement",
+  "description": "v1.4.0  -stable-enterprise: Offline-First POS & CRM for PSA Jewellery with Enterprise Hardening",
   "requestFramePermissions": [
     "camera"
   ],

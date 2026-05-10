@@ -1,17 +1,11 @@
-/**
- * @ai_context: Halaman manajemen pegawai — CRUD user via UserManagementUseCase (bukan direct DB)
- * @business_rule: Hanya ADMIN yang bisa akses. PIN wajib 6 digit. User tidak bisa hapus diri sendiri.
- * @security_tier: HIGH — kelola akses sistem kasir
- */
 import { useState, useEffect, useCallback } from 'react';
 import { BackButton } from '../../shared/components/BackButton';
 import { Users, UserPlus, Shield, Key, Trash2, Edit2, Check, AlertCircle } from 'lucide-react';
-import { User } from '../../shared/api/db';
+import { db, User } from '../../shared/api/db';
 import { UserRole } from '../../domain/models/User';
 import { useToastStore } from '../../shared/store/toastStore';
-import { useSecurityStore } from '../../shared/store/useSecurityStore';
+import { hashPin, useSecurityStore } from '../../shared/store/useSecurityStore';
 import { useAuthStore } from '../../shared/store/authStore';
-import { userManagementUseCase } from '../../features/admin/usecases/UserManagementUseCase';
 
 export function EmployeesPage() {
   const { addToast } = useToastStore();
@@ -21,6 +15,7 @@ export function EmployeesPage() {
   const [editingUser, setEditingUser] = useState<User | null>(null);
   const [isLoading, setIsLoading] = useState(true);
 
+  // Form State
   const [formData, setFormData] = useState({
     name: '',
     role: UserRole.CASHIER,
@@ -31,62 +26,90 @@ export function EmployeesPage() {
 
   const fetchUsers = useCallback(async () => {
     try {
-      const allUsers = await userManagementUseCase.listUsers();
+      const allUsers = await db.users.toArray();
       setUsers(allUsers);
-    } catch {
+    } catch (_err) {
       addToast('Gagal memuat data pegawai.', 'error');
     } finally {
       setIsLoading(false);
     }
   }, [addToast]);
 
-  useEffect(() => { fetchUsers(); }, [fetchUsers]);
+  useEffect(() => {
+    fetchUsers();
+  }, [fetchUsers]);
 
   const handleSave = async (e: React.FormEvent) => {
     e.preventDefault();
-
+    
     if (formData.pin !== formData.confirmPin) {
       addToast('PIN tidak cocok.', 'error');
       return;
     }
 
-    if (editingUser) {
-      const result = await userManagementUseCase.updateUser({
-        id: editingUser.id,
-        name: formData.name,
-        role: formData.role,
-        branchId: formData.branchId,
-        pin: formData.pin || undefined
-      });
-      if (!result.success) { addToast(result.error ?? 'Gagal memperbarui.', 'error'); return; }
-      if (formData.pin) {
-        await useSecurityStore.getState().authorizeUserLocal(editingUser.id, formData.pin);
-      }
-      addToast('Data pegawai diperbarui.', 'success');
-    } else {
-      const result = await userManagementUseCase.createUser({
-        name: formData.name,
-        role: formData.role,
-        branchId: formData.branchId,
-        pin: formData.pin
-      });
-      if (!result.success) { addToast(result.error ?? 'Gagal mendaftarkan.', 'error'); return; }
-      if (result.userId) {
-        await useSecurityStore.getState().authorizeUserLocal(result.userId, formData.pin);
-      }
-      addToast('Pegawai baru ditambahkan dan diotorisasi.', 'success');
+    if (formData.pin.length !== 6 && !editingUser) {
+      addToast('PIN harus 6 digit angka.', 'error');
+      return;
     }
 
-    resetForm();
-    fetchUsers();
+    try {
+      const generatedId = `USR-${Date.now()}`;
+      const targetUserId = editingUser ? editingUser.id : generatedId;
+      
+      const pinHash = formData.pin ? await hashPin(formData.pin, targetUserId) : (editingUser?.pinHash || '');
+      
+      if (editingUser) {
+        await db.users.update(editingUser.id, {
+          name: formData.name,
+          role: formData.role,
+          branchId: formData.branchId,
+          pinHash: pinHash
+        });
+        
+        // Auto-enroll user in local device crypto if PIN is updated
+        if (formData.pin) {
+           await useSecurityStore.getState().authorizeUserLocal(editingUser.id, formData.pin);
+        }
+        addToast('Data pegawai diperbarui.', 'success');
+      } else {
+        const newUser: User = {
+          id: targetUserId,
+          name: formData.name,
+          role: formData.role,
+          branchId: formData.branchId,
+          pinHash: pinHash,
+          status: 'ACTIVE',
+          createdAt: Date.now()
+        };
+        await db.users.add(newUser);
+        // Auto-enroll new user in local device crypto
+        await useSecurityStore.getState().authorizeUserLocal(targetUserId, formData.pin);
+        
+        addToast('Pegawai baru ditambahkan dan diotorisasi di perangkat ini.', 'success');
+      }
+      
+      resetForm();
+      fetchUsers();
+    } catch (_err) {
+      addToast('Gagal menyimpan data.', 'error');
+    }
   };
 
   const handleDelete = async (id: string) => {
+    if (id === currentUser?.id) {
+      addToast('Anda tidak dapat menghapus akun Anda sendiri.', 'error');
+      return;
+    }
+
     if (!window.confirm('Hapus pegawai ini secara permanen?')) return;
-    const result = await userManagementUseCase.deleteUser(id, currentUser?.id ?? '');
-    if (!result.success) { addToast(result.error ?? 'Gagal menghapus.', 'error'); return; }
-    addToast('Pegawai dihapus.', 'success');
-    fetchUsers();
+
+    try {
+      await db.users.delete(id);
+      addToast('Pegawai dihapus.', 'success');
+      fetchUsers();
+    } catch (_err) {
+      addToast('Gagal menghapus pegawai.', 'error');
+    }
   };
 
   const resetForm = () => {
@@ -97,13 +120,19 @@ export function EmployeesPage() {
 
   const startEdit = (user: User) => {
     setEditingUser(user);
-    setFormData({ name: user.name, role: user.role, branchId: user.branchId || 'HQ', pin: '', confirmPin: '' });
+    setFormData({
+      name: user.name,
+      role: user.role,
+      branchId: user.branchId || 'HQ',
+      pin: '',
+      confirmPin: ''
+    });
     setIsAdding(true);
   };
 
   if (currentUser?.role !== 'ADMIN') {
     return (
-      <div className="p-6 max-w-4xl mx-auto text-center" data-component-id="employees-access-denied" data-error-domain="auth">
+      <div className="p-6 max-w-4xl mx-auto text-center">
         <BackButton />
         <div className="bg-white p-12 rounded-3xl border border-stone-200 shadow-sm">
           <AlertCircle size={48} className="mx-auto text-red-400 mb-4" />
@@ -115,7 +144,7 @@ export function EmployeesPage() {
   }
 
   return (
-    <div className="p-6 max-w-5xl mx-auto" data-component-id="employees-page" data-error-domain="user-management">
+    <div className="p-6 max-w-5xl mx-auto">
       <div className="flex items-center justify-between mb-8">
         <div>
           <BackButton />
@@ -127,7 +156,8 @@ export function EmployeesPage() {
             onClick={() => setIsAdding(true)}
             className="flex items-center gap-2 px-6 py-3 bg-brand-900 text-gold-500 font-bold rounded-2xl shadow-lg shadow-brand-900/20 hover:bg-brand-800 transition-all active:scale-95"
           >
-            <UserPlus size={20} />Tambah Pegawai
+            <UserPlus size={20} />
+            Tambah Pegawai
           </button>
         )}
       </div>
@@ -142,26 +172,37 @@ export function EmployeesPage() {
             <div className="space-y-4">
               <div>
                 <label className="block text-xs font-bold text-stone-400 uppercase tracking-widest mb-2">Nama Lengkap</label>
-                <input type="text" required value={formData.name}
+                <input
+                  type="text"
+                  required
+                  value={formData.name}
                   onChange={e => setFormData(f => ({ ...f, name: e.target.value }))}
                   className="w-full p-4 bg-stone-50 border border-stone-200 rounded-xl focus:ring-2 focus:ring-brand-900/20 outline-none"
-                  placeholder="Contoh: Ahmad Kasir" />
+                  placeholder="Contoh: Ahmad Kasir"
+                />
               </div>
               <div>
                 <label className="block text-xs font-bold text-stone-400 uppercase tracking-widest mb-2">Peran (Role)</label>
-                <select value={formData.role} onChange={e => setFormData(f => ({ ...f, role: e.target.value as UserRole }))}
-                  className="w-full p-4 bg-stone-50 border border-stone-200 rounded-xl focus:ring-2 focus:ring-brand-900/20 outline-none">
+                <select
+                  value={formData.role}
+                  onChange={e => setFormData(f => ({ ...f, role: e.target.value as UserRole }))}
+                  className="w-full p-4 bg-stone-50 border border-stone-200 rounded-xl focus:ring-2 focus:ring-brand-900/20 outline-none"
+                >
                   <option value="CASHIER">Cashier (Akses POS Saja)</option>
                   <option value="MANAGER">Manager (Akses Laporan & Stok)</option>
                   <option value="ADMIN">Administrator (Semua Akses)</option>
                 </select>
               </div>
               <div>
-                <label className="block text-xs font-bold text-stone-400 uppercase tracking-widest mb-2">Cabang</label>
-                <select value={formData.branchId} onChange={e => setFormData(f => ({ ...f, branchId: e.target.value }))}
-                  className="w-full p-4 bg-stone-50 border border-stone-200 rounded-xl focus:ring-2 focus:ring-brand-900/20 outline-none">
+                <label className="block text-xs font-bold text-stone-400 uppercase tracking-widest mb-2">Cabang (Branch)</label>
+                <select
+                  value={formData.branchId}
+                  onChange={e => setFormData(f => ({ ...f, branchId: e.target.value }))}
+                  className="w-full p-4 bg-stone-50 border border-stone-200 rounded-xl focus:ring-2 focus:ring-brand-900/20 outline-none"
+                >
                   <option value="HQ">Headquarters (Pusat)</option>
-                  <option value="CABANG-01">Cabang 01</option>
+                  <option value="CABANG-01">Cabang 01 (Jakarta)</option>
+                  <option value="CABANG-02">Cabang 02 (Surabaya)</option>
                 </select>
               </div>
             </div>
@@ -170,22 +211,43 @@ export function EmployeesPage() {
                 <label className="block text-xs font-bold text-stone-400 uppercase tracking-widest mb-2">
                   {editingUser ? 'PIN Baru (Kosongkan jika tidak diubah)' : 'PIN (6 Digit Angka)'}
                 </label>
-                <input type="password" maxLength={6} pattern="\d{6}" required={!editingUser}
-                  value={formData.pin} onChange={e => setFormData(f => ({ ...f, pin: e.target.value }))}
+                <input
+                  type="password"
+                  maxLength={6}
+                  pattern="\d{6}"
+                  required={!editingUser}
+                  value={formData.pin}
+                  onChange={e => setFormData(f => ({ ...f, pin: e.target.value }))}
                   className="w-full p-4 bg-stone-50 border border-stone-200 rounded-xl focus:ring-2 focus:ring-brand-900/20 outline-none"
-                  placeholder="123456" />
+                  placeholder="123456"
+                />
               </div>
               <div>
                 <label className="block text-xs font-bold text-stone-400 uppercase tracking-widest mb-2">Konfirmasi PIN</label>
-                <input type="password" maxLength={6} pattern="\d{6}" required={!editingUser || formData.pin !== ''}
-                  value={formData.confirmPin} onChange={e => setFormData(f => ({ ...f, confirmPin: e.target.value }))}
+                <input
+                  type="password"
+                  maxLength={6}
+                  pattern="\d{6}"
+                  required={!editingUser || formData.pin !== ''}
+                  value={formData.confirmPin}
+                  onChange={e => setFormData(f => ({ ...f, confirmPin: e.target.value }))}
                   className="w-full p-4 bg-stone-50 border border-stone-200 rounded-xl focus:ring-2 focus:ring-brand-900/20 outline-none"
-                  placeholder="123456" />
+                  placeholder="123456"
+                />
               </div>
             </div>
             <div className="md:col-span-2 flex justify-end gap-3 pt-4 border-t border-stone-100">
-              <button type="button" onClick={resetForm} className="px-6 py-3 text-stone-500 font-bold hover:bg-stone-50 rounded-xl transition-colors">Batal</button>
-              <button type="submit" className="px-8 py-3 bg-brand-900 text-gold-500 font-bold rounded-xl shadow-lg shadow-brand-900/10 hover:bg-brand-800 transition-all">
+              <button
+                type="button"
+                onClick={resetForm}
+                className="px-6 py-3 text-stone-500 font-bold hover:bg-stone-50 rounded-xl transition-colors"
+              >
+                Batal
+              </button>
+              <button
+                type="submit"
+                className="px-8 py-3 bg-brand-900 text-gold-500 font-bold rounded-xl shadow-lg shadow-brand-900/10 hover:bg-brand-800 transition-all"
+              >
                 {editingUser ? 'Simpan Perubahan' : 'Daftarkan Pegawai'}
               </button>
             </div>
@@ -199,24 +261,51 @@ export function EmployeesPage() {
             <div className="flex items-start justify-between mb-4">
               <div className={`w-12 h-12 rounded-2xl flex items-center justify-center ${
                 user.role === 'ADMIN' ? 'bg-purple-50 text-purple-600' :
-                user.role === 'MANAGER' ? 'bg-blue-50 text-blue-600' : 'bg-stone-50 text-stone-600'}`}>
+                user.role === 'MANAGER' ? 'bg-blue-50 text-blue-600' :
+                'bg-stone-50 text-stone-600'
+              }`}>
                 {user.role === 'ADMIN' ? <Shield size={24} /> : <Users size={24} />}
               </div>
               <div className="flex gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
-                <button onClick={() => startEdit(user)} className="min-w-[44px] min-h-[44px] flex items-center justify-center p-2 text-stone-400 hover:text-brand-900 hover:bg-stone-50 rounded-lg transition-colors"><Edit2 size={18} /></button>
-                <button onClick={() => handleDelete(user.id)} className="min-w-[44px] min-h-[44px] flex items-center justify-center p-2 text-stone-400 hover:text-red-600 hover:bg-red-50 rounded-lg transition-colors"><Trash2 size={18} /></button>
+                <button
+                  onClick={() => startEdit(user)}
+                  className="min-w-[44px] min-h-[44px] flex items-center justify-center p-2 text-stone-400 hover:text-brand-900 hover:bg-stone-50 rounded-lg transition-colors"
+                  title="Edit Pegawai"
+                >
+                  <Edit2 size={18} />
+                </button>
+                <button
+                  onClick={() => handleDelete(user.id)}
+                  className="min-w-[44px] min-h-[44px] flex items-center justify-center p-2 text-stone-400 hover:text-red-600 hover:bg-red-50 rounded-lg transition-colors"
+                  title="Hapus Pegawai"
+                >
+                  <Trash2 size={18} />
+                </button>
               </div>
             </div>
             <h3 className="text-lg font-bold text-stone-800 mb-1">{user.name}</h3>
             <div className="flex items-center gap-2 mb-4">
               <span className={`text-[10px] font-black uppercase tracking-widest px-2 py-1 rounded-md ${
                 user.role === 'ADMIN' ? 'bg-purple-100 text-purple-700' :
-                user.role === 'MANAGER' ? 'bg-blue-100 text-blue-700' : 'bg-stone-100 text-stone-600'}`}>{user.role}</span>
-              <span className="text-[10px] font-black uppercase tracking-widest px-2 py-1 rounded-md bg-gold-100 text-gold-700">{user.branchId || 'HQ'}</span>
+                user.role === 'MANAGER' ? 'bg-blue-100 text-blue-700' :
+                'bg-stone-100 text-stone-600'
+              }`}>
+                {user.role}
+              </span>
+              <span className="text-[10px] font-black uppercase tracking-widest px-2 py-1 rounded-md bg-gold-100 text-gold-700">
+                {user.branchId || 'HQ'}
+              </span>
+              <span className="text-xs text-stone-400 font-medium">• ID: {user.id}</span>
             </div>
             <div className="pt-4 border-t border-stone-50 flex items-center justify-between text-stone-400">
-              <div className="flex items-center gap-1.5 text-xs"><Key size={14} /><span>PIN Terdaftar</span></div>
-              <div className="flex items-center gap-1.5 text-xs"><Check size={14} className="text-green-500" /><span>Aktif</span></div>
+              <div className="flex items-center gap-1.5 text-xs">
+                <Key size={14} />
+                <span>PIN Terdaftar</span>
+              </div>
+              <div className="flex items-center gap-1.5 text-xs">
+                <Check size={14} className="text-green-500" />
+                <span>Aktif</span>
+              </div>
             </div>
           </div>
         ))}

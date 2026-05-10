@@ -1,6 +1,5 @@
 import { create } from 'zustand';
 import { db } from '../api/db';
-import { MathUtils } from '../utils/decimalUtils';
 
 interface GoldStore {
   marketPricePerGram: number;
@@ -51,7 +50,7 @@ export const useGoldStore = create<GoldStore>((set, get) => ({
       if (response.ok) {
         const data = await response.json();
         const priceIdrPerGram = (data.price / 31.1035) * 16000; 
-        const finalPrice = MathUtils.roundInt(priceIdrPerGram);
+        const finalPrice = Math.round(priceIdrPerGram);
         
         await db.daily_gold_price.put({
            date: today,

@@ -79,7 +79,7 @@ export interface RepairService {
   customerName: string;
   phoneNumber: string;
   itemDescription: string;
-  serviceType: 'REPARASI' | 'SEPUH';
+  serviceType: 'REPARASI' | 'SEPUH' | 'PATRI';
   initialWeight: number;
   price: number;
   materialCost?: number;
@@ -295,7 +295,7 @@ export interface User {
   name: string;
   role: UserRole;
   pinHash: string;
-  salt?: string | Uint8Array; // Phase 1.2: Per-user random salt (Uint8Array baru, string = legacy)
+  salt?: string; // Phase 1.2: Random UUID salt for PBKDF2
   status: 'ACTIVE' | 'INACTIVE';
   createdAt: number;
   branchId?: string;

@@ -1,8 +1,3 @@
-/**
- * @ai_context: UseCase kelola custom order perhiasan (pesanan khusus pelanggan)
- * @business_rule: Custom order tidak mengurangi stok langsung. Progress diupdate manual oleh Manager.
- * @security_tier: MEDIUM
- */
 import { IUnitOfWork } from '@application/core/IUnitOfWork';
 import { ICustomOrderRepository } from '@domain/repositories/ICustomOrderRepository';
 import { CustomOrder } from '@shared/api/db';
@@ -23,7 +18,6 @@ export class ManageCustomOrderUseCase {
         `Membuat pesanan kustom baru untuk ${order.customerName}`
       );
       
-      // eslint-disable-next-line @typescript-eslint/no-explicit-any
       await this.unitOfWork.registerSync('custom_orders', 'INSERT', order as unknown as Record<string, unknown>);
     }, ['custom_orders']);
   }
@@ -44,7 +38,6 @@ export class ManageCustomOrderUseCase {
         `Menyelesaikan pesanan kustom untuk ${order.customerName}`
       );
       
-      // eslint-disable-next-line @typescript-eslint/no-explicit-any
       await this.unitOfWork.registerSync('custom_orders', 'UPDATE', order as unknown as Record<string, unknown>);
     }, ['custom_orders']);
   }

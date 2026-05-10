@@ -6,7 +6,7 @@ export function ServicePosPage() {
       <div className="mb-8">
         <h1 className="text-3xl font-serif font-bold text-brand-900">Kasir Jasa</h1>
         <p className="text-stone-500 mt-2">
-          Penerimaan perhiasan pelanggan untuk layanan reparasi, cuci, atau sepuh chrome.
+          Penerimaan perhiasan pelanggan untuk layanan reparasi, sepuh, atau patri.
         </p>
       </div>
 

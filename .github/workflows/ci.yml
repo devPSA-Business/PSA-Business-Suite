@@ -2,9 +2,9 @@ name: CI — Quality Gate (Lint + Type + Test Coverage)
 
 on:
   push:
-    branches: [main, develop]
+    branches: [main, develop, feature/**, fix/**]
   pull_request:
-    branches: [main]
+    branches: [main, develop]
 
 concurrency:
   group: ${{ github.workflow }}-${{ github.ref }}
@@ -33,10 +33,10 @@ jobs:
       - name: Run Tests with Coverage
         run: npm run test:coverage
         env:
-          # Pepper khusus CI — hanya untuk test, tidak untuk production
-          VITE_CRYPTO_PEPPER: "0000000000000000000000000000000000000000000000000000000000000000"
-          VITE_TELEGRAM_BOT_TOKEN: "mock_token_for_test"
-          VITE_TELEGRAM_CHAT_ID: "mock_chat_id_for_test"
+          # Pepper dan token telah dipindahkan ke Secret Manager / Backend
+          VITE_CRYPTO_PEPPER: "mocked"
+          VITE_TELEGRAM_BOT_TOKEN: "mocked"
+          VITE_TELEGRAM_CHAT_ID: "mocked"
 
       - name: Upload Coverage Artifact
         uses: actions/upload-artifact@v4

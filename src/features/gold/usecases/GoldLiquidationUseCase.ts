@@ -1,8 +1,3 @@
-/**
- * @ai_context: UseCase likuidasi aset emas ke pengepul (B2B bukan ke konsumen)
- * @business_rule: Batch emas dari buyback dijual ke pengepul. Catat profit/loss per lot.
- * @security_tier: HIGH
- */
 import { IGoldBuybackRepository } from '@domain/repositories/IGoldBuybackRepository';
 import { IShiftRepository } from '@domain/repositories/IShiftRepository';
 import { IInternalNoteRepository } from '@domain/repositories/IInternalNoteRepository';

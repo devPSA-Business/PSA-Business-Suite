@@ -25,6 +25,7 @@ export class NLQService {
       payload.customer.email = '<<PII_REMOVED>>';
     }
     if (typeof payload.text === 'string') {
+      payload.text = payload.text.replace(/\b[A-Za-z0-9._%+-]+@[A-Za-z0-9.-]+\.[A-Z|a-z]{2,}\b/g, '<<PII_REMOVED>>');
       payload.text = payload.text.replace(/\b\d{12,19}\b/g, '<<PII_REMOVED>>');
       payload.text = payload.text.replace(/\+?\d{7,15}/g, '<<PII_REMOVED>>');
     }

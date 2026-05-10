@@ -1,8 +1,3 @@
-/**
- * @ai_context: UseCase update status progress reparasi perhiasan imitasi
- * @business_rule: Status flow: RECEIVED ke IN_PROGRESS ke COMPLETED ke DELIVERED. Tidak bisa mundur.
- * @security_tier: MEDIUM
- */
 import { logger } from '@lib/logger';
 import { IRepairRepository } from '@domain/repositories/IRepairRepository';
 import { ICustomerRepository } from '@domain/repositories/ICustomerRepository';

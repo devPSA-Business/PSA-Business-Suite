@@ -1,8 +1,3 @@
-/**
- * @ai_context: UseCase setup awal toko — dijalankan sekali saat onboarding pertama
- * @business_rule: Membuat user ADMIN pertama dan profil toko. Tidak bisa diulang setelah setup selesai.
- * @security_tier: CRITICAL
- */
 import { db } from '../../../shared/api/db';
 import { IUnitOfWork } from '@application/core/IUnitOfWork';
 import { UserRole } from '../../../domain/models/User';

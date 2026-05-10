@@ -80,8 +80,8 @@ export function RepairPage() {
       <BackButton />
       <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 mb-8">
         <div>
-          <h1 className="text-3xl font-serif font-bold text-brand-900">Reparasi & Sepuh</h1>
-          <p className="text-stone-500 mt-1">Kelola layanan perbaikan dan pelapisan perhiasan pelanggan.</p>
+          <h1 className="text-3xl font-serif font-bold text-brand-900">Reparasi, Sepuh & Patri</h1>
+          <p className="text-stone-500 mt-1">Kelola layanan perbaikan, penyambungan, dan pelapisan perhiasan pelanggan.</p>
         </div>
         <button
           onClick={() => setIsFormOpen(true)}

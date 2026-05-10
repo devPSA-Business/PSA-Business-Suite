@@ -7,7 +7,6 @@ import { ConfirmActionDialog } from '../../../shared/components/ConfirmActionDia
 import { DIContainer } from '@infrastructure/di/Container';
 import { logger } from '@lib/logger';
 import { useAuthStore } from '../../../shared/store/authStore';
-import { MathUtils } from '../../../shared/utils/decimalUtils';
 
 export function CartDisplay() {
   const _hasHydrated = useCartStore((state) => state._hasHydrated);
@@ -95,7 +94,7 @@ export function CartDisplay() {
     );
   }
 
-  const finalTotal = Math.max(0, MathUtils.sub(totalPrice, manualDiscountAmount));
+  const finalTotal = Math.max(0, totalPrice - manualDiscountAmount);
 
   return (
     <>

@@ -1,8 +1,3 @@
-/**
- * @ai_context: UseCase update data produk (harga, stok, info perhiasan imitasi)
- * @business_rule: Version bump untuk conflict resolution. Perubahan harga masuk stock_history.
- * @security_tier: MEDIUM
- */
 import { IStockRepository } from '@domain/repositories/IStockRepository';
 import { IUnitOfWork } from '@application/core/IUnitOfWork';
 import { StockCategory } from '@domain/models/StockCategory';

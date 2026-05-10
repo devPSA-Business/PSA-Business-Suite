@@ -17,8 +17,7 @@ function CustomerSegmentationChart() {
     return <div className="flex-1 flex items-center justify-center animate-pulse bg-stone-100 rounded-2xl"></div>;
   }
 
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  if (segmentation.length === 0 || segmentation.every((s: any) => s.count === 0)) {
+  if (segmentation.length === 0 || segmentation.every(s => s.count === 0)) {
     return (
       <div className="flex-1 flex items-center justify-center border-2 border-dashed border-stone-100 rounded-2xl text-stone-400 text-sm p-8 text-center">
         Belum ada data pelanggan untuk dianalisis.
@@ -33,11 +32,10 @@ function CustomerSegmentationChart() {
           <XAxis type="number" hide />
           <YAxis dataKey="segment" type="category" axisLine={false} tickLine={false} tick={{ fontSize: 11 }} width={120} />
           <Tooltip 
-            // eslint-disable-next-line @typescript-eslint/no-explicit-any
-            formatter={(value: any, name: any) => {
-              if (name === 'revenue') return [`Rp ${value.toLocaleString()}`, 'Total Omzet'];
-              if (name === 'count') return [value, 'Jumlah Pelanggan'];
-              return [value, name];
+            formatter={(value: unknown, name: unknown) => {
+              if (name === 'revenue') return [`Rp ${Number(value).toLocaleString()}`, 'Total Omzet'];
+              if (name === 'count') return [Number(value), 'Jumlah Pelanggan'];
+              return [String(value), String(name)];
             }}
             contentStyle={{ borderRadius: '12px', border: 'none', boxShadow: '0 4px 6px -1px rgb(0 0 0 / 0.1)' }}
           />
@@ -84,13 +82,15 @@ export function DashboardPage() {
     const rows = filteredTx.map(tx => {
       const date = new Date(tx.date).toLocaleString('id-ID').replace(/,/g, '');
       const row = [date, tx.id];
-      if (exportConfig.includeCashier) row.push(`"${tx.user.replace(/"/g, '""')}"`);
+      if (exportConfig.includeCashier) {
+        const userName = tx.user || 'Sistem';
+        row.push(`"${userName.replace(/"/g, '""')}"`);
+      }
       if (exportConfig.includePaymentMethod) row.push(tx.paymentMethod);
       row.push(tx.total.toString());
       row.push(tx.status);
       if (exportConfig.includeItems) {
-        // eslint-disable-next-line @typescript-eslint/no-explicit-any
-        const items = tx.items.map((i: any) => `${i.name} (x${i.quantity})`).join('; ');
+        const items = tx.items.map(i => `${i.name} (x${i.quantity})`).join('; ');
         row.push(`"${items.replace(/"/g, '""')}"`);
       }
       return row.join(',');

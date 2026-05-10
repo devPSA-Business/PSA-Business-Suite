@@ -21,6 +21,7 @@ export const logError = async (error: Error, errorInfo?: ErrorInfo, user: string
     if (sanitizedPayload.message) {
       sanitizedPayload.message = sanitizedPayload.message
         .replace(/\b[A-Za-z0-9._%+-]+@[A-Za-z0-9.-]+\.[A-Z|a-z]{2,}\b/g, '<<PII_REMOVED>>')
+        .replace(/\b\d{16}\b/g, '<<PII_REMOVED>>') // NIK (16 digit)
         .replace(/\+?\d{8,15}/g, '<<PII_REMOVED>>');
     }
     

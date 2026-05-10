@@ -1,8 +1,3 @@
-/**
- * @ai_context: UseCase buat order reparasi atau sepuh perhiasan
- * @business_rule: Catat item keluhan estimasi biaya dan berat awal. Status awal: RECEIVED.
- * @security_tier: MEDIUM
- */
 import { IRepairRepository } from '@domain/repositories/IRepairRepository';
 import { IUnitOfWork } from '@application/core/IUnitOfWork';
 import { RepairService, RepairServiceProps } from '@domain/models/RepairService';

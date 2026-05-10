@@ -1,14 +1,13 @@
 import React from 'react';
 import { LineChart, Line, XAxis, YAxis, Tooltip, ResponsiveContainer, CartesianGrid, PieChart, Pie, Cell, Legend } from 'recharts';
 import { Activity, PieChart as PieChartIcon } from 'lucide-react';
+import { DailyRevenueTrend, CategoryRevenue } from '../../../application/queries/IReportQuery';
 
 const COLORS =['#1a365d', '#D4AF37', '#10b981', '#f59e0b', '#ef4444', '#8b5cf6'];
 
 interface DashboardChartsProps {
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  salesTrends: any[] | null;
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  revenueByCategory: any[] | null;
+  salesTrends: DailyRevenueTrend[] | null;
+  revenueByCategory: CategoryRevenue[] | null;
 }
 
 export const DashboardCharts: React.FC<DashboardChartsProps> = ({ salesTrends, revenueByCategory }) => {

@@ -1,8 +1,3 @@
-/**
- * @ai_context: UseCase suspend transaksi aktif untuk dilayani nanti
- * @business_rule: Cart tersuspend disimpan lokal dengan nama opsional. Tidak hilang saat restart.
- * @security_tier: LOW
- */
 import { ISuspendedCartRepository } from '@domain/repositories/ISuspendedCartRepository';
 import { IUnitOfWork } from '@application/core/IUnitOfWork';
 import { SuspendedCart } from '@domain/models/SuspendedCart';

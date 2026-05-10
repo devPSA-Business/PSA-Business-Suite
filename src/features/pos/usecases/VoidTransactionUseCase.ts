@@ -1,8 +1,3 @@
-/**
- * @ai_context: UseCase void/batalkan transaksi yang sudah SUCCESS
- * @business_rule: Membutuhkan otorisasi Manager PIN. Void membuat void record baru bukan hapus record.
- * @security_tier: CRITICAL
- */
 import { IUnitOfWork } from '@application/core/IUnitOfWork';
 import { IRetailRepository } from '@domain/repositories/IRetailRepository';
 import { IStockRepository } from '@domain/repositories/IStockRepository';

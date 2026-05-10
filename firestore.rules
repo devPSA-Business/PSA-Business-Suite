@@ -117,7 +117,7 @@ service cloud.firestore {
     }
 
     match /stock/{id} {
-      allow list: if isHardened() && isSignedIn(); // Query enforced by `belongsToBranch` below in read/write
+      allow list: if isHardened() && isSignedIn() && belongsToBranch(resource.data);
       allow get: if isHardened() && belongsToBranch(resource.data);
       allow create: if isHardened() && isManager() && isValidId(id) && isValidStockItem(incoming()) && belongsToBranch(incoming()) && incoming().createdAt == request.time;
       allow update: if isHardened() && isManager() && isValidStockItem(incoming()) && incoming().branchId == existing().branchId && belongsToBranch(existing()) 
@@ -134,7 +134,7 @@ service cloud.firestore {
     }
 
     match /customers/{id} {
-      allow list: if isHardened() && isSignedIn();
+      allow list: if isHardened() && isSignedIn() && belongsToBranch(resource.data);
       allow get: if isHardened() && belongsToBranch(resource.data);
       allow create: if isHardened() && isValidId(id) && isValidCustomer(incoming()) && belongsToBranch(incoming()) && incoming().createdAt == request.time;
       allow update: if isHardened() && belongsToBranch(existing()) && incoming().branchId == existing().branchId 
@@ -145,7 +145,7 @@ service cloud.firestore {
 
     // SERVICE & ORDERS
     match /repair_services/{id} {
-      allow list: if isHardened() && isSignedIn();
+      allow list: if isHardened() && isSignedIn() && belongsToBranch(resource.data);
       allow get: if isHardened() && belongsToBranch(resource.data);
       allow create: if isHardened() && isValidId(id) && belongsToBranch(incoming()) && isValidRepair(incoming()) && incoming().createdAt == request.time;
       allow update: if isHardened() && belongsToBranch(existing()) && incoming().branchId == existing().branchId 
@@ -160,7 +160,7 @@ service cloud.firestore {
     }
 
     match /transactions/{id} {
-      allow list: if isHardened() && isSignedIn();
+      allow list: if isHardened() && isSignedIn() && belongsToBranch(resource.data);
       allow get: if isHardened() && belongsToBranch(resource.data);
       allow create: if isHardened() && isValidId(id) && belongsToBranch(incoming()) && isValidTransaction(incoming()) && incoming().createdAt == request.time;
       allow update: if isHardened() && isManager() && belongsToBranch(existing()) 
@@ -172,7 +172,7 @@ service cloud.firestore {
     }
 
     match /shifts/{id} {
-      allow list: if isHardened() && isSignedIn();
+      allow list: if isHardened() && isSignedIn() && belongsToBranch(resource.data);
       allow get: if isHardened() && belongsToBranch(resource.data);
       allow create: if isHardened() && belongsToBranch(incoming()) && isValidShift(incoming()) && incoming().createdAt == request.time;
       allow update: if isHardened() && belongsToBranch(existing()) && incoming().branchId == existing().branchId 
@@ -181,7 +181,7 @@ service cloud.firestore {
     }
 
     match /petty_cash/{id} {
-      allow list: if isHardened() && isSignedIn();
+      allow list: if isHardened() && isSignedIn() && belongsToBranch(resource.data);
       allow get: if isHardened() && belongsToBranch(resource.data);
       allow create: if isHardened() && belongsToBranch(incoming()) && isValidPettyCash(incoming()) && incoming().createdAt == request.time;
       allow update: if isHardened() && belongsToBranch(existing()) && incoming().branchId == existing().branchId 
@@ -190,7 +190,7 @@ service cloud.firestore {
     }
 
     match /gold_buyback/{id} {
-      allow list: if isHardened() && isManager();
+      allow list: if isHardened() && isManager() && belongsToBranch(resource.data);
       allow get: if isHardened() && isManager() && belongsToBranch(resource.data);
       allow create: if isHardened() && isManager() && belongsToBranch(incoming()) && isValidGoldBuyback(incoming()) && incoming().createdAt == request.time;
       allow update: if isHardened() && isManager() && belongsToBranch(existing()) && incoming().branchId == existing().branchId 

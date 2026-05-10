@@ -1,8 +1,3 @@
-/**
- * @ai_context: Implementasi live queries — membaca data dari IndexedDB (Dexie) dengan filter branchId
- * @business_rule: Semua query harus filter branchId untuk isolasi data antar cabang
- * @security_tier: MEDIUM — read-only, tapi data sensitif harus filter sesuai role
- */
 import { db, StockItem, RepairService, Handover, AuditLog, SuspendedCart, StockHistory, Shift, GoldBuyback, GoldLiquidation } from '../../shared/api/db';
 import { ILiveQueries } from '../../application/queries/ILiveQueries';
 import { PromiseExtended, liveQuery } from 'dexie';
@@ -26,7 +21,7 @@ export class LiveQueriesImpl implements ILiveQueries {
     const query = db.shifts.where('status').equals('OPEN');
     if (branchId && branchId !== 'HQ') {
       // eslint-disable-next-line @typescript-eslint/no-explicit-any
-      return query.filter(s => s.branchId === branchId).first() as Promise<typeof undefined>;
+      return query.filter(s => s.branchId === branchId).first() as any;
     }
     return query.first();
   }
@@ -35,7 +30,7 @@ export class LiveQueriesImpl implements ILiveQueries {
     const query = db.stock.where('quantity').below(5);
     if (branchId && branchId !== 'HQ') {
       // eslint-disable-next-line @typescript-eslint/no-explicit-any
-      return query.filter(i => i.branchId === branchId).toArray();
+      return query.filter(i => i.branchId === branchId).toArray() as any;
     }
     return query.toArray();
   }
@@ -43,7 +38,7 @@ export class LiveQueriesImpl implements ILiveQueries {
   observeProducts(branchId?: string): PromiseExtended<StockItem[]> {
     if (branchId && branchId !== 'HQ') {
       // eslint-disable-next-line @typescript-eslint/no-explicit-any
-      return db.stock.filter(i => i.branchId === branchId).toArray();
+      return db.stock.filter(i => i.branchId === branchId).toArray() as any;
     }
     return db.stock.toArray();
   }
@@ -52,7 +47,7 @@ export class LiveQueriesImpl implements ILiveQueries {
     const query = db.repair_services.orderBy('date').reverse();
     if (branchId && branchId !== 'HQ') {
       // eslint-disable-next-line @typescript-eslint/no-explicit-any
-      return query.filter(r => r.branchId === branchId).toArray();
+      return query.filter(r => r.branchId === branchId).toArray() as any;
     }
     return query.toArray();
   }
@@ -61,7 +56,7 @@ export class LiveQueriesImpl implements ILiveQueries {
     const query = db.handovers.orderBy('timestamp').reverse();
     if (branchId && branchId !== 'HQ') {
       // eslint-disable-next-line @typescript-eslint/no-explicit-any
-      return query.filter(h => h.branchId === branchId).toArray();
+      return query.filter(h => h.branchId === branchId).toArray() as any;
     }
     return query.toArray();
   }
@@ -71,7 +66,7 @@ export class LiveQueriesImpl implements ILiveQueries {
     
     // Konversi query menjadi Collection (tipe objek manipulasi Dexie)
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    let collection = query;
+    let collection: any = query;
     if (branchId && branchId !== 'HQ') {
       collection = query.filter(l => l.branchId === branchId);
     }
@@ -85,14 +80,14 @@ export class LiveQueriesImpl implements ILiveQueries {
 
     // Cast as any because we mapped the Promise with then()
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    return recordsPromise.then((logs: AuditLog[]) => Promise.all(logs.map((log: AuditLog) => this.decryptAuditLog(log)))) as Promise<AuditLog[]>;
+    return recordsPromise.then((logs: AuditLog[]) => Promise.all(logs.map((log: AuditLog) => this.decryptAuditLog(log)))) as any;
   }
 
   observeSuspendedCarts(branchId?: string): PromiseExtended<SuspendedCart[]> {
     const query = db.suspended_carts.orderBy('timestamp').reverse();
     if (branchId && branchId !== 'HQ') {
       // eslint-disable-next-line @typescript-eslint/no-explicit-any
-      return query.filter(c => c.branchId === branchId).toArray();
+      return query.filter(c => c.branchId === branchId).toArray() as any;
     }
     return query.toArray();
   }
@@ -162,7 +157,7 @@ export class LiveQueriesImpl implements ILiveQueries {
     const query = db.gold_buyback.orderBy('date').reverse();
     if (branchId && branchId !== 'HQ') {
       // eslint-disable-next-line @typescript-eslint/no-explicit-any
-      return query.filter(b => b.branchId === branchId).limit(100).toArray();
+      return query.filter(b => b.branchId === branchId).limit(100).toArray() as any;
     }
     return query.limit(100).toArray();
   }
@@ -171,7 +166,7 @@ export class LiveQueriesImpl implements ILiveQueries {
     const query = db.gold_liquidations.orderBy('date').reverse().filter(l => l.status === 'SUCCESS');
     if (branchId && branchId !== 'HQ') {
       // eslint-disable-next-line @typescript-eslint/no-explicit-any
-      return query.filter(l => l.branchId === branchId).limit(100).toArray();
+      return query.filter(l => l.branchId === branchId).limit(100).toArray() as any;
     }
     return query.limit(100).toArray();
   }

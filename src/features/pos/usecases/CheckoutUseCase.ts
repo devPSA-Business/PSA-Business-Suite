@@ -236,7 +236,7 @@ export class CheckoutUseCase {
           const manualDiscountAmount = request.manualDiscountAmount || 0;
           const manualDiscountNote = request.manualDiscountNote;
           if (manualDiscountAmount > 0) {
-            finalTotal = Math.max(0, MathUtils.roundInt(MathUtils.sub(finalTotal, manualDiscountAmount)));
+            finalTotal = MathUtils.roundInt(Math.max(0, MathUtils.sub(finalTotal, manualDiscountAmount)));
           }
 
           // ANOMALY DETECTION: Flagging transaksi Rp 0 akibat diskon

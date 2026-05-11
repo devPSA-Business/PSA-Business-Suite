@@ -53,6 +53,46 @@
         "timestamp": { "type": "number" }
       },
       "required": ["id", "action", "branchId", "timestamp"]
+    },
+    "RepairService": {
+      "title": "RepairService",
+      "description": "Jewelry repair and service tickets",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string" },
+        "customerName": { "type": "string" },
+        "phoneNumber": { "type": "string" },
+        "itemDescription": { "type": "string" },
+        "serviceType": { "type": "string", "enum": ["REPARASI", "SEPUH", "PATRI"] },
+        "initialWeight": { "type": "number" },
+        "price": { "type": "number" },
+        "materialCost": { "type": "number" },
+        "status": { "type": "string", "enum": ["RECEIVED", "IN_PROGRESS", "COMPLETED", "DELIVERED"] },
+        "paymentMethod": { "type": "string" },
+        "branchId": { "type": "string" },
+        "userId": { "type": "string" }
+      },
+      "required": ["id", "customerName", "phoneNumber", "itemDescription", "serviceType", "initialWeight", "price", "status", "paymentMethod", "branchId", "userId"]
+    },
+    "GoldBuyback": {
+      "title": "GoldBuyback",
+      "description": "Gold buyback from customers",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string" },
+        "customerName": { "type": "string" },
+        "weightGram": { "type": "number" },
+        "kadar": { "type": "number" },
+        "pricePerGram": { "type": "number" },
+        "margin": { "type": "number" },
+        "buybackPrice": { "type": "number" },
+        "paymentMethod": { "type": "string", "enum": ["CASH", "TRANSFER"] },
+        "cashSource": { "type": "string", "enum": ["gold_cash"] },
+        "status": { "type": "string", "enum": ["stored", "sold_to_collector"] },
+        "branchId": { "type": "string" },
+        "userId": { "type": "string" }
+      },
+      "required": ["id", "customerName", "weightGram", "kadar", "pricePerGram", "margin", "buybackPrice", "paymentMethod", "cashSource", "status", "branchId", "userId"]
     }
   },
   "firestore": {
@@ -71,6 +111,14 @@
     "/audit_logs/{logId}": {
       "schema": "AuditLog",
       "description": "System audit logs"
+    },
+    "/repair_services/{serviceId}": {
+      "schema": "RepairService",
+      "description": "Jewelry repair tickets"
+    },
+    "/gold_buyback/{buybackId}": {
+      "schema": "GoldBuyback",
+      "description": "Gold buyback from customers"
     }
   }
 }

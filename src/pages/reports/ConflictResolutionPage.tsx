@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState } from 'react';
 import { useLiveQuery } from 'dexie-react-hooks';
 import { db, SyncEvent } from '../../shared/api/db';
 import { AlertCircle, Check, X, RefreshCw } from 'lucide-react';
@@ -19,7 +19,7 @@ export function ConflictResolutionPage() {
     setResolvingId(event.id);
 
     try {
-      await DIContainer.syncService.resolveConflict(event.id, resolution);
+      await DIContainer.syncService.resolveConflict(event.id, resolution, DIContainer.unitOfWork);
       
       if (resolution === 'LOCAL') {
         addToast('Konflik diselesaikan dengan menggunakan data lokal.', 'success');

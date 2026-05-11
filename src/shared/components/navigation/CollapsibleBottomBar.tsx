@@ -1,7 +1,7 @@
 import React from 'react';
 import { Link, useLocation } from '@tanstack/react-router';
 import { motion, AnimatePresence } from 'motion/react';
-import { LayoutDashboard, Briefcase, Building, Plus, ChevronDown, ChevronUp, Home } from 'lucide-react';
+import { LayoutDashboard, Building, Plus, ChevronDown, ChevronUp, Home } from 'lucide-react';
 import { useUIStore } from '../../store/useUIStore';
 import { useLiveQuery } from 'dexie-react-hooks';
 import { DIContainer } from '../../../infrastructure/di/Container';

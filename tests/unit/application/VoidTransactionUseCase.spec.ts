@@ -18,6 +18,7 @@ describe('VoidTransactionUseCase', () => {
   let mockUow: IUnitOfWork;
   let mockRetailRepo: IRetailRepository;
   let mockStockRepo: IStockRepository;
+  let mockShiftRepo: any;
   let useCase: VoidTransactionUseCase;
 
   beforeEach(() => {
@@ -39,7 +40,11 @@ describe('VoidTransactionUseCase', () => {
       updateIfVersionMatches: vi.fn().mockResolvedValue(true),
     } as unknown as IStockRepository;
 
-    useCase = new VoidTransactionUseCase(mockUow, mockRetailRepo, mockStockRepo);
+    mockShiftRepo = {
+        revertShiftSales: vi.fn()
+    } as any;
+
+    useCase = new VoidTransactionUseCase(mockUow, mockRetailRepo, mockStockRepo, mockShiftRepo);
   });
 
   it('should successfully void a transaction and restore stock', async () => {

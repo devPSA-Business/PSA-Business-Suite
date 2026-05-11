@@ -79,7 +79,7 @@ export interface RepairService {
   customerName: string;
   phoneNumber: string;
   itemDescription: string;
-  serviceType: 'REPARASI' | 'SEPUH';
+  serviceType: 'REPARASI' | 'SEPUH' | 'PATRI';
   initialWeight: number;
   price: number;
   materialCost?: number;

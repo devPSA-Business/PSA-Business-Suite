@@ -18,8 +18,7 @@ export class ManageCustomOrderUseCase {
         `Membuat pesanan kustom baru untuk ${order.customerName}`
       );
       
-      // eslint-disable-next-line @typescript-eslint/no-explicit-any
-      await this.unitOfWork.registerSync('custom_orders', 'INSERT', order as any as Record<string, any>);
+      await this.unitOfWork.registerSync('custom_orders', 'INSERT', order as unknown as Record<string, unknown>);
     }, ['custom_orders']);
   }
 
@@ -39,8 +38,7 @@ export class ManageCustomOrderUseCase {
         `Menyelesaikan pesanan kustom untuk ${order.customerName}`
       );
       
-      // eslint-disable-next-line @typescript-eslint/no-explicit-any
-      await this.unitOfWork.registerSync('custom_orders', 'UPDATE', order as any as Record<string, any>);
+      await this.unitOfWork.registerSync('custom_orders', 'UPDATE', order as unknown as Record<string, unknown>);
     }, ['custom_orders']);
   }
 }

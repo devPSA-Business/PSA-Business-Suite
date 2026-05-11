@@ -6,7 +6,6 @@ import { BackButton } from '../../shared/components/BackButton';
 import { useToastStore } from '../../shared/store/toastStore';
 import { useAuthStore } from '../../shared/store/authStore';
 import { DIContainer } from '../../infrastructure/di/Container';
-import { cn } from '../../lib/utils';
 
 export function CustomersPage() {
   const [searchQuery, setSearchQuery] = useState('');
@@ -28,7 +27,7 @@ export function CustomersPage() {
     try {
       await DIContainer.deleteCustomerUseCase.execute(id, user?.name || 'System');
       addToast('Pelanggan berhasil dihapus.', 'success');
-    } catch (error) {
+    } catch (_error) {
       addToast('Gagal menghapus pelanggan.', 'error');
     }
   };
@@ -61,7 +60,7 @@ export function CustomersPage() {
       }
       setIsModalOpen(false);
       setEditingCustomer(null);
-    } catch (error) {
+    } catch (_error) {
       addToast('Gagal menyimpan data pelanggan.', 'error');
     }
   };

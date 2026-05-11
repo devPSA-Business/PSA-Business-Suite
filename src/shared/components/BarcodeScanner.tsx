@@ -37,7 +37,7 @@ export const BarcodeScanner: React.FC<BarcodeScannerProps> = ({ onScan, onClose 
         // We don't automatically stop here to allow multiple scans if needed, 
         // but the parent usually closes it.
       },
-      (error) => {
+      (_error) => {
         // Suppress errors during scanning to avoid console noise
         // console.warn('QR Code scan error:', error);
       }

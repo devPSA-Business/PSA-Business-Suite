@@ -4,7 +4,7 @@ export interface RepairServiceProps {
   customerName: string;
   phoneNumber: string;
   itemDescription: string;
-  serviceType: 'REPARASI' | 'SEPUH';
+  serviceType: 'REPARASI' | 'SEPUH' | 'PATRI';
   initialWeight: number;
   price: number;
   materialCost?: number;
@@ -21,7 +21,7 @@ export class RepairService extends Entity<RepairServiceProps> {
   public readonly customerName: string;
   public readonly phoneNumber: string;
   public readonly itemDescription: string;
-  public readonly serviceType: 'REPARASI' | 'SEPUH';
+  public readonly serviceType: 'REPARASI' | 'SEPUH' | 'PATRI';
   public readonly initialWeight: number;
   public readonly price: number;
   public readonly materialCost?: number;

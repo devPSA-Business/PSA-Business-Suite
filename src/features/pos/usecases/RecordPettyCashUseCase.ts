@@ -41,8 +41,7 @@ export class RecordPettyCashUseCase {
         }
       );
       
-      // eslint-disable-next-line @typescript-eslint/no-explicit-any
-      await this.unitOfWork.registerSync('petty_cash', 'INSERT', pettyCash as any as Record<string, any>);
+      await this.unitOfWork.registerSync('petty_cash', 'INSERT', pettyCash as unknown as Record<string, unknown>);
     }, ['petty_cash', 'shift_totals']);
   }
 }

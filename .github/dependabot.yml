@@ -1,51 +1,12 @@
+# To get started with Dependabot version updates, you'll need to specify which
+# package ecosystems to update and where the package manifests are located.
+# Please see the documentation for all configuration options:
+# https://docs.github.com/code-security/dependabot/dependabot-version-updates/configuration-options-for-the-dependabot.yml-file
+
 version: 2
-
 updates:
-  - package-ecosystem: "npm"
-    directory: "/"
+  - package-ecosystem: "" # See documentation for possible values
+    directory: "/" # Location of package manifests
     schedule:
       interval: "weekly"
-      day: "monday"
-      time: "09:00"
-      timezone: "Asia/Jakarta"
-    open-pull-requests-limit: 5
-    groups:
-      # === BARU: Vitest dan semua plugin-nya harus naik versi bersama ===
-      vitest-ecosystem:
-        patterns:
-          - "vitest"
-          - "@vitest/*"
-      # Firebase SDK juga harus bergerak bersama
-      firebase-sdk:
-        patterns:
-          - "firebase"
-          - "@firebase/*"
-      patch-updates:
-        update-types:
-          - "patch"
-      minor-dev-updates:
-        dependency-type: "development"
-        update-types:
-          - "minor"
-    labels:
-      - "dependencies"
-      - "automated"
-    commit-message:
-      prefix: "build(deps)"
-      prefix-development: "build(deps-dev)"
-      include: "scope"
-
-  - package-ecosystem: "github-actions"
-    directory: "/"
-    schedule:
-      interval: "weekly"
-      day: "monday"
-      time: "09:00"
-      timezone: "Asia/Jakarta"
-    open-pull-requests-limit: 3
-    labels:
-      - "dependencies"
-      - "github-actions"
-      - "automated"
-    commit-message:
-      prefix: "ci(deps)"
+      

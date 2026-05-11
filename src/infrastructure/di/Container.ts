@@ -158,7 +158,7 @@ export const DIContainer = {
   get recordPettyCashUseCase() { if (!_recordPettyCashUseCase) _recordPettyCashUseCase = new RecordPettyCashUseCase(this.pettyCashRepository, this.unitOfWork); return _recordPettyCashUseCase; },
   get manageCustomOrderUseCase() { if (!_manageCustomOrderUseCase) _manageCustomOrderUseCase = new ManageCustomOrderUseCase(this.customOrderRepository, this.unitOfWork); return _manageCustomOrderUseCase; },
   get manageCommunicationUseCase() { if (!_manageCommunicationUseCase) _manageCommunicationUseCase = new ManageCommunicationUseCase(this.appointmentRepository, this.internalNoteRepository, this.unitOfWork); return _manageCommunicationUseCase; },
-  get voidTransactionUseCase() { if (!_voidTransactionUseCase) _voidTransactionUseCase = new VoidTransactionUseCase(this.unitOfWork, this.retailRepository, this.stockRepository); return _voidTransactionUseCase; },
+  get voidTransactionUseCase() { if (!_voidTransactionUseCase) _voidTransactionUseCase = new VoidTransactionUseCase(this.unitOfWork, this.retailRepository, this.stockRepository, this.shiftRepository); return _voidTransactionUseCase; },
   get flagTransactionUseCase() { if (!_flagTransactionUseCase) _flagTransactionUseCase = new FlagTransactionUseCase(this.unitOfWork, this.retailRepository); return _flagTransactionUseCase; },
   get setupStoreUseCase() { if (!_setupStoreUseCase) _setupStoreUseCase = new SetupStoreUseCase(this.unitOfWork); return _setupStoreUseCase; },
 };

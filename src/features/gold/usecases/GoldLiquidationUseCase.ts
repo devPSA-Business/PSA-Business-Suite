@@ -124,7 +124,7 @@ export class GoldLiquidationUseCase {
         }
 
         return 'SUCCESS';
-      }, ['gold_buyback', 'shift_totals', 'gold_asset_history', 'internal_notes', 'audit_logs']);
+      }, ['gold_buyback', 'shift_totals', 'gold_asset_history', 'internal_notes', 'users']);
     } catch (error) {
       throw mapErrorToUser(error);
     }

@@ -1,14 +1,13 @@
 import React from 'react';
 import { DollarSign, Lightbulb, AlertTriangle } from 'lucide-react';
 import { BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer } from 'recharts';
+import { PaymentMethodRevenue } from '../../../application/queries/IReportQuery';
+import { StockItem } from '../../../domain/models/StockItem';
 
 interface DashboardSecondaryProps {
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  revenueByPaymentMethod: any[] | null;
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  cashierPerformance: any[];
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  lowStockItems: any[] | null;
+  revenueByPaymentMethod: PaymentMethodRevenue[] | null;
+  cashierPerformance: { name: string; total: number }[];
+  lowStockItems: StockItem[] | null;
 }
 
 export const DashboardSecondary: React.FC<DashboardSecondaryProps> = ({ revenueByPaymentMethod, cashierPerformance, lowStockItems }) => {
@@ -26,7 +25,6 @@ export const DashboardSecondary: React.FC<DashboardSecondaryProps> = ({ revenueB
               <BarChart data={revenueByPaymentMethod} layout="vertical" margin={{ left: 40, right: 20 }}>
                 <XAxis type="number" hide />
                 <YAxis dataKey="method" type="category" axisLine={false} tickLine={false} tick={{ fontSize: 12 }} />
-                // eslint-disable-next-line @typescript-eslint/no-explicit-any
                 <Tooltip formatter={(value: unknown) => `Rp ${Number(value).toLocaleString('id-ID')}`} />
                 <Bar dataKey="revenue" fill="#1a365d" radius={[0, 4, 4, 0]} />
               </BarChart>

@@ -4,10 +4,18 @@
  * @business_rule : User TIDAK boleh melihat stack trace atau nama tabel internal.
  */
 
-export interface MappedError {
-  userMessage: string;   // Ditampilkan ke user via UI/Toast
-  logMessage: string;    // Dikirim ke Logger (detail teknis)
-  code: string;          // Error code unik untuk support
+export class MappedError extends Error {
+  userMessage: string;
+  logMessage: string;
+  code: string;
+
+  constructor(userMessage: string, logMessage: string, code: string) {
+    super(userMessage);
+    this.name = 'MappedError';
+    this.userMessage = userMessage;
+    this.logMessage = logMessage;
+    this.code = code;
+  }
 }
 
 function generateSupportCode(): string {
@@ -20,70 +28,71 @@ export function mapErrorToUser(error: unknown): MappedError {
 
   // 1. Firebase Auth errors
   if (msg.includes('auth/wrong-password') || msg.includes('auth/user-not-found') || msg.includes('auth/invalid-credential')) {
-    return {
-      userMessage: 'Email atau password tidak valid.',
-      logMessage: err.message,
-      code: 'AUTH_001',
-    };
+    return new MappedError(
+      'Email atau password tidak valid.',
+      err.message,
+      'AUTH_001'
+    );
   }
   if (msg.includes('auth/too-many-requests')) {
-    return {
-      userMessage: 'Terlalu banyak percobaan login. Coba lagi dalam beberapa saat.',
-      logMessage: err.message,
-      code: 'AUTH_002',
-    };
+    return new MappedError(
+      'Terlalu banyak percobaan login. Coba lagi dalam beberapa saat.',
+      err.message,
+      'AUTH_002'
+    );
   }
 
   // 2. Network / Offline errors
   if (msg.includes('network') || msg.includes('fetch') || msg.includes('offline') || msg.includes('failed to fetch')) {
-    return {
-      userMessage: 'Tidak dapat terhubung ke server. Data tetap tersimpan aman di perangkat lokal.',
-      logMessage: err.message,
-      code: 'NET_001',
-    };
+    return new MappedError(
+      'Tidak dapat terhubung ke server. Data tetap tersimpan aman di perangkat lokal.',
+      err.message,
+      'NET_001'
+    );
   }
 
   // 3. Firestore Permission errors
   if (msg.includes('permission-denied') || msg.includes('insufficient permissions') || msg.includes('missing or insufficient permissions')) {
-    return {
-      userMessage: 'Anda tidak memiliki akses untuk melakukan tindakan ini.',
-      logMessage: err.message,
-      code: 'PERM_001',
-    };
+    return new MappedError(
+      'Anda tidak memiliki akses untuk melakukan tindakan ini.',
+      err.message,
+      'PERM_001'
+    );
   }
 
   // 4. Encryption / Crypto errors
   if (msg.includes('pin salah') || msg.includes('unwrap') || msg.includes('decryption failed') || msg.includes('mac check failed')) {
-    return {
-      userMessage: 'PIN tidak valid atau sesi enkripsi telah berakhir.',
-      logMessage: err.message,
-      code: 'CRYPTO_001',
-    };
+    return new MappedError(
+      'PIN tidak valid atau sesi enkripsi telah berakhir.',
+      err.message,
+      'CRYPTO_001'
+    );
   }
 
   // 5. Business Logic errors (Aman ditampilkan)
-  if (msg.includes('stok') || msg.includes('stock') || msg.includes('quantity') || msg.includes('insufficient')) {
-    return {
-      userMessage: err.message, 
-      logMessage: err.message,
-      code: 'STOCK_001',
-    };
+  if (msg.includes('stok') || msg.includes('stock') || msg.includes('quantity') || msg.includes('insufficient') || msg.includes('akses ditolak') || msg.includes('tidak ada shift') || msg.includes('shift lain masih terbuka') || msg.includes('keranjang belanja kosong') || msg.includes('shift tidak ditemukan') || msg.includes('ditemukan') || msg.includes('diblokir')) {
+    // Preserve literal logic errors
+    return new MappedError(
+      err.message,
+      err.message,
+      'BIZ_001'
+    );
   }
   
   // 6. Race Condition / Sync errors
   if (msg.includes('version conflict')) {
-    return {
-      userMessage: 'Data telah diubah oleh perangkat lain. Silakan muat ulang dan coba lagi.',
-      logMessage: err.message,
-      code: 'SYNC_001',
-    };
+    return new MappedError(
+      'Data telah diubah oleh perangkat lain. Silakan muat ulang dan coba lagi.',
+      err.message,
+      'SYNC_001'
+    );
   }
 
   // Default: Pesan generik untuk mencegah kebocoran Stack Trace
   const supportCode = generateSupportCode();
-  return {
-    userMessage: `Terjadi kesalahan sistem. Silakan coba lagi atau hubungi admin. (Kode: ${supportCode})`,
-    logMessage: `[${supportCode}] ${err.stack ?? err.message}`,
-    code: 'GENERIC_001',
-  };
+  return new MappedError(
+    `Terjadi kesalahan sistem. Silakan coba lagi atau hubungi admin. (Kode: ${supportCode})`,
+    `[${supportCode}] ${err.stack ?? err.message}`,
+    'GENERIC_001'
+  );
 }

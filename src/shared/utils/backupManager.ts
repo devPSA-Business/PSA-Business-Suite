@@ -111,7 +111,10 @@ export class BackupManager {
 
       // Gunakan kunci enkripsi perangkat mentah untuk proses backup
       const exportedKey = cryptoDB.getRawDeviceKey();
-      if (!exportedKey) throw new Error('Kunci enkripsi mentah tidak ditemukan untuk backup.');
+      if (!exportedKey) {
+        // Bukan error, user belum login/unlock PIN
+        return;
+      }
       
       const blob = await new Promise<Blob>((resolve, reject) => {
         const timeout = setTimeout(() => reject(new Error('Auto backup timeout')), 60000);

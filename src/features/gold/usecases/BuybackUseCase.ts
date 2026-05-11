@@ -133,7 +133,7 @@ export class BuybackUseCase {
         });
 
         return buyback.id;
-      }, ['gold_buyback', 'shift_totals', 'gold_asset_history', 'stock', 'stock_history']);
+      }, ['gold_buyback', 'shift_totals', 'gold_asset_history', 'stock', 'stock_history', 'users']);
     } catch (error) {
       throw mapErrorToUser(error);
     }

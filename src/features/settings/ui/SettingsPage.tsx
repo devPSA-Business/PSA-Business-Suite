@@ -29,7 +29,6 @@ export function SettingsPage() {
   const [importFile, setImportFile] = useState<File | null>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
   const encryptedFileRef = useRef<HTMLInputElement>(null);
-  const [passphrase, setPassphrase] = useState('');
 
   // Local state for thresholds
   const [vipThreshold, setVipThreshold] = useState(segmentationThresholds.vip.toString());

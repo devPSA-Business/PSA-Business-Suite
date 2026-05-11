@@ -25,6 +25,8 @@ import { cryptoDB } from '../../lib/cryptoIndexedDB';
 import { cryptoKeyStore } from '../../lib/cryptoKeyStore';
 import { logger } from '../../lib/logger';
 import { dexieSecurityStorage } from '../../infrastructure/storage/dexieSecurityStorage';
+import { functions } from '../api/firebase';
+import { httpsCallable } from 'firebase/functions';
 
 interface SecurityState {
   isPinVerified: boolean;
@@ -48,7 +50,6 @@ interface SecurityState {
 const BRUTE_FORCE_DELAY = 2000;
 const MAX_FAILED_ATTEMPTS = 5;
 const LOCKOUT_DURATION = 30 * 60 * 1000;
-const PEPPER = import.meta.env.VITE_CRYPTO_PEPPER;
 
 export const HASH_ITERATIONS_V1 = 100000;
 export const HASH_ITERATIONS_V2 = 600000;
@@ -60,9 +61,26 @@ export const hashPin = async (
   iterations: number = HASH_ITERATIONS_V2
 ): Promise<string> => {
   const encoder = new TextEncoder();
-  const pinBuffer = encoder.encode(usePepper ? pin + PEPPER : pin);
   const salt = typeof saltInput === 'string' ? encoder.encode(saltInput) : saltInput;
 
+  if (usePepper) {
+    try {
+      // Convert salt to hex string to send over HTTP
+      const saltHex = Array.from(salt).map(b => b.toString(16).padStart(2, '0')).join('');
+      if (!functions) throw new Error('Functions offline');
+      const hashPinCall = httpsCallable(functions, 'hashPin');
+      const res = await hashPinCall({ pin, saltHex, usePepper, iterations });
+      const data = res.data as { hash: string };
+      return data.hash;
+    } catch (_error) {
+      console.warn('Backend unavailable for hashPin. Falling back to unpeppered hash if permitted, or unwrap verification.');
+      // If offline, we return a special marker so verifyUserPin can rely on unwrapKeyWithPin
+      return 'OFFLINE_DEFERRED_VERIFICATION'; 
+    }
+  }
+  
+  // Local PBKDF2 without pepper (for legacy V1 or when usePepper is false)
+  const pinBuffer = encoder.encode(pin);
   const keyMaterial = await crypto.subtle.importKey(
     'raw',
     pinBuffer,
@@ -144,7 +162,7 @@ export const useSecurityStore = create<SecurityState>()(
              return true;
           }
           return false;
-        } catch(e) {
+        } catch(_e) {
           return false;
         }
       },
@@ -178,10 +196,11 @@ export const useSecurityStore = create<SecurityState>()(
         const currentSalt = await ensureUserSalt(user);
 
         const hashedInputV2 = await hashPin(pin, currentSalt, true, HASH_ITERATIONS_V2);
-        let isPinValid = (hashedInputV2 === user.pinHash);
-        const needsHashUpgrade = !isPinValid;
+        const isOfflineVerification = hashedInputV2 === 'OFFLINE_DEFERRED_VERIFICATION';
+        let isPinValid = isOfflineVerification ? true : (hashedInputV2 === user.pinHash);
+        const needsHashUpgrade = (!isPinValid && !isOfflineVerification);
 
-        if (!isPinValid) {
+        if (!isPinValid && !isOfflineVerification) {
           const hashedInputV1 = await hashPin(pin, currentSalt, true, HASH_ITERATIONS_V1);
           isPinValid = (hashedInputV1 === user.pinHash);
           if (!isPinValid) {
@@ -197,7 +216,7 @@ export const useSecurityStore = create<SecurityState>()(
           }
         }
 
-        if (!isPinValid) {
+        const handleFailedAttempt = () => {
           const newAbsolute = state.absoluteFailedAttempts + 1;
           const isSystemLocked = newAbsolute >= 10;
           
@@ -212,14 +231,19 @@ export const useSecurityStore = create<SecurityState>()(
              db.keyval.put({ key: 'is_system_locked', value: true }).catch(console.error);
           }
           return false;
-        }
+        };
 
-        set({ failedAttempts: 0, absoluteFailedAttempts: 0 });
-        db.keyval.delete('absolute_failed_attempts').catch(console.error);
+        if (!isPinValid) {
+          return handleFailedAttempt();
+        }
 
         try {
           let wrappedKeyMeta = await cryptoKeyStore.getWrappedKey();
           if (!wrappedKeyMeta) {
+            if (isOfflineVerification) {
+               // Cannot setup new key securely while offline without pepper, fail gracefully
+               throw new Error('DEVICE_NOT_SETUP_OFFLINE');
+            }
             const deviceKey = await cryptoDB.generateDeviceKey();
             const newSalt = crypto.getRandomValues(new Uint8Array(32));
             const pinWrappedKey = await cryptoDB.wrapKeyWithPin(deviceKey, pin, newSalt);
@@ -240,7 +264,7 @@ export const useSecurityStore = create<SecurityState>()(
             const userOfflineKey = wrappedKeyMeta.wrappedKeysByPin[user.id];
             if (!userOfflineKey) throw new Error('NOT_ENROLLED_LOCAL_CRYPTO');
             
-            if (!user.salt || needsHashUpgrade) {
+            if (!user.salt || (needsHashUpgrade && !isOfflineVerification)) {
               const oldSalt = await ensureUserSalt(user);
               const newSalt = crypto.getRandomValues(new Uint8Array(32));
               const newPinWrappedKey = await cryptoDB.reWrapKeyWithPin(userOfflineKey, pin, oldSalt, pin, newSalt);
@@ -254,10 +278,17 @@ export const useSecurityStore = create<SecurityState>()(
               await cryptoDB.unwrapKeyWithPin(userOfflineKey, pin, await ensureUserSalt(user));
             }
           }
-          set({ isPinVerified: true });
+          
+          set({ failedAttempts: 0, absoluteFailedAttempts: 0, isPinVerified: true });
+          db.keyval.delete('absolute_failed_attempts').catch(console.error);
           useAuthStore.getState().login({ id: user.id, name: user.name, role: user.role });
+          
           return true;
         } catch (error) {
+          console.error('VERIFY PIN ERROR:', error);
+          if (isOfflineVerification && error instanceof Error && error.message === 'PIN salah.') {
+             return handleFailedAttempt(); // This was the catch for deferred offline verification
+          }
           return false;
         }
       },
@@ -276,7 +307,7 @@ export const useSecurityStore = create<SecurityState>()(
            wrappedKeyMeta.wrappedKeysByPin[targetUserId] = pinWrappedKey;
            await cryptoKeyStore.saveWrappedKey(wrappedKeyMeta);
            return true;
-         } catch (err) {
+         } catch (_err) {
            return false;
          }
       },
@@ -334,14 +365,26 @@ export const useSecurityStore = create<SecurityState>()(
             
             // Try V2 (600k)
             const hashedInputV2 = await hashPin(pin, currentSalt, true, HASH_ITERATIONS_V2);
-            if (hashedInputV2 === user.pinHash) {
+            if (hashedInputV2 === 'OFFLINE_DEFERRED_VERIFICATION') {
+               try {
+                  const wrappedKeyMeta = await cryptoKeyStore.getWrappedKey();
+                  if (wrappedKeyMeta?.wrappedKeysByPin?.[user.id] && wrappedKeyMeta.id === 'primary_device_key') {
+                     // Since offline, verify by unwrapping key
+                     await cryptoDB.unwrapKeyWithPin(wrappedKeyMeta.wrappedKeysByPin[user.id], pin, currentSalt);
+                     isValid = true;
+                     break;
+                  }
+               } catch (_e) {
+                  // Fallthrough to try legacy, but mostly meaning wrong PIN since unwrapping failed
+               }
+            } else if (hashedInputV2 === user.pinHash) {
                isValid = true;
                break;
             }
             
             // Fallback V1 (100k)
             const hashedInputV1 = await hashPin(pin, currentSalt, true, HASH_ITERATIONS_V1);
-            if (hashedInputV1 === user.pinHash) {
+            if (hashedInputV1 !== 'OFFLINE_DEFERRED_VERIFICATION' && hashedInputV1 === user.pinHash) {
                isValid = true;
                break;
             }

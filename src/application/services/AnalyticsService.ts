@@ -1,4 +1,4 @@
-import { db, Transaction } from '../../shared/api/db';
+import { db, Transaction, AnalyticsCacheData } from '../../shared/api/db';
 import { logger } from '../../lib/logger';
 
 /**
@@ -37,12 +37,19 @@ export interface FlaggedTransaction extends Transaction {
   items: (Transaction['items'][0] & { suggestedCost?: number })[];
 }
 
+export interface MissingCostTx {
+  id: string;
+  date: string;
+  items: (Transaction['items'][0] & { stockId: string, suggestedCost?: number })[];
+}
+
 const CACHE_TTL_MS = 6 * 60 * 60 * 1000; // 6 Hours
 
 export class AnalyticsService {
   private worker: Worker | null = null;
+  // Exception: Callback Map resolves generic T promises.
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  private callbacks = new Map<string, { resolve: (...args: any[]) => any, reject: (reason?: any) => void }>();
+  private callbacks = new Map<string, { resolve: (value: any) => void, reject: (reason?: Error) => void }>();
 
   constructor() {
     this.initWorker();
@@ -65,8 +72,7 @@ export class AnalyticsService {
     }
   }
 
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  private async runInWorker<T>(type: string, payload: any): Promise<T> {
+  private async runInWorker<T>(type: string, payload: Record<string, unknown>): Promise<T> {
     if (!this.worker) throw new Error("Web Worker not initialized");
     const id = crypto.randomUUID();
     return new Promise((resolve, reject) => {
@@ -80,7 +86,7 @@ export class AnalyticsService {
       const cached = await db.analytics_cache.get(cacheKey);
       if (cached && cached.expiresAt > Date.now()) {
         logger.info(`[Analytics] Cache HIT for ${cacheKey}`);
-        return cached.data as T;
+        return cached.data as unknown as T;
       }
       
       logger.info(`[Analytics] Cache MISS for ${cacheKey}, computing...`);
@@ -88,8 +94,7 @@ export class AnalyticsService {
       
       await db.analytics_cache.put({
         id: cacheKey,
-        // eslint-disable-next-line @typescript-eslint/no-explicit-any
-        data: data as any,
+        data: data as unknown as AnalyticsCacheData,
         createdAt: Date.now(),
         expiresAt: Date.now() + CACHE_TTL_MS
       });
@@ -121,11 +126,8 @@ export class AnalyticsService {
     );
   }
 
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  async getMissingCostScan(startDateMs: number, endDateMs: number): Promise<any[]> {
-    // Audit scan sebaiknya realtime dan tidak dicache agar Admin bisa validasi patch segera
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    return this.runInWorker<any[]>('SCAN_MISSING_COST', { startDateMs, endDateMs });
+  async getMissingCostScan(startDateMs: number, endDateMs: number): Promise<MissingCostTx[]> {
+    return this.runInWorker<MissingCostTx[]>('SCAN_MISSING_COST', { startDateMs, endDateMs });
   }
 
   /**
@@ -177,8 +179,7 @@ export class AnalyticsService {
         await db.sync_events.add({
           entity_type: 'transactions',
           action: 'UPDATE',
-          // eslint-disable-next-line @typescript-eslint/no-explicit-any
-          payload: tx as any,
+          payload: tx,
           status: 'PENDING',
           timestamp: Date.now()
         });
@@ -189,10 +190,8 @@ export class AnalyticsService {
         return false;
     }
   }
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  async getNlqContext(startDateMs: number, endDateMs: number): Promise<any> {
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    return this.runInWorker<any>('BUILD_NLQ_CONTEXT', { startDateMs, endDateMs });
+  async getNlqContext(startDateMs: number, endDateMs: number): Promise<unknown> {
+    return this.runInWorker<unknown>('BUILD_NLQ_CONTEXT', { startDateMs, endDateMs });
   }
 }
 

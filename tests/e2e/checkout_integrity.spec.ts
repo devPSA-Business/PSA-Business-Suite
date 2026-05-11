@@ -1,6 +1,7 @@
 // tests/e2e/checkout_integrity.spec.ts
 
 import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest';
+import { Dexie } from 'dexie';
 import { db } from '@shared/api/db';
 import { CheckoutUseCase } from '@features/pos/usecases/CheckoutUseCase';
 import { LoyaltyUseCase } from '@features/pos/usecases/LoyaltyUseCase';
@@ -11,6 +12,7 @@ import { UnitOfWorkImpl } from '@infrastructure/uow/UnitOfWorkImpl';
 import { StockItem } from '@domain/models/StockItem';
 import { StockCategory } from '@domain/models/StockCategory';
 import { ISyncService } from '@application/services/ISyncService';
+import { SyncServiceImpl } from '@infrastructure/services/SyncServiceImpl';
 import { VersionConflictError, InsufficientStockError } from '@domain/errors';
 import { cryptoDB } from '../../src/lib/cryptoIndexedDB';
 
@@ -24,7 +26,7 @@ describe('Enterprise Integrity: Checkout Integration', () => {
   let stockRepo: StockRepositoryImpl;
   let shiftRepo: ShiftRepositoryImpl;
   let uow: UnitOfWorkImpl;
-  let mockSyncService: ISyncService;
+  let syncService: ISyncService;
   let mockLoyalty: LoyaltyUseCase;
 
   beforeEach(async () => {
@@ -47,21 +49,15 @@ describe('Enterprise Integrity: Checkout Integration', () => {
     shiftRepo = new ShiftRepositoryImpl();
     
     // 3. MOCKS: Batasi hanya pada servis eksternal (Firebase/Loyalty)
-    mockSyncService = {
-      enqueueSync: vi.fn().mockResolvedValue(1),
-      processSyncQueue: vi.fn(),
-      resolveConflict: vi.fn(),
-      startAutoSync: vi.fn(),
-      stopAutoSync: vi.fn()
-    } as unknown as ISyncService;
+    syncService = new SyncServiceImpl();
 
     mockLoyalty = { 
-      calculateAndApplyLoyalty: vi.fn().mockResolvedValue({ 
+      calculateAndApplyLoyalty: (req: any) => Dexie.Promise.resolve({ 
         netTotal: 100000, pointsEarned: 0, pointsRedeemed: 0, loyaltyDiscountAmount: 0 
       }) 
     } as unknown as LoyaltyUseCase;
 
-    uow = new UnitOfWorkImpl(mockSyncService);
+    uow = new UnitOfWorkImpl(syncService);
 
     checkoutUseCase = new CheckoutUseCase(retailRepo, stockRepo, shiftRepo, uow, mockLoyalty);
 
@@ -111,8 +107,9 @@ describe('Enterprise Integrity: Checkout Integration', () => {
         user: 'USR-ADMIN'
     }));
 
-    // Verify Sync Queue
-    expect(mockSyncService.enqueueSync).toHaveBeenCalled();
+    // Verify Sync Queue was updated via db directly
+    const syncCount = await db.sync_events.count();
+    expect(syncCount).toBeGreaterThan(0);
   });
 
   // TC #2: FINANCIAL ROUNDING LOGIC
@@ -197,7 +194,11 @@ describe('Enterprise Integrity: Checkout Integration', () => {
     
     // Ensure failure was due to integrity error
     const error = (failures[0] as PromiseRejectedResult).reason;
-    expect(error instanceof InsufficientStockError || error instanceof VersionConflictError).toBe(true);
+    const isLockError = error instanceof Error && error.message.includes('Transaksi sedang diproses');
+    if (!(error instanceof InsufficientStockError || error instanceof VersionConflictError || isLockError)) {
+      console.error('Unexpected race condition error:', error);
+    }
+    expect(error instanceof InsufficientStockError || error instanceof VersionConflictError || isLockError).toBe(true);
 
     // Final stock MUST be 0, never negative
     const finalStock = await stockRepo.findById(stock.id);

@@ -125,4 +125,30 @@ export class AuditIntegrityService {
 
     return { isValid: true };
   }
+
+  /**
+   * MEMOTONG RANTAI (Spot Check): Memverifikasi integritas Crypto-Audit Logs.
+   * Karena prune menghapus data lama, kita mulai dari log tertua yang ada.
+   */
+  async verifyAuditChain(limit: number = 100): Promise<{ isValid: boolean; brokenLink?: string }> {
+    const logs = await db.audit_logs.orderBy('timestamp').reverse().limit(limit).toArray();
+    // Reverse again to get chronological order for verification
+    logs.reverse();
+
+    if (logs.length <= 1) return { isValid: true };
+
+    for (let i = 1; i < logs.length; i++) {
+      const current = logs[i];
+      const previous = logs[i - 1];
+
+      if (current.previousHash !== previous.hash) {
+        // Jika previousHash bukan GENESIS (berarti terputus di tengah jalan)
+        if (current.previousHash !== 'GENESIS_BLOCK_0000000000000000' && current.previousHash !== '0') {
+           return { isValid: false, brokenLink: current.id };
+        }
+      }
+    }
+
+    return { isValid: true };
+  }
 }

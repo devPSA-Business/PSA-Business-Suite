@@ -1,9 +1,9 @@
+import { logger } from '../../lib/logger';
 import { functions } from '../../shared/api/firebase';
 import { httpsCallable } from 'firebase/functions';
-import { logger } from '../../lib/logger';
 
 /**
- * G-01 FIX: Service untuk mengirim alert/notifikasi via proxy (Cloud Function)
+ * G-01 FIX: Service untuk mengirim alert/notifikasi via proxy (Node Express BFF)
  * Client-side JANGAN PERNAH memiliki Token Bot Telegram.
  * 
  * @security_tier: HIGH
@@ -12,17 +12,13 @@ import { logger } from '../../lib/logger';
 export class AlertService {
   /**
    * Mengirim pesan peringatan ke tim IT/Owner via Telegram melalui proxy.
-   * Pastikan firebase-functions 'sendTelegramAlert' tersedia di backend.
    */
   async sendTelegramAlert(message: string): Promise<void> {
     try {
-      if (!functions) {
-        logger.warn('AlertService: Firebase functions not initialized, skipping alert:', message);
-        return;
-      }
-      
+      if (!functions) throw new Error('Firebase Functions is not initialized.');
       const sendAlertCallable = httpsCallable(functions, 'sendTelegramAlert');
-      await sendAlertCallable({ message });
+      await sendAlertCallable({ message, level: 'warn', action: 'ALERT' });
+      
       logger.info('Alert dikirim ke eksternal berhasil.');
     } catch (error) {
       if (error instanceof Error) {

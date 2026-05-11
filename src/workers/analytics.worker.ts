@@ -175,20 +175,20 @@ async function calculateDailyMetrics(startDateMs: number, endDateMs: number) {
     
     const metric = metricsMap.get(dateStr)!;
     metric.txCount += 1;
-    metric.omzetTotal += tx.total;
+    metric.omzetTotal = MathUtils.add(metric.omzetTotal, tx.total);
 
     let txTotalCost = 0;
     if (Array.isArray(tx.items)) {
         // eslint-disable-next-line @typescript-eslint/no-explicit-any
         tx.items.forEach((item: any) => {
             const cost = item.unitCost || 0;
-            txTotalCost += cost * item.quantity;
+            txTotalCost = MathUtils.add(txTotalCost, MathUtils.mul(cost, item.quantity));
         });
     }
 
     const grossProfit = MathUtils.sub(tx.total, txTotalCost);
-    metric.grossProfitTotal += grossProfit;
-    metric.netProfitTotal += grossProfit;
+    metric.grossProfitTotal = MathUtils.add(metric.grossProfitTotal, grossProfit);
+    metric.netProfitTotal = MathUtils.add(metric.netProfitTotal, grossProfit);
   });
 
   return Array.from(metricsMap.values()).sort((a, b) => a.date.localeCompare(b.date));
@@ -226,12 +226,12 @@ async function calculateProductMetrics(startDateMs: number, endDateMs: number) {
         
         const p = productMap.get(item.stockId)!;
         const cost = item.unitCost || 0;
-        const itemRevenue = item.price * item.quantity;
-        const itemTotalCost = cost * item.quantity;
+        const itemRevenue = MathUtils.mul(item.price, item.quantity);
+        const itemTotalCost = MathUtils.mul(cost, item.quantity);
 
-        p.qtySold += item.quantity;
-        p.revenue += itemRevenue;
-        p.costTotal += itemTotalCost;
+        p.qtySold = MathUtils.add(p.qtySold, item.quantity);
+        p.revenue = MathUtils.add(p.revenue, itemRevenue);
+        p.costTotal = MathUtils.add(p.costTotal, itemTotalCost);
     });
   });
 
@@ -257,8 +257,8 @@ async function calculateProductMetrics(startDateMs: number, endDateMs: number) {
   });
 
   const result = Array.from(productMap.values()).map(p => {
-    const profit = p.revenue - p.costTotal;
-    p.marginPct = p.revenue > 0 ? parseFloat(((profit / p.revenue) * 100).toFixed(2)) : 0;
+    const profit = MathUtils.sub(p.revenue, p.costTotal);
+    p.marginPct = p.revenue > 0 ? parseFloat(MathUtils.div(MathUtils.mul(profit, 100), p.revenue).toFixed(2)) : 0;
     
     // Normalize Margin
     p.normalizedMarginPct = parseFloat((p.marginPct / (p.baselineMargin || 50)).toFixed(2));
@@ -338,7 +338,6 @@ async function calculateProductRanking(startDateMs: number, endDateMs: number) {
 
     // Gunakan Normalized Margin. >= 1 berarti mencapai baseline harapan. > 1.2 berarti tinggi.
     const isHighMargin = (p.normalizedMarginPct || 0) >= 1.0;
-    const isLowMargin = (p.normalizedMarginPct || 0) <= 0.6; // Di bawah 60% baseline = low
     const isFastMover = p.qtySold >= averageSoldInCategory;
 
     if (isFastMover && isHighMargin) category = "STAR (Fast Mover - Margin Optimal)";

@@ -4,7 +4,6 @@ import { db } from '../../shared/api/db';
 const DEBOUNCE_MS = 300; // Konstanta untuk debounce
 let debounceTimer: NodeJS.Timeout | null = null;
 let pendingState: string | null = null;
-const BACKUP_KEY = 'pos-cart-storage-emergency-backup';
 
 /**
  * Memaksa buffer memori untuk ditulis ke dalam IndexedDB.

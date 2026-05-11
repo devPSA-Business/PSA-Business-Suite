@@ -1,6 +1,9 @@
 import { logger } from '@lib/logger';
 import { useState, useEffect, useCallback, useMemo } from 'react';
 import { DIContainer } from '../../../infrastructure/di/Container';
+import { Transaction } from '../../../shared/api/db';
+import { StockItem } from '../../../domain/models/StockItem';
+import { CategoryRevenue, PaymentMethodRevenue, DailyRevenueTrend, CustomerRevenue } from '../../../application/queries/IReportQuery';
 
 export function useDashboardData(startDate: string, endDate: string) {
   const startTimestamp = useMemo(() => new Date(startDate).setHours(0, 0, 0, 0), [startDate]);
@@ -9,20 +12,13 @@ export function useDashboardData(startDate: string, endDate: string) {
   const todayEnd = useMemo(() => new Date().setHours(23, 59, 59, 999),[]);
   const sevenDaysAgoStart = useMemo(() => todayStart - 7 * 24 * 60 * 60 * 1000, [todayStart]);
 
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  const [transactions, setTransactions] = useState<any[] | null>(null);
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  const [revenueByCategory, setRevenueByCategory] = useState<any[] | null>(null);
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  const [revenueByPaymentMethod, setRevenueByPaymentMethod] = useState<any[] | null>(null);
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  const [salesTrends, setSalesTrends] = useState<any[] | null>(null);
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  const [topCustomers, setTopCustomers] = useState<any[] | null>(null);
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  const [lowStockItems, setLowStockItems] = useState<any[] | null>(null);
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  const[recentTransactions, setRecentTransactions] = useState<any[] | null>(null);
+  const [transactions, setTransactions] = useState<Transaction[] | null>(null);
+  const [revenueByCategory, setRevenueByCategory] = useState<CategoryRevenue[] | null>(null);
+  const [revenueByPaymentMethod, setRevenueByPaymentMethod] = useState<PaymentMethodRevenue[] | null>(null);
+  const [salesTrends, setSalesTrends] = useState<DailyRevenueTrend[] | null>(null);
+  const [topCustomers, setTopCustomers] = useState<CustomerRevenue[] | null>(null);
+  const [lowStockItems, setLowStockItems] = useState<StockItem[] | null>(null);
+  const[recentTransactions, setRecentTransactions] = useState<Transaction[] | null>(null);
   const [loading, setLoading] = useState(true);
 
   const fetchData = useCallback(async () => {
@@ -104,7 +100,8 @@ export function useDashboardData(startDate: string, endDate: string) {
     const cashierMap = new Map<string, number>();
     transactions.forEach(tx => {
       if (tx.status !== 'SUCCESS') return;
-      cashierMap.set(tx.user, (cashierMap.get(tx.user) || 0) + tx.total);
+      const userName = tx.user || 'Sistem';
+      cashierMap.set(userName, (cashierMap.get(userName) || 0) + tx.total);
     });
     return Array.from(cashierMap.entries())
       .map(([name, total]) => ({ name, total }))

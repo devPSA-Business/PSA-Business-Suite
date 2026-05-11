@@ -23,7 +23,7 @@ export function RepairForm({ hideBackButton: _hideBackButton }: RepairFormProps 
 
   const [formData, setFormData] = useState({
     itemDescription: '',
-    serviceType: 'REPARASI' as 'REPARASI' | 'SEPUH',
+    serviceType: 'REPARASI' as 'REPARASI' | 'SEPUH' | 'PATRI',
     initialWeight: '',
     price: '',
     materialCost: '',
@@ -202,7 +202,7 @@ export function RepairForm({ hideBackButton: _hideBackButton }: RepairFormProps 
   return (
     <div className="bg-white p-4 sm:p-6 md:p-8 rounded-2xl shadow-sm border border-stone-200 w-full max-w-4xl mx-auto animate-in fade-in duration-300">
       <div className="mb-6 sm:mb-8">
-        <h2 className="text-xl sm:text-2xl font-serif font-bold text-brand-900 mb-2">Penerimaan Jasa Reparasi & Sepuh</h2>
+        <h2 className="text-xl sm:text-2xl font-serif font-bold text-brand-900 mb-2">Penerimaan Jasa Reparasi, Sepuh & Patri</h2>
         <p className="text-stone-500 text-xs sm:text-sm">Pastikan untuk menimbang barang dan memfoto kondisi awal sesuai SOP.</p>
       </div>
 
@@ -212,8 +212,8 @@ export function RepairForm({ hideBackButton: _hideBackButton }: RepairFormProps 
           <div className="space-y-5 sm:space-y-6">
             <div>
               <label className="block text-xs sm:text-sm font-bold text-stone-700 mb-2">Jenis Jasa</label>
-              <div className="grid grid-cols-2 gap-2 sm:gap-3">
-                {(['REPARASI', 'SEPUH'] as const).map((type) => (
+              <div className="grid grid-cols-3 gap-2 sm:gap-3">
+                {(['REPARASI', 'SEPUH', 'PATRI'] as const).map((type) => (
                   <button
                     key={type}
                     type="button"
@@ -224,7 +224,7 @@ export function RepairForm({ hideBackButton: _hideBackButton }: RepairFormProps 
                         : 'bg-stone-50 text-stone-600 border-2 border-stone-200 hover:bg-stone-100'
                     }`}
                   >
-                    {type === 'REPARASI' ? 'Reparasi' : 'Sepuh (Chrome)'}
+                    {type === 'REPARASI' ? 'Reparasi' : type === 'SEPUH' ? 'Sepuh' : 'Patri'}
                   </button>
                 ))}
               </div>

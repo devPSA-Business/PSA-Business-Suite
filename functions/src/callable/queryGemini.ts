@@ -1,10 +1,9 @@
-import * as functions from 'firebase-functions/v2';
+import * as functions from 'firebase-functions';
 import fetch from 'node-fetch';
 
-export const queryGemini = functions.https.onCall(
-  { secrets: ['GEMINI_API_KEY'], cors: true },
-  async (request) => {
-    const { question, aggregates, userId } = request.data;
+export const queryGemini = functions.runWith({ secrets: ['GEMINI_API_KEY'] }).https.onCall(
+  async (data, context) => {
+    const { question, aggregates, userId } = data;
     
     if (!question || !aggregates || !userId) {
       throw new functions.https.HttpsError('invalid-argument', 'Missing fields');

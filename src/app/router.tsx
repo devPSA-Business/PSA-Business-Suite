@@ -84,6 +84,7 @@ const lockedRoute = createRoute({
 const inventoryRoute = createRoute({ getParentRoute: () => rootRoute, path: '/inventory', beforeLoad: requireRole([UserRole.ADMIN, UserRole.MANAGER]), component: lazyRouteComponent(() => import('../features/inventory/ui/InventoryPage'), 'InventoryPage') });
 const dashboardRoute = createRoute({ getParentRoute: () => rootRoute, path: '/dashboard', beforeLoad: requireRole([UserRole.ADMIN, UserRole.MANAGER]), component: lazyRouteComponent(() => import('../pages/reports/DashboardPage'), 'DashboardPage') });
 const auditRoute = createRoute({ getParentRoute: () => rootRoute, path: '/audit', beforeLoad: requireRole([UserRole.ADMIN, UserRole.MANAGER]), component: lazyRouteComponent(() => import('../pages/reports/AuditPage'), 'AuditPage') });
+const systemAuditRoute = createRoute({ getParentRoute: () => rootRoute, path: '/system-audit', beforeLoad: requireRole([UserRole.ADMIN, UserRole.MANAGER]), component: lazyRouteComponent(() => import('../pages/reports/SystemAuditReportPage'), 'SystemAuditReportPage') });
 const financeRoute = createRoute({ getParentRoute: () => rootRoute, path: '/finance', beforeLoad: requireRole([UserRole.ADMIN, UserRole.MANAGER]), component: lazyRouteComponent(() => import('../pages/reports/FinanceReportPage'), 'FinanceReportPage') });
 const settingsRoute = createRoute({ getParentRoute: () => rootRoute, path: '/settings', beforeLoad: requireRole([UserRole.ADMIN, UserRole.MANAGER]), component: lazyRouteComponent(() => import('../features/settings/ui/SettingsPage'), 'SettingsPage') });
 
@@ -121,7 +122,7 @@ const syncDlqRoute = createRoute({ getParentRoute: () => rootRoute, path: '/sett
 
 const routeTree = rootRoute.addChildren([
   indexRoute, workspaceRoute, officeRoute, cashierRoute, dashboardRoute, 
-  auditRoute, syncStatusRoute, conflictResolutionRoute, financeRoute, servicePosRoute, buybackRoute,
+  auditRoute, systemAuditRoute, syncStatusRoute, conflictResolutionRoute, financeRoute, servicePosRoute, buybackRoute,
   goldBuybackSalesRoute, inventoryRoute, receiveStockRoute, barcodePrintRoute,
   servicesRoute, shiftRoute, handoverRoute, settingsRoute,
   lockedRoute, loginRoute, onboardingRoute, employeesRoute, customersRoute, printerSettingsRoute, receiptSettingsRoute, syncDlqRoute, ownerDashboardRoute

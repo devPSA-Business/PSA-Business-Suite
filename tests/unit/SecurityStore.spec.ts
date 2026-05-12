@@ -6,6 +6,20 @@ import { cryptoDB } from '../../src/lib/cryptoIndexedDB';
 import { cryptoKeyStore } from '../../src/lib/cryptoKeyStore';
 import { useAuthStore } from '../../src/shared/store/authStore';
 
+vi.mock('../../src/shared/api/firebase', () => ({
+  functions: {},
+  auth: { currentUser: { uid: 'admin123' } }
+}));
+
+vi.mock('firebase/functions', () => ({
+  httpsCallable: vi.fn(() => {
+    return vi.fn().mockImplementation(async ({ pin, saltHex }) => {
+      return { data: { hash: `mock-hash-${pin}-${saltHex}`.padEnd(64, '0') } };
+    });
+  }),
+  getFunctions: vi.fn()
+}));
+
 // Mock DB
 vi.mock('../../src/shared/api/db', () => ({
   db: {

@@ -1,12 +1,64 @@
 import { useCartStore } from '../store/useCartStore';
+import { TransactionItem } from '../../../shared/api/db';
 import { useCheckoutStore } from '../store/useCheckoutStore';
 import { Minus, Plus, Trash2 } from 'lucide-react';
-import { useState } from 'react';
+import React, { useState, useCallback } from 'react';
 import { CheckoutModal } from './CheckoutModal';
 import { ConfirmActionDialog } from '../../../shared/components/ConfirmActionDialog';
 import { DIContainer } from '@infrastructure/di/Container';
 import { logger } from '@lib/logger';
 import { useAuthStore } from '../../../shared/store/authStore';
+
+const CartItemRow = React.memo(({ item, onUpdateQuantity, onRemove }: {
+  item: TransactionItem;
+  onUpdateQuantity: (id: string, qty: number) => void;
+  onRemove: (id: string) => void;
+}) => (
+  <div className="flex flex-col gap-2 sm:gap-3 p-2.5 sm:p-3 bg-stone-50 rounded-xl border border-stone-100">
+    <div className="flex justify-between items-start gap-2">
+      <h4 className="font-semibold text-stone-800 text-xs sm:text-sm leading-tight line-clamp-2">
+        {item.name}
+      </h4>
+      <button
+        onClick={() => onRemove(item.stockId)}
+        className="text-stone-400 hover:text-red-500 transition-colors p-1"
+        aria-label="Hapus item"
+      >
+        <Trash2 size={16} className="sm:w-4 sm:h-4 w-3.5 h-3.5" />
+      </button>
+    </div>
+    
+    <div className="flex justify-between items-end">
+      <div className="flex items-center gap-2 sm:gap-3 bg-white border border-stone-200 rounded-lg p-1">
+        <button
+          onClick={() => onUpdateQuantity(item.stockId, item.quantity - 1)}
+          className="p-1 text-stone-500 hover:text-brand-900 hover:bg-stone-100 rounded-md transition-colors"
+        >
+          <Minus size={14} className="sm:w-3.5 sm:h-3.5 w-3 h-3" />
+        </button>
+        <span className="font-medium text-xs sm:text-sm w-5 sm:w-6 text-center text-stone-800">
+          {item.quantity}
+        </span>
+        <button
+          onClick={() => onUpdateQuantity(item.stockId, item.quantity + 1)}
+          disabled={item.maxStock !== undefined && item.quantity >= item.maxStock}
+          className="p-1 text-stone-500 hover:text-brand-900 hover:bg-stone-100 rounded-md transition-colors disabled:opacity-50 disabled:hover:bg-transparent disabled:hover:text-stone-500"
+        >
+          <Plus size={14} className="sm:w-3.5 sm:h-3.5 w-3 h-3" />
+        </button>
+      </div>
+      
+      <div className="text-right">
+        <div className="text-[10px] sm:text-xs text-stone-500 mb-0.5">
+          Rp {item.price.toLocaleString('id-ID')}
+        </div>
+        <div className="font-bold text-brand-900 text-sm sm:text-base">
+          Rp {item.subtotal.toLocaleString('id-ID')}
+        </div>
+      </div>
+    </div>
+  </div>
+));
 
 export function CartDisplay() {
   const _hasHydrated = useCartStore((state) => state._hasHydrated);
@@ -22,6 +74,35 @@ export function CartDisplay() {
   const user = useAuthStore((state) => state.user);
   
   const [isClearConfirmOpen, setIsClearConfirmOpen] = useState(false);
+
+  const handleRemoveItem = useCallback((stockId: string) => {
+    const itemToRemove = cartItems.find((item) => item.stockId === stockId);
+    if (itemToRemove) {
+      removeItem(stockId);
+      DIContainer.logAuditUseCase.execute(
+        'REMOVE_ITEM',
+        user ? user.name : 'System',
+        `Menghapus item ${itemToRemove.name} dari keranjang.`
+      ).catch((err) => logger.error('[Cart] Gagal log audit REMOVE_ITEM:', err));
+    }
+  }, [cartItems, removeItem, user]);
+
+  const handleUpdateQuantity = useCallback((id: string, qty: number) => {
+    updateQuantity(id, qty);
+  }, [updateQuantity]);
+
+  const handleClearCart = useCallback(() => {
+    if (cartItems.length > 0) {
+      const itemCount = cartItems.length;
+      clearCart();
+      DIContainer.logAuditUseCase.execute(
+        'CLEAR_CART',
+        user ? user.name : 'System',
+        `Mengosongkan keranjang yang berisi ${itemCount} item.`
+      ).catch((err) => logger.error('[Cart] Gagal log audit CLEAR_CART:', err));
+    }
+    setIsClearConfirmOpen(false);
+  }, [cartItems.length, clearCart, user]);
 
   if (!_hasHydrated) {
     return (
@@ -57,31 +138,6 @@ export function CartDisplay() {
     );
   }
 
-  const handleRemoveItem = (stockId: string) => {
-    const itemToRemove = cartItems.find((item) => item.stockId === stockId);
-    if (itemToRemove) {
-      removeItem(stockId);
-      DIContainer.logAuditUseCase.execute(
-        'REMOVE_ITEM',
-        user ? user.name : 'System',
-        `Menghapus item ${itemToRemove.name} dari keranjang.`
-      ).catch((err) => logger.error('[Cart] Gagal log audit REMOVE_ITEM:', err));
-    }
-  };
-
-  const handleClearCart = () => {
-    if (cartItems.length > 0) {
-      const itemCount = cartItems.length;
-      clearCart();
-      DIContainer.logAuditUseCase.execute(
-        'CLEAR_CART',
-        user ? user.name : 'System',
-        `Mengosongkan keranjang yang berisi ${itemCount} item.`
-      ).catch((err) => logger.error('[Cart] Gagal log audit CLEAR_CART:', err));
-    }
-    setIsClearConfirmOpen(false);
-  };
-
   if (cartItems.length === 0) {
     return (
       <div className="h-full bg-white rounded-2xl shadow-sm border border-stone-100 flex flex-col items-center justify-center p-8 text-center">
@@ -113,50 +169,12 @@ export function CartDisplay() {
 
         <div className="flex-1 overflow-y-auto p-3 sm:p-4 space-y-3 sm:space-y-4 no-scrollbar">
           {cartItems.map((item) => (
-            <div key={item.stockId} className="flex flex-col gap-2 sm:gap-3 p-2.5 sm:p-3 bg-stone-50 rounded-xl border border-stone-100">
-              <div className="flex justify-between items-start gap-2">
-                <h4 className="font-semibold text-stone-800 text-xs sm:text-sm leading-tight line-clamp-2">
-                  {item.name}
-                </h4>
-                <button
-                  onClick={() => handleRemoveItem(item.stockId)}
-                  className="text-stone-400 hover:text-red-500 transition-colors p-1"
-                  aria-label="Hapus item"
-                >
-                  <Trash2 size={16} className="sm:w-4 sm:h-4 w-3.5 h-3.5" />
-                </button>
-              </div>
-              
-              <div className="flex justify-between items-end">
-                <div className="flex items-center gap-2 sm:gap-3 bg-white border border-stone-200 rounded-lg p-1">
-                  <button
-                    onClick={() => updateQuantity(item.stockId, item.quantity - 1)}
-                    className="p-1 text-stone-500 hover:text-brand-900 hover:bg-stone-100 rounded-md transition-colors"
-                  >
-                    <Minus size={14} className="sm:w-3.5 sm:h-3.5 w-3 h-3" />
-                  </button>
-                  <span className="font-medium text-xs sm:text-sm w-5 sm:w-6 text-center text-stone-800">
-                    {item.quantity}
-                  </span>
-                  <button
-                    onClick={() => updateQuantity(item.stockId, item.quantity + 1)}
-                    disabled={item.maxStock !== undefined && item.quantity >= item.maxStock}
-                    className="p-1 text-stone-500 hover:text-brand-900 hover:bg-stone-100 rounded-md transition-colors disabled:opacity-50 disabled:hover:bg-transparent disabled:hover:text-stone-500"
-                  >
-                    <Plus size={14} className="sm:w-3.5 sm:h-3.5 w-3 h-3" />
-                  </button>
-                </div>
-                
-                <div className="text-right">
-                  <div className="text-[10px] sm:text-xs text-stone-500 mb-0.5">
-                    Rp {item.price.toLocaleString('id-ID')}
-                  </div>
-                  <div className="font-bold text-brand-900 text-sm sm:text-base">
-                    Rp {item.subtotal.toLocaleString('id-ID')}
-                  </div>
-                </div>
-              </div>
-            </div>
+            <CartItemRow 
+              key={item.stockId} 
+              item={item} 
+              onUpdateQuantity={handleUpdateQuantity} 
+              onRemove={handleRemoveItem} 
+            />
           ))}
         </div>
 

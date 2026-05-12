@@ -1,10 +1,9 @@
-import * as functions from 'firebase-functions/v2';
+import * as functions from 'firebase-functions';
 import * as crypto from 'crypto';
 
-export const hashPin = functions.https.onCall(
-  { secrets: ['CRYPTO_PEPPER'], cors: true },
-  async (request) => {
-    const { pin, saltHex, usePepper, iterations } = request.data;
+export const hashPin = functions.runWith({ secrets: ['CRYPTO_PEPPER'] }).https.onCall(
+  async (data, context) => {
+    const { pin, saltHex, usePepper, iterations } = data;
     
     if (!pin || !saltHex || !iterations) {
       throw new functions.https.HttpsError('invalid-argument', 'Missing fields');

@@ -70,6 +70,7 @@ const menuGroups = [
     subItems: [
       { label: 'Laporan Keuangan', path: '/finance', icon: FileText },
       { label: 'Pegawai', path: '/employees', icon: Users },
+      { label: 'Audit Sistem', path: '/system-audit', icon: FileText },
     ]
   },
   {

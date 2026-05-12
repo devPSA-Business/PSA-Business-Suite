@@ -11,7 +11,6 @@ const createQueryMock = () => {
   const mock: any = {
     equals: vi.fn().mockImplementation(() => mock),
     anyOf: vi.fn().mockImplementation(() => mock),
-    sortBy: vi.fn().mockResolvedValue([]),
     filter: vi.fn().mockImplementation(() => mock),
     toArray: vi.fn().mockResolvedValue([]),
     first: vi.fn().mockResolvedValue(null),
@@ -322,7 +321,7 @@ describe('SyncServiceImpl', () => {
       ];
       
       const query = {
-        anyOf: vi.fn().mockReturnValue({ sortBy: vi.fn().mockResolvedValue(events) })
+        anyOf: vi.fn().mockReturnValue({ toArray: vi.fn().mockResolvedValue(events) })
       };
       (db.sync_events.where as any).mockReturnValue(query);
 
@@ -357,7 +356,7 @@ describe('SyncServiceImpl', () => {
       ];
       
       const query = {
-        anyOf: vi.fn().mockReturnValue({ sortBy: vi.fn().mockResolvedValue(events) })
+        anyOf: vi.fn().mockReturnValue({ toArray: vi.fn().mockResolvedValue(events) })
       };
       (db.sync_events.where as any).mockReturnValue(query);
 
@@ -388,7 +387,7 @@ describe('SyncServiceImpl', () => {
       ];
       
       const query = {
-        anyOf: vi.fn().mockReturnValue({ sortBy: vi.fn().mockResolvedValue(events) })
+        anyOf: vi.fn().mockReturnValue({ toArray: vi.fn().mockResolvedValue(events) })
       };
       (db.sync_events.where as any).mockReturnValue(query);
 
@@ -417,7 +416,7 @@ describe('SyncServiceImpl', () => {
     ];
     
     const query = {
-      anyOf: vi.fn().mockReturnValue({ sortBy: vi.fn().mockResolvedValue(events) })
+      anyOf: vi.fn().mockReturnValue({ toArray: vi.fn().mockResolvedValue(events) })
     };
     (db.sync_events.where as any).mockReturnValue(query);
 
@@ -442,7 +441,7 @@ describe('SyncServiceImpl', () => {
        { id: 1, entity_type: 'stock', action: 'UPDATE', payload: { client_txn_id: '123', version: 1 }, status: 'PENDING' }
     ];
     const query = {
-      anyOf: vi.fn().mockReturnValue({ sortBy: vi.fn().mockResolvedValue(events) })
+      anyOf: vi.fn().mockReturnValue({ toArray: vi.fn().mockResolvedValue(events) })
     };
     (db.sync_events.where as any).mockReturnValue(query);
 
@@ -466,7 +465,7 @@ describe('SyncServiceImpl', () => {
 
     const events = [{ id: 1, entity_type: 'stock', action: 'INSERT', payload: { client_txn_id: '123' }, status: 'PENDING' }];
     const query = createQueryMock();
-    query.sortBy.mockResolvedValue(events);
+    query.toArray.mockResolvedValue(events);
     (db.sync_events.where as any).mockReturnValue(query);
 
     const commitMock = vi.fn().mockRejectedValue({ code: 'permission-denied' });
@@ -495,7 +494,7 @@ describe('SyncServiceImpl', () => {
       retry_count: 4
     }];
     const query = createQueryMock();
-    query.sortBy.mockResolvedValue(events);
+    query.toArray.mockResolvedValue(events);
     (db.sync_events.where as any).mockReturnValue(query);
 
     const commitMock = vi.fn().mockRejectedValue(new Error('Persistent error'));

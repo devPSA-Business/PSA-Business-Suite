@@ -1,11 +1,10 @@
-import * as functions from 'firebase-functions/v2';
+import * as functions from 'firebase-functions';
 import fetch from 'node-fetch';
 
-export const sendTelegramAlert = functions.https.onCall(
-  { secrets: ["TELEGRAM_BOT_TOKEN", "TELEGRAM_CHAT_ID"], cors: true },
-  async (request) => {
+export const sendTelegramAlert = functions.runWith({ secrets: ["TELEGRAM_BOT_TOKEN", "TELEGRAM_CHAT_ID"] }).https.onCall(
+  async (data, context) => {
     const { TELEGRAM_BOT_TOKEN, TELEGRAM_CHAT_ID } = process.env;
-    const { action, message, level } = request.data;
+    const { action, message, level } = data;
 
     if (!TELEGRAM_BOT_TOKEN || !TELEGRAM_CHAT_ID) {
       throw new functions.https.HttpsError(

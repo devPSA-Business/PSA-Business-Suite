@@ -1,4 +1,3 @@
-`
 
 PSA Business Suite
 
@@ -125,4 +124,3 @@ Seluruh modul utama (Inventaris, Layanan/Reparasi, Shift, Buyback) telah dimigra
 📄 Lisensi
 Proyek ini dikembangkan untuk kebutuhan internal PSA Jewellery.  
 Distribusi atau penggunaan ulang harus mendapat izin dari pemilik proyek.
-`

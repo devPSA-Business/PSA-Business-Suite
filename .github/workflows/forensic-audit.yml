@@ -1,0 +1,48 @@
+name: Forensic Audit
+
+on:
+  pull_request:
+    types: [opened, synchronize, reopened]
+  push:
+    branches: [main, develop]
+
+jobs:
+  audit:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: 'npm'
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Run ESLint (Strict Type-Safety)
+        run: npx eslint "src/**/*.ts" --max-warnings=0
+
+      - name: Run TypeScript Compiler Check
+        run: npx tsc --noEmit
+
+      - name: Run Security Scan (CodeQL)
+        uses: github/codeql-action/analyze@v3
+
+      - name: Dependency Audit
+        run: npm audit --audit-level=high
+
+      - name: Detect Direct DB Access (UI Layer)
+        run: |
+          if grep -R "db." src/features/; then
+            echo "❌ Pelanggaran: UI layer mengakses DB langsung"
+            exit 1
+          else
+            echo "✅ Tidak ada akses langsung DB di UI"
+          fi
+
+      - name: Run Unit Tests
+        run: npm test -- --ci --reporters=jest-junit

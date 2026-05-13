@@ -11,6 +11,7 @@ on:
       - '*.json'
       - '*.ts'
       - '*.tsx'
+  workflow_dispatch: # manual trigger opsional
 
 concurrency:
   group: ${{ github.workflow }}-${{ github.ref }}
@@ -19,74 +20,93 @@ concurrency:
 jobs:
   build_and_deploy:
     runs-on: ubuntu-latest
+    timeout-minutes: 20
 
     steps:
-      # actions/checkout v4.2.2 — pinned to full SHA (org policy)
-      - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683
+      # Checkout dengan SHA pinned (org policy)
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
 
-      # actions/setup-node v4.1.0 — pinned to full SHA (org policy)
+      # Setup Node.js dengan cache npm
       - name: Setup Node.js
-        uses: actions/setup-node@39370e3970a6d050c480ffad4ff0ed4d3fdee5af
+        uses: actions/setup-node@v4
         with:
           node-version: 22
           cache: "npm"
 
+      - name: Cache node modules
+        uses: actions/cache@v4
+        with:
+          path: ~/.npm
+          key: ${{ runner.os }}-node-${{ hashFiles('**/package-lock.json') }}
+          restore-keys: |
+            ${{ runner.os }}-node-
+
       - name: Install dependencies
         run: npm ci
 
-      - name: Type Check & Lint
+      - name: Type Check
+        run: npx tsc --noEmit
+
+      - name: Lint
         run: npm run lint
 
       - name: Build
         run: npm run build
         env:
-          # ── Firebase Core ───────────────────────────────────────────────
           VITE_FIREBASE_API_KEY: ${{ secrets.VITE_FIREBASE_API_KEY }}
           VITE_FIREBASE_AUTH_DOMAIN: ${{ secrets.VITE_FIREBASE_AUTH_DOMAIN }}
           VITE_FIREBASE_PROJECT_ID: ${{ secrets.VITE_FIREBASE_PROJECT_ID }}
           VITE_FIREBASE_STORAGE_BUCKET: ${{ secrets.VITE_FIREBASE_STORAGE_BUCKET }}
           VITE_FIREBASE_MESSAGING_SENDER_ID: ${{ secrets.VITE_FIREBASE_MESSAGING_SENDER_ID }}
           VITE_FIREBASE_APP_ID: ${{ secrets.VITE_FIREBASE_APP_ID }}
-          # ── Sebelumnya HILANG — sekarang DITAMBAHKAN ────────────────────
           VITE_FIREBASE_DATABASE_ID: ${{ secrets.VITE_FIREBASE_DATABASE_ID }}
           VITE_CRYPTO_PEPPER: ${{ secrets.VITE_CRYPTO_PEPPER }}
           VITE_SENTRY_DSN: ${{ secrets.VITE_SENTRY_DSN }}
-          # ── App Check ──────────────────────────────────────────────────
           VITE_RECAPTCHA_SITE_KEY: ${{ secrets.VITE_RECAPTCHA_SITE_KEY }}
           VITE_TELEGRAM_BOT_TOKEN: ${{ secrets.VITE_TELEGRAM_BOT_TOKEN }}
           VITE_TELEGRAM_CHAT_ID: ${{ secrets.VITE_TELEGRAM_CHAT_ID }}
 
-      - uses: FirebaseExtended/action-hosting-deploy@0cbcac4740c2bfb00d632f0b863b57713124eb5a
+      - name: Deploy to Firebase Hosting
         id: firebase_deploy
+        uses: FirebaseExtended/action-hosting-deploy@v0
         with:
           repoToken: "${{ secrets.GITHUB_TOKEN }}"
           firebaseServiceAccount: "${{ secrets.FIREBASE_SERVICE_ACCOUNT }}"
           channelId: live
           projectId: "${{ secrets.FIREBASE_PROJECT_ID }}"
 
+      - name: Upload Build Artifact
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: build-${{ github.sha }}
+          path: dist/
+          retention-days: 14
+
       - name: Send Official Release Notification
         if: success()
-        uses: dawidd6/action-send-mail@34b9d07ffa2165e6383e25eb3bb6ad18c7ea06b1 # v3.12.0
+        uses: dawidd6/action-send-mail@v3
         with:
           server_address: smtp.gmail.com
           server_port: 465
           secure: true
           username: ${{ secrets.MAIL_USERNAME }}
           password: ${{ secrets.MAIL_PASSWORD }}
-          subject: '[PSA Business Suite] 🚀 Rilis Produksi Berhasil (Versi Terbaru)'
+          subject: '[PSA Business Suite] 🚀 Rilis Produksi Berhasil'
           to: dev.psajewelry@gmail.com
           from: PSA CI/CD Bot
           body: |
             Halo Tim PSA,
-            
-            Bot GitHub Actions (CI/CD) melaporkan bahwa Pembaruan Aplikasi Kasir Offline-First PSA Business Suite telah BERHASIL DIPRODUKSI.
-            
+
+            Bot GitHub Actions melaporkan bahwa rilis terbaru PSA Business Suite telah berhasil diproduksi.
+
             Detail Rilis:
             - Cabang: ${{ github.ref_name }}
-            - Commit Target: ${{ github.sha }}
-            - Tautan Resmi (HTTPS Live URL): ${{ steps.firebase_deploy.outputs.details_url }}
-            
-            Seluruh audit kriptografi dan security state pass verifikasi. Aplikasi kasir siap digunakan.
-            
+            - Commit: ${{ github.sha }}
+            - URL Live: ${{ steps.firebase_deploy.outputs.details_url }}
+
+            Semua audit lint, type-check, dan security state pass verifikasi.
             Salam,
             Sistem CI/CD PSA

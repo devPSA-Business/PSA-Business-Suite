@@ -1,0 +1,25 @@
+# 1. Ekstrak file perbaikan dari ZIP yang sudah didownload
+unzip PSA_Audit_Fixes.zip -d ./audit-fixes
+
+# 2. Copy file ke posisi yang benar
+cp audit-fixes/src/shared/api/db.ts src/shared/api/db.ts
+cp audit-fixes/src/shared/store/authStore.ts src/shared/store/authStore.ts
+cp audit-fixes/src/shared/store/useSecurityStore.ts src/shared/store/useSecurityStore.ts
+cp audit-fixes/src/app/router.tsx src/app/router.tsx
+cp audit-fixes/src/App.tsx src/App.tsx
+cp audit-fixes/src/features/auth/usecases/SetupStoreUseCase.ts src/features/auth/usecases/SetupStoreUseCase.ts
+cp audit-fixes/src/shared/utils/syncGuard.ts src/shared/utils/syncGuard.ts
+
+# 3. Commit
+git add -A
+git commit -m "fix: audit security & stability (7 critical/high/medium fixes)
+
+- CRITICAL-01: Add branchId to PettyCash/Appointment/CustomOrder/InternalNote + Dexie v42
+- CRITICAL-02: Pass branchId in authStore.login() — fixes multi-branch sync isolation
+- HIGH-01: Add requireAuth guard to /handover route
+- HIGH-02: Fix kill-switch to use getDoc() instead of broken getDocs(where('id'==...))
+- HIGH-03: Await initSetupState() in SetupStoreUseCase to fix onboarding race condition
+- MEDIUM-01: Clarify User.salt type documentation
+- MEDIUM-02: Replace console.warn/error with logger in syncGuard.ts"
+
+git push origin main

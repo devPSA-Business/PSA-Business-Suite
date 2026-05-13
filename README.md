@@ -1,99 +1,128 @@
-# PSA Business Suite
+`
 
-Aplikasi Point of Sale (POS) kelas Enterprise yang dirancang khusus untuk toko perhiasan. Aplikasi ini dibangun dengan arsitektur **Offline-First**, memastikan operasional toko tetap berjalan lancar meskipun koneksi internet terputus.
+PSA Business Suite
 
-## Status Proyek: SIAP PRODUKSI
+Aplikasi Point of Sale (POS) kelas Enterprise yang dirancang khusus untuk toko perhiasan imitasi dan layanan buyback emas. Dibangun dengan arsitektur Offline-First, memastikan operasional toko tetap berjalan lancar meskipun koneksi internet terputus.
 
-Seluruh modul utama (Inventaris, Layanan/Reparasi, Shift, Emas) telah berhasil dimigrasikan ke **Clean Architecture**. Sistem telah melewati pengujian menyeluruh (*end-to-end stress test*) dan siap untuk *deployment* ke lingkungan produksi.
+---
 
-## Fitur Utama
+📌 Deskripsi Proyek
+PSA Business Suite adalah sistem POS modern untuk usaha perhiasan imitasi dengan fitur inventaris, layanan reparasi, buyback emas, dan analitik bisnis.  
+Proyek ini telah melewati pengujian end-to-end dan siap digunakan di lingkungan produksi.
 
-- **Offline-First Architecture**: Transaksi dan operasional tetap berjalan tanpa internet. Data akan disinkronisasi ke *cloud* secara otomatis saat koneksi kembali stabil.
-- **Manajemen Inventaris**: Pelacakan stok perhiasan secara *real-time* dengan dukungan *barcode*.
-- **Manajemen Shift Kasir**: Pembukaan dan penutupan *shift* dengan pencatatan saldo awal dan akhir yang ketat.
-- **Modul Reparasi & Buyback**: Alur kerja khusus untuk layanan reparasi dan pembelian kembali perhiasan dari pelanggan.
-- **Laporan Keuangan Real-time**: Dasbor analitik untuk memantau omzet, laba kotor, dan margin keuntungan.
-- **Audit Trail**: Pencatatan setiap aktivitas pengguna yang tidak dapat dimanipulasi untuk keamanan dan transparansi.
-- **Progressive Web App (PWA)**: Dapat diinstal langsung ke perangkat (tablet/desktop) seperti aplikasi *native*.
+---
 
-## Teknologi yang Digunakan
+✨ Fitur Utama
+- Offline-First Architecture: Transaksi tetap berjalan tanpa internet, sinkronisasi otomatis saat koneksi kembali.
+- Manajemen Inventaris: Pelacakan stok real-time dengan dukungan barcode.
+- Manajemen Shift Kasir: Pembukaan/penutupan shift dengan pencatatan saldo awal dan akhir.
+- Modul Reparasi & Buyback: Alur kerja khusus untuk layanan reparasi dan pembelian kembali emas.
+- Laporan Keuangan Real-time: Dasbor analitik untuk omzet, laba kotor, margin keuntungan.
+- Audit Trail: Pencatatan aktivitas pengguna yang tidak dapat dimanipulasi.
+- Progressive Web App (PWA): Dapat diinstal di tablet/desktop seperti aplikasi native.
 
-- **Frontend**: React 19, TypeScript, Vite
-- **State Management**: Zustand
-- **Routing**: TanStack Router
-- **Styling**: Tailwind CSS v4
-- **Local Database**: Dexie.js (IndexedDB wrapper)
-- **Cloud Database**: Firebase Firestore
-- **PWA**: vite-plugin-pwa
+---
 
-## Cara Menjalankan Aplikasi
+🛠️ Teknologi yang Digunakan
+- Frontend: React 19, TypeScript, Vite  
+- State Management: Zustand  
+- Routing: TanStack Router  
+- Styling: Tailwind CSS v4  
+- Local Database: Dexie.js (IndexedDB wrapper)  
+- Cloud Database: Firebase Firestore  
+- PWA: vite-plugin-pwa  
 
-### Mode Development
+---
 
-1. Pastikan Node.js sudah terinstal.
+🚀 Instalasi & Menjalankan Aplikasi
+
+Mode Development
+1. Pastikan Node.js sudah terinstal.  
 2. Instal dependensi:
-   ```bash
+   `bash
    npm install
-   ```
-3. Jalankan *development server*:
-   ```bash
+   `
+3. Jalankan development server:
+   `bash
    npm run dev
-   ```
+   `
 
-### Build Production
-
-Untuk menghasilkan *build* yang siap di-*deploy* ke *production*:
-
-```bash
+Build Production
+Untuk menghasilkan build siap produksi:
+`bash
 npm run build
-```
+`
+Output akan tersedia di folder dist/.
 
-Perintah ini akan mengkompilasi kode TypeScript dan mem-bundle aset ke dalam folder `dist/`.
+---
 
-## Cara Menginstal PWA di Tablet Kasir
+📱 Instalasi PWA di Tablet Kasir
+1. Buka aplikasi melalui browser (disarankan Google Chrome) di tablet kasir.  
+2. Pastikan akses menggunakan protokol HTTPS (atau localhost untuk development).  
+3. Klik tombol Install App di pojok kanan atas.  
+4. Ikuti instruksi browser, aplikasi akan muncul di home screen tablet.  
+5. Pembaruan Otomatis: Jika ada update, tombol Update Tersedia! akan muncul. Klik untuk memuat versi terbaru.
 
-Aplikasi ini mendukung PWA (Progressive Web App), sehingga dapat diinstal di tablet kasir untuk pengalaman penggunaan yang lebih baik (layar penuh, akses *offline*).
+---
 
-1. Buka aplikasi melalui *browser* (disarankan Google Chrome) di tablet kasir.
-2. Pastikan Anda mengakses aplikasi menggunakan protokol HTTPS (atau `localhost` untuk *development*).
-3. Klik tombol **"Install App"** yang terdapat di pojok kanan atas layar aplikasi (di sebelah indikator status sinkronisasi).
-4. Ikuti instruksi dari browser untuk menginstal aplikasi.
-5. Setelah terinstal, aplikasi akan muncul di *home screen* tablet dan dapat dibuka seperti aplikasi biasa tanpa perlu membuka browser.
-6. **Pembaruan Otomatis**: Jika ada pembaruan aplikasi, tombol "Update Tersedia! Klik untuk Memperbarui" akan muncul di pojok kanan atas. Klik tombol tersebut untuk memuat ulang aplikasi dengan versi terbaru.
+🔧 Konfigurasi Firebase
+1. Buat proyek di Firebase Console.  
+2. Tambahkan aplikasi web ke proyek.  
+3. Salin konfigurasi Firebase.  
+4. Buka file src/shared/api/firebase.ts dan ganti objek firebaseConfig:
+   `ts
+   const firebaseConfig = {
+     apiKey: "APIKEYANDA",
+     authDomain: "DOMAIN_ANDA.firebaseapp.com",
+     projectId: "PROJECTIDANDA",
+     storageBucket: "BUCKET_ANDA.appspot.com",
+     messagingSenderId: "SENDERIDANDA",
+     appId: "APPIDANDA"
+   };
+   `
 
-## Konfigurasi Firebase
+---
 
-Untuk mengaktifkan sinkronisasi *cloud*, Anda perlu mengonfigurasi Firebase:
+🔒 Keamanan & Integritas Data
+- Atomic Transactions: Semua operasi database lokal dibungkus transaksi Dexie.  
+- Sync Queue: Data gagal sinkronisasi akan masuk antrean dan dicoba ulang otomatis.  
+- Strict Typing: TypeScript ketat (tanpa any) untuk meminimalisir runtime error.  
 
-1. Buat proyek Firebase di [Firebase Console](https://console.firebase.google.com/).
-2. Tambahkan aplikasi web ke proyek Anda.
-3. Salin konfigurasi Firebase yang diberikan.
-4. Buka file `src/shared/api/firebase.ts`.
-5. Ganti objek `firebaseConfig` dengan konfigurasi asli dari proyek Firebase Anda.
+---
 
-```typescript
-const firebaseConfig = {
-  apiKey: "API_KEY_ANDA",
-  authDomain: "DOMAIN_ANDA.firebaseapp.com",
-  projectId: "PROJECT_ID_ANDA",
-  storageBucket: "BUCKET_ANDA.appspot.com",
-  messagingSenderId: "SENDER_ID_ANDA",
-  appId: "APP_ID_ANDA"
-};
-```
+🤖 Panduan AI-Assisted Development
+Proyek ini terintegrasi dengan AI Studio untuk pengembangan berbantuan AI.  
+Ikuti protokol berikut:
+1. Buka file AGENTS.md di root proyek.  
+2. Navigasi ke bagian paling bawah: ### ⚠️ CURRENT TASK:  
+3. Tuliskan deskripsi tugas yang ingin dikerjakan (contoh: Tambahkan fitur pelaporan X).  
+4. Sistem AI akan membaca aturan arsitektur bisnis dari AGENTS.md dan mengerjakan sesuai standar Enterprise PSA Business Suite.  
 
-## Keamanan & Integritas Data
+---
 
-- **Atomic Transactions**: Semua operasi database lokal dibungkus dalam transaksi Dexie untuk mencegah data korup.
-- **Sync Queue**: Data yang gagal disinkronisasi ke *cloud* akan masuk ke antrean dan dicoba kembali secara otomatis.
-- **Strict Typing**: Menggunakan TypeScript secara ketat (tanpa `any`) untuk meminimalisir *runtime error*.
+📊 Status Proyek
+SIAP PRODUKSI  
+Seluruh modul utama (Inventaris, Layanan/Reparasi, Shift, Buyback) telah dimigrasikan ke Clean Architecture dan lolos pengujian end-to-end.
 
-## Panduan AI-Assisted Development (Antigravity/Gemini)
+---
 
-Proyek ini telah dikonfigurasi dengan *System Instructions* khusus untuk mencegah *over-engineering* dan menjaga keselarasan filosofi *Offline-First*. 
+🗂️ Struktur Halaman Aplikasi
+- Halaman Awal/Login: Sambutan, notifikasi, informasi penting.  
+- Front Line (Aktivitas Harian): Transaksi penjualan, layanan reparasi, buyback emas.  
+- Back Office (Validasi Data): Pengelolaan inventaris, verifikasi transaksi, laporan internal.  
+- Dashboard Eksekutif: Analitik, evaluasi kinerja, rekomendasi strategi bisnis.  
+- Settings/Configuration: Pengaturan bisnis, aplikasi, dan preferensi pengguna.  
 
-Setiap kali Anda menggunakan AI Studio atau agen pemrograman AI untuk melanjutkan pengembangan, **selalu ikuti protokol berikut**:
-1. Buka file `AGENTS.md` di *root* proyek.
-2. Navigasi ke bagian paling bawah: `### ⚠️ CURRENT TASK:`.
-3. Tuliskan deskripsi tugas yang ingin Anda kerjakan di bagian tersebut (misal: "Tambahkan fitur pelaporan X").
-4. Sistem AI secara otomatis akan membaca aturan ketat arsitektur bisnis dari `AGENTS.md` dan mengerjakannya sesuai standar *Enterprise* PSA Business Suite.
+---
+
+👤 Kontribusi
+- Dokumentasi tambahan tersedia di file AGENTS.md.  
+- Pull Request harus mengikuti standar arsitektur Offline-First dan Enterprise PSA.  
+- Audit trail wajib diaktifkan untuk setiap modul baru.
+
+---
+
+📄 Lisensi
+Proyek ini dikembangkan untuk kebutuhan internal PSA Jewellery.  
+Distribusi atau penggunaan ulang harus mendapat izin dari pemilik proyek.
+`

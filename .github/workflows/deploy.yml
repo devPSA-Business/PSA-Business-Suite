@@ -1,17 +1,17 @@
-name: Deploy to Firebase Hosting on merge
+name: Deploy — Firebase Hosting & Functions
 
 on:
   push:
-    branches:
-      - main
+    branches: [main]
     paths:
       - 'src/**'
       - 'public/**'
+      - 'functions/**'
       - '*.html'
       - '*.json'
       - '*.ts'
       - '*.tsx'
-      - 'functions/**'
+  workflow_dispatch:
 
 concurrency:
   group: ${{ github.workflow }}-${{ github.ref }}
@@ -19,48 +19,60 @@ concurrency:
 
 jobs:
   build_and_deploy:
+    name: Build → Deploy Firebase
     runs-on: ubuntu-latest
+    timeout-minutes: 25
 
     steps:
-      # actions/checkout v4.2.2 — pinned to full SHA (org policy)
-      - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
+      - name: Checkout repository
+        uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
+        with:
+          fetch-depth: 0
 
-      # actions/setup-node v4.1.0 — pinned to full SHA (org policy)
-      - name: Setup Node.js
+      - name: Setup Node.js 22
         uses: actions/setup-node@39370e3970a6d050c480ffad4ff0ed4d3fdee5af # v4.1.0
         with:
           node-version: 22
-          cache: "npm"
+          cache: 'npm'
+
+      - name: Cache npm
+        uses: actions/cache@1bd1e32a3bdc45362d1e726936510720a7c6158d # v4.2.0
+        with:
+          path: ~/.npm
+          key: ${{ runner.os }}-node-${{ hashFiles('**/package-lock.json') }}
+          restore-keys: |
+            ${{ runner.os }}-node-
 
       - name: Install dependencies
         run: npm ci
 
-      - name: Type Check & Lint
+      - name: TypeScript — Type Check & Lint
         run: npm run lint
 
-      - name: Build
+      - name: Build Production
         run: npm run build
         env:
-          # ── Firebase Core ───────────────────────────────────────────────
+          # ── Firebase Core ──────────────────────────────────────────
           VITE_FIREBASE_API_KEY: ${{ secrets.VITE_FIREBASE_API_KEY }}
           VITE_FIREBASE_AUTH_DOMAIN: ${{ secrets.VITE_FIREBASE_AUTH_DOMAIN }}
           VITE_FIREBASE_PROJECT_ID: ${{ secrets.VITE_FIREBASE_PROJECT_ID }}
           VITE_FIREBASE_STORAGE_BUCKET: ${{ secrets.VITE_FIREBASE_STORAGE_BUCKET }}
           VITE_FIREBASE_MESSAGING_SENDER_ID: ${{ secrets.VITE_FIREBASE_MESSAGING_SENDER_ID }}
           VITE_FIREBASE_APP_ID: ${{ secrets.VITE_FIREBASE_APP_ID }}
-          # ── Sebelumnya HILANG — sekarang DITAMBAHKAN ────────────────────
           VITE_FIREBASE_DATABASE_ID: ${{ secrets.VITE_FIREBASE_DATABASE_ID }}
+          # ── Security & Monitoring ──────────────────────────────────
+          VITE_CRYPTO_PEPPER: ${{ secrets.VITE_CRYPTO_PEPPER }}
           VITE_SENTRY_DSN: ${{ secrets.VITE_SENTRY_DSN }}
-          # ── App Check ──────────────────────────────────────────────────
           VITE_RECAPTCHA_SITE_KEY: ${{ secrets.VITE_RECAPTCHA_SITE_KEY }}
 
-      - uses: FirebaseExtended/action-hosting-deploy@0cbcac4740c2bfb00d632f0b863b57713124eb5a # v0
+      - name: Deploy Hosting ke Firebase
         id: firebase_deploy
+        uses: FirebaseExtended/action-hosting-deploy@0cbcac4740c2bfb00d632f0b863b57713124eb5a # v0
         with:
-          repoToken: "${{ secrets.GITHUB_TOKEN }}"
-          firebaseServiceAccount: "${{ secrets.FIREBASE_SERVICE_ACCOUNT }}"
+          repoToken: '${{ secrets.GITHUB_TOKEN }}'
+          firebaseServiceAccount: '${{ secrets.FIREBASE_SERVICE_ACCOUNT }}'
           channelId: live
-          projectId: "${{ secrets.FIREBASE_PROJECT_ID }}"
+          projectId: '${{ secrets.FIREBASE_PROJECT_ID }}'
 
       - name: Deploy Cloud Functions
         run: |
@@ -68,13 +80,15 @@ jobs:
           npm ci
           npm run build
           echo "$FIREBASE_SERVICE_ACCOUNT" > ../temp_sa.json
-          export GOOGLE_APPLICATION_CREDENTIALS=$(pwd)/../temp_sa.json
-          npx firebase-tools deploy --only functions --project ${{ secrets.FIREBASE_PROJECT_ID }} --force
-          rm ../temp_sa.json
+          export GOOGLE_APPLICATION_CREDENTIALS=$(realpath ../temp_sa.json)
+          npx firebase-tools deploy --only functions \
+            --project "${{ secrets.FIREBASE_PROJECT_ID }}" \
+            --force
+          rm -f ../temp_sa.json
         env:
           FIREBASE_SERVICE_ACCOUNT: ${{ secrets.FIREBASE_SERVICE_ACCOUNT }}
 
-      - name: Send Official Release Notification
+      - name: Notifikasi Rilis Produksi
         if: success()
         uses: dawidd6/action-send-mail@34b9d07ffa2165e6383e25eb3bb6ad18c7ea06b1 # v3.12.0
         with:
@@ -83,20 +97,23 @@ jobs:
           secure: true
           username: ${{ secrets.MAIL_USERNAME }}
           password: ${{ secrets.MAIL_PASSWORD }}
-          subject: '[PSA Business Suite] 🚀 Rilis Produksi Berhasil (Versi Terbaru)'
+          subject: '[PSA Business Suite] 🚀 Rilis Produksi Berhasil'
           to: dev.psajewelry@gmail.com
           from: PSA CI/CD Bot
           body: |
             Halo Tim PSA,
-            
-            Bot GitHub Actions (CI/CD) melaporkan bahwa Pembaruan Aplikasi Kasir Offline-First PSA Business Suite telah BERHASIL DIPRODUKSI.
-            
+
+            Bot GitHub Actions (CI/CD) melaporkan bahwa pembaruan PSA Business Suite
+            telah BERHASIL DIPRODUKSI.
+
             Detail Rilis:
-            - Cabang: ${{ github.ref_name }}
-            - Commit Target: ${{ github.sha }}
-            - Tautan Resmi (HTTPS Live URL): ${{ steps.firebase_deploy.outputs.details_url }}
-            
-            Seluruh audit kriptografi dan security state pass verifikasi. Aplikasi kasir siap digunakan.
-            
+            - Cabang       : ${{ github.ref_name }}
+            - Commit       : ${{ github.sha }}
+            - Live URL     : ${{ steps.firebase_deploy.outputs.details_url }}
+            - Waktu Deploy : ${{ github.event.head_commit.timestamp }}
+
+            Seluruh audit kriptografi dan security state pass verifikasi.
+            Aplikasi kasir siap digunakan.
+
             Salam,
             Sistem CI/CD PSA

@@ -1,13 +1,16 @@
 import fs from 'node:fs';
 import path from 'node:path';
 import { execSync } from 'node:child_process';
+import { createRequire } from 'node:module';
+
+const require = createRequire(import.meta.url);
 
 const packageName = 'adm-zip';
 try {
   require.resolve(packageName);
 } catch (e) {
   console.log(`Installing ${packageName}...`);
-  execSync(`npm install --no-save ${packageName}`, { stdio: 'inherit' });
+  execSync(`npm install --no-save --legacy-peer-deps ${packageName}`, { stdio: 'inherit' });
 }
 
 const AdmZip = require('adm-zip');

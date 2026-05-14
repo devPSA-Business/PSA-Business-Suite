@@ -6,7 +6,7 @@ on:
   pull_request:
     branches: [main, develop]
   schedule:
-    - cron: '0 2 * 0'
+    - cron: '0 2 * * 0' # setiap Minggu jam 02:00 UTC
 
 jobs:
   analyze:
@@ -24,15 +24,16 @@ jobs:
 
     steps:
       - name: Checkout repository
-        uses: actions/checkout@b4ffde65f46336ab88eb53be808477a3936bae11 # v4.1.1
+        uses: actions/checkout@v4
 
       - name: Initialize CodeQL
-        uses: github/codeql-action/init@e40af597e65d38ddc30b11d56da38e52aaf35e26 # v3.28.15
+        uses: github/codeql-action/init@v3
         with:
           languages: ${{ matrix.language }}
 
       - name: Autobuild
-        uses: github/codeql-action/autobuild@e40af597e65d38ddc30b11d56da38e52aaf35e26 # v3.28.15
+        uses: github/codeql-action/autobuild@v3
 
       - name: Perform CodeQL Analysis
-        uses: github/codeql-action/analyze@e40af597e65d38ddc30b11d56da38e52aaf35e26 # v3.28.15
+        uses: github/codeql-action/analyze@v3
+concurrency: 

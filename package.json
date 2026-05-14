@@ -31,7 +31,7 @@
     "dexie-export-import": "^4.4.0",
     "dexie-react-hooks": "^4.4.0",
     "express": "^5.2.1",
-    "firebase": "^12.13.0",
+    "firebase": "^11.0.0",
     "glob": "^13.0.6",
     "html5-qrcode": "^2.3.8",
     "lucide-react": "^0.546.0",

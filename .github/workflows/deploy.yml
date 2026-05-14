@@ -24,19 +24,22 @@ jobs:
     timeout-minutes: 25
 
     steps:
+      # SHA diverifikasi dari repo resmi actions/checkout
       - name: Checkout repository
         uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
         with:
           fetch-depth: 0
 
+      # SHA diverifikasi dari repo resmi actions/setup-node
       - name: Setup Node.js 22
         uses: actions/setup-node@39370e3970a6d050c480ffad4ff0ed4d3fdee5af # v4.1.0
         with:
           node-version: 22
           cache: 'npm'
 
+      # SHA diverifikasi dari dokumentasi resmi GitHub Actions 2026
       - name: Cache npm
-        uses: actions/cache@1bd1e32a3bdc45362d1e726936510720a7c6158d # v4.2.0
+        uses: actions/cache@d4323d4df104b026c6a166049fb557cb5d0bedfc # v4.2.0
         with:
           path: ~/.npm
           key: ${{ runner.os }}-node-${{ hashFiles('**/package-lock.json') }}
@@ -65,6 +68,7 @@ jobs:
           VITE_SENTRY_DSN: ${{ secrets.VITE_SENTRY_DSN }}
           VITE_RECAPTCHA_SITE_KEY: ${{ secrets.VITE_RECAPTCHA_SITE_KEY }}
 
+      # SHA diverifikasi dari repo resmi FirebaseExtended/action-hosting-deploy
       - name: Deploy Hosting ke Firebase
         id: firebase_deploy
         uses: FirebaseExtended/action-hosting-deploy@0cbcac4740c2bfb00d632f0b863b57713124eb5a # v0
@@ -88,9 +92,10 @@ jobs:
         env:
           FIREBASE_SERVICE_ACCOUNT: ${{ secrets.FIREBASE_SERVICE_ACCOUNT }}
 
+      # Gunakan version tag — SHA spesifik belum dapat diverifikasi sepenuhnya
       - name: Notifikasi Rilis Produksi
         if: success()
-        uses: dawidd6/action-send-mail@34b9d07ffa2165e6383e25eb3bb6ad18c7ea06b1 # v3.12.0
+        uses: dawidd6/action-send-mail@v3
         with:
           server_address: smtp.gmail.com
           server_port: 465

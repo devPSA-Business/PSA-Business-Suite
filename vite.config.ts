@@ -7,7 +7,13 @@ import removeConsole from 'vite-plugin-remove-console';
 
 export default defineConfig(({mode}) => {
   const env = loadEnv(mode, '.', '');
+  
+  // VITE_BASE_PATH diset ke '/PSA-Business-Suite/' untuk GitHub Pages deployment.
+  // Untuk Firebase Hosting, biarkan kosong (default '/').
+  const basePath = env.VITE_BASE_PATH || '/';
+
   return {
+    base: basePath,
     plugins: [
       react(), 
       tailwindcss(),
@@ -24,7 +30,8 @@ export default defineConfig(({mode}) => {
           background_color: '#ffffff',
           display: 'standalone',
           orientation: 'any',
-          start_url: '/',
+          start_url: basePath,
+          scope: basePath,
           icons: [
             { src: 'icon-180.png', sizes: '180x180', type: 'image/png' },
             { src: 'icon-192.png', sizes: '192x192', type: 'image/png', purpose: 'any' },

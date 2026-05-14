@@ -1,0 +1,94 @@
+name: Deploy — GitHub Pages (Demo/Preview)
+
+# ─────────────────────────────────────────────────────────────────────────────
+# Workflow ini mem-build PSA Business Suite dengan base path '/PSA-Business-Suite/'
+# untuk di-deploy ke GitHub Pages sebagai lingkungan demo/preview.
+# Fitur cloud (Firebase) akan berjalan dalam mode offline-first otomatis.
+# ─────────────────────────────────────────────────────────────────────────────
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - 'src/**'
+      - 'public/**'
+      - 'index.html'
+      - 'vite.config.ts'
+      - 'package.json'
+      - 'package-lock.json'
+  workflow_dispatch:
+
+concurrency:
+  group: pages-${{ github.ref }}
+  cancel-in-progress: true
+
+permissions:
+  contents: read
+  pages: write
+  id-token: write
+
+jobs:
+  build:
+    name: Build untuk GitHub Pages
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
+        with:
+          fetch-depth: 0
+
+      - name: Setup Node.js 22
+        uses: actions/setup-node@39370e3970a6d050c480ffad4ff0ed4d3fdee5af # v4.1.0
+        with:
+          node-version: 22
+          cache: 'npm'
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Build (GitHub Pages mode)
+        run: npm run build
+        env:
+          # Base path untuk routing yang benar di GitHub Pages
+          VITE_BASE_PATH: /PSA-Business-Suite/
+          # Firebase kredensial dari secrets (opsional — app berjalan offline jika kosong)
+          VITE_FIREBASE_API_KEY: ${{ secrets.VITE_FIREBASE_API_KEY || '' }}
+          VITE_FIREBASE_AUTH_DOMAIN: ${{ secrets.VITE_FIREBASE_AUTH_DOMAIN || '' }}
+          VITE_FIREBASE_PROJECT_ID: ${{ secrets.VITE_FIREBASE_PROJECT_ID || '' }}
+          VITE_FIREBASE_STORAGE_BUCKET: ${{ secrets.VITE_FIREBASE_STORAGE_BUCKET || '' }}
+          VITE_FIREBASE_MESSAGING_SENDER_ID: ${{ secrets.VITE_FIREBASE_MESSAGING_SENDER_ID || '' }}
+          VITE_FIREBASE_APP_ID: ${{ secrets.VITE_FIREBASE_APP_ID || '' }}
+          VITE_FIREBASE_DATABASE_ID: ${{ secrets.VITE_FIREBASE_DATABASE_ID || '' }}
+          VITE_CRYPTO_PEPPER: ${{ secrets.VITE_CRYPTO_PEPPER || 'gh-pages-demo-pepper' }}
+
+      # GitHub Pages SPA fallback: salin index.html ke 404.html
+      # agar deep-links dan refresh halaman berfungsi dengan benar.
+      - name: Create 404.html SPA fallback
+        run: cp dist/index.html dist/404.html
+
+      # Pastikan .nojekyll ada agar asset JS/CSS tidak diblokir Jekyll
+      - name: Ensure .nojekyll
+        run: touch dist/.nojekyll
+
+      - name: Setup Pages
+        uses: actions/configure-pages@v5
+
+      - name: Upload Pages artifact
+        uses: actions/upload-pages-artifact@v3
+        with:
+          path: dist
+
+  deploy:
+    name: Deploy ke GitHub Pages
+    needs: build
+    runs-on: ubuntu-latest
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+
+    steps:
+      - name: Deploy ke GitHub Pages
+        id: deployment
+        uses: actions/deploy-pages@v4

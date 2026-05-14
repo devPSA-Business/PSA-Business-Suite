@@ -1,7 +1,6 @@
 import express from 'express';
 import path from 'path';
 import { fileURLToPath } from 'url';
-import geminiProxy from './api/index.js';
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 
@@ -10,9 +9,6 @@ async function startServer() {
   const PORT = 3000;
 
   app.use(express.json());
-
-  // API Proxy for Gemini
-  app.use(geminiProxy);
 
   // Vite middleware
   if (process.env.NODE_ENV !== 'production') {

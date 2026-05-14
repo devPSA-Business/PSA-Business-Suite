@@ -113,10 +113,14 @@ export class SyncServiceImpl implements ISyncService {
           return;
         }
 
-        const allPendingEvents = await db.sync_events
+        // G-07: Batasi jumlah event per siklus untuk RAM & performa         
+        const allEvents = await db.sync_events
           .where('status')
           .anyOf(['PENDING', 'FAILED'])
-          .sortBy('timestamp');
+          .toArray();
+          
+        allEvents.sort((a, b) => a.timestamp - b.timestamp);
+        const allPendingEvents = allEvents.slice(0, 100);
 
         const now = Date.now();
         // Check for blocked entity IDs
@@ -149,7 +153,7 @@ export class SyncServiceImpl implements ISyncService {
 
         if (executableEvents.length === 0) return;
 
-        const CHUNK_SIZE = 200;
+        const CHUNK_SIZE = 50; // Lebih aman untuk device berspek rendah dan batas Firestore
         const chunks = [];
         for (let i = 0; i < executableEvents.length; i += CHUNK_SIZE) {
           chunks.push(executableEvents.slice(i, i + CHUNK_SIZE));

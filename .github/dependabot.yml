@@ -1,46 +1,16 @@
 version: 2
 updates:
-  # 🔹 Node.js / npm packages
-  - package-ecosystem: "npm"
-    directory: "/" # lokasi package.json
-    schedule:
-      interval: "weekly"
-      day: "monday"
-      time: "03:00"
-    open-pull-requests-limit: 10
-    commit-message:
-      prefix: "deps"
-      include: "scope"
-    reviewers:
-      - "devPSA-Business"
-    labels:
-      - "dependencies"
-      - "security"
-
-  # 🔹 GitHub Actions
   - package-ecosystem: "github-actions"
-    directory: "/" # lokasi workflow .yml
+    directory: "/"
     schedule:
       interval: "weekly"
-      day: "monday"
-      time: "03:00"
-    open-pull-requests-limit: 5
     commit-message:
       prefix: "ci"
       include: "scope"
-    labels:
-      - "ci"
-      - "automation"
-
-  # 🔹 Docker (jika ada Dockerfile)
-  - package-ecosystem: "docker"
-    directory: "/" # lokasi Dockerfile
+  - package-ecosystem: "npm"
+    directory: "/"
     schedule:
       interval: "weekly"
-    open-pull-requests-limit: 5
     commit-message:
-      prefix: "docker"
+      prefix: "chore"
       include: "scope"
-    labels:
-      - "docker"
-      - "security"

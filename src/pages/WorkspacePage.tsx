@@ -3,7 +3,6 @@ import { Link, useNavigate } from '@tanstack/react-router';
 import { useLiveQuery } from 'dexie-react-hooks';
 import { DIContainer } from '../infrastructure/di/Container';
 import { db } from '../shared/api/db';
-import { BackButton } from '../shared/components/BackButton';
 import { PettyCashWidget } from '../features/workspace/components/PettyCashWidget';
 import { CustomOrderWidget } from '../features/workspace/components/CustomOrderWidget';
 import { SmartShiftCard } from '../features/workspace/components/SmartShiftCard';
@@ -61,10 +60,7 @@ export function WorkspacePage() {
   const buttonText = isLate ? "Tutup Toko & Review" : "Akhiri Shift Lebih Awal";
 
   return (
-    <div className="flex flex-col h-full max-h-screen max-w-7xl mx-auto pb-24 animate-in fade-in duration-500 overflow-y-auto">
-      <div className="shrink-0 mb-6">
-        <BackButton />
-      </div>
+    <div className="flex flex-col h-full max-h-screen max-w-7xl mx-auto pb-24 animate-in fade-in duration-500 overflow-y-auto pt-6 px-4 md:px-0">
       
       {/* ZONA KONTEKS (Header) */}
       <div className="shrink-0 mb-6">

@@ -4,13 +4,13 @@ Dokumen ini memetakan fitur utama aplikasi ke struktur file saat ini (Feature-Sl
 
 | Fitur Utama | Modul/File Terkait | Status |
 | :--- | :--- | :--- |
-| **Penjualan Ritel (Imitasi)** | `src/features/pos`, `src/shared/store/usePOSStore.ts` | Implementasi Dasar |
-| **Layanan Reparasi/Sepuh** | `src/features/services` (RepairForm.tsx) | Implementasi Dasar |
-| **Transaksi Emas (Buyback/Jual-Beli)** | Belum ada modul khusus | **Belum Implementasi** |
-| **Keamanan & Audit** | `src/features/audit` | Implementasi Dasar |
-| **Manajemen Shift** | `src/features/shift` | Implementasi Dasar |
-| **Pencatatan HPP** | `src/shared/api/dbService.ts` | Perlu Penajaman |
-| **Printer ESC/POS** | `src/shared/api/printService.ts` | Belum Terhubung |
+| **Penjualan Ritel (Imitasi)** | `src/features/pos` | **Selesai** |
+| **Layanan Reparasi/Sepuh** | `src/features/services` | **Selesai** |
+| **Transaksi Emas (Buyback/Jual-Beli)** | `src/features/gold` | **Selesai** |
+| **Keamanan & Audit** | `src/features/audit`, `src/lib/cryptoIndexedDB.ts` | **Selesai (P0)** |
+| **Manajemen Shift** | `src/features/shift` | **Selesai** |
+| **Pencatatan HPP** | `src/shared/api/dbService.ts`, `src/features/pos/usecases/CheckoutUseCase.ts` | **Hardened** |
+| **Printer Thermal (ESC/POS)** | `src/shared/application/services/IPrintService.ts` | **Interface Ready** |
 
 ---
 

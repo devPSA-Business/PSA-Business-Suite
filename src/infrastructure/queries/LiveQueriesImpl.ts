@@ -30,35 +30,35 @@ export class LiveQueriesImpl implements ILiveQueries {
     const query = db.stock.where('quantity').below(5);
     if (branchId && branchId !== 'HQ') {
       // eslint-disable-next-line @typescript-eslint/no-explicit-any
-      return query.filter(i => i.branchId === branchId).toArray() as any;
+      return query.filter(i => i.branchId === branchId).limit(100).toArray() as any;
     }
-    return query.toArray();
+    return query.limit(100).toArray();
   }
 
   observeProducts(branchId?: string): PromiseExtended<StockItem[]> {
     if (branchId && branchId !== 'HQ') {
       // eslint-disable-next-line @typescript-eslint/no-explicit-any
-      return db.stock.filter(i => i.branchId === branchId).toArray() as any;
+      return db.stock.filter(i => i.branchId === branchId).limit(100).toArray() as any;
     }
-    return db.stock.toArray();
+    return db.stock.limit(100).toArray();
   }
 
   observeRepairs(branchId?: string): PromiseExtended<RepairService[]> {
     const query = db.repair_services.orderBy('date').reverse();
     if (branchId && branchId !== 'HQ') {
       // eslint-disable-next-line @typescript-eslint/no-explicit-any
-      return query.filter(r => r.branchId === branchId).toArray() as any;
+      return query.filter(r => r.branchId === branchId).limit(100).toArray() as any;
     }
-    return query.toArray();
+    return query.limit(100).toArray();
   }
 
   observeHandovers(branchId?: string): PromiseExtended<Handover[]> {
     const query = db.handovers.orderBy('timestamp').reverse();
     if (branchId && branchId !== 'HQ') {
       // eslint-disable-next-line @typescript-eslint/no-explicit-any
-      return query.filter(h => h.branchId === branchId).toArray() as any;
+      return query.filter(h => h.branchId === branchId).limit(50).toArray() as any;
     }
-    return query.toArray();
+    return query.limit(50).toArray();
   }
 
   observeAuditLogs(branchId?: string, limit?: number): PromiseExtended<AuditLog[]> {
@@ -87,9 +87,9 @@ export class LiveQueriesImpl implements ILiveQueries {
     const query = db.suspended_carts.orderBy('timestamp').reverse();
     if (branchId && branchId !== 'HQ') {
       // eslint-disable-next-line @typescript-eslint/no-explicit-any
-      return query.filter(c => c.branchId === branchId).toArray() as any;
+      return query.filter(c => c.branchId === branchId).limit(50).toArray() as any;
     }
-    return query.toArray();
+    return query.limit(50).toArray();
   }
 
   observeStockHistory(stockId: string): PromiseExtended<StockHistory[]> {

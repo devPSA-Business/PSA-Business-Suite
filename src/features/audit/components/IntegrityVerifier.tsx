@@ -25,9 +25,10 @@ export function IntegrityVerifier() {
     try {
       const logs = await db.audit_logs
         .orderBy('timestamp')
+        .limit(1000)
         .toArray();
 
-      for (let i = 0; i < Math.min(logs.length, 1000); i++) {
+      for (let i = 0; i < logs.length; i++) {
         const entry = logs[i];
         
         // This is a spot-check. Full chain verification could be heavy.

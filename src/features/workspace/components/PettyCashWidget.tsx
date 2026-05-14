@@ -1,6 +1,5 @@
 import React, { useState } from 'react';
 import { useLiveQuery } from 'dexie-react-hooks';
-import { db } from '../../../shared/api/db';
 import { useAuthStore } from '../../../shared/store/authStore';
 import { useToastStore } from '../../../shared/store/toastStore';
 import { Wallet, Plus, X } from 'lucide-react';
@@ -18,9 +17,8 @@ export function PettyCashWidget() {
   const addToast = useToastStore((state) => state.addToast);
 
   // Get today's petty cash
-  const startOfDay = new Date().setHours(0, 0, 0, 0);
   const pettyCashToday = useLiveQuery(
-    () => db.petty_cash.where('date').aboveOrEqual(startOfDay).toArray(),
+    () => DIContainer.pettyCashRepository.getTodayQuery(),
     []
   );
 

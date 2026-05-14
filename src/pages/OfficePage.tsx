@@ -3,7 +3,6 @@ import { Link } from '@tanstack/react-router';
 import { BarChart3, Wallet, Package, Wrench, ShieldAlert, DollarSign, TrendingUp, Clock, User, Activity, Settings, ShieldCheck, AlertTriangle, Loader2 } from 'lucide-react';
 import { useLiveQuery } from 'dexie-react-hooks';
 import { DIContainer } from '../infrastructure/di/Container';
-import { BackButton } from '../shared/components/BackButton';
 import { UI_REGISTRY } from '../shared/constants/ui_registry';
 import { useAuthStore } from '../shared/store/authStore';
 import { useToastStore } from '../shared/store/toastStore';
@@ -45,10 +44,7 @@ export function OfficePage() {
   const recentLogs = auditLogs;
 
   return (
-    <div className="flex flex-col h-full max-h-screen max-w-4xl mx-auto relative pb-12 animate-in fade-in duration-500" data-testid="W-O-01">
-      <div className="shrink-0 mb-6 flex justify-between items-center">
-        <BackButton />
-      </div>
+    <div className="flex flex-col h-full max-h-screen max-w-4xl mx-auto relative pb-12 animate-in fade-in duration-500 pt-6 px-4 md:px-0" data-testid="W-O-01">
       {/* Header */}
       <div className="shrink-0 mb-8">
         <h1 className="text-3xl font-serif font-bold text-brand-900">{UI_REGISTRY.PAGES.OFFICE.label}</h1>

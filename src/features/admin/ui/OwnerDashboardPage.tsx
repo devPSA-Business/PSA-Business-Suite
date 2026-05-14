@@ -33,7 +33,7 @@ const CustomScatterTooltip = ({ active, payload }: { active?: boolean, payload?:
 };
 
   // (Removed interfaces TxItem and Tx)
-export const OwnerDashboardPage: React.FC = () => {
+export const OwnerDashboardPage: React.FC<{ embedded?: boolean }> = ({ embedded = false }) => {
   const navigate = useNavigate();
   const user = useAuthStore(state => state.user);
   const { addToast } = useToastStore();
@@ -162,29 +162,43 @@ export const OwnerDashboardPage: React.FC = () => {
   const getCategoryCount = (cat: string) => filteredRanking.filter(p => p.category?.includes(cat)).length;
 
   return (
-    <div className="p-4 md:p-6 lg:p-8" data-component-id="OwnerDashboard" data-error-domain="analytics">
-      <div className="flex justify-between items-center mb-8">
-        <div>
-          <h1 className="text-3xl font-serif font-bold text-gray-900 flex items-center gap-3">
-            <TrendingUp className="text-brand-900" size={32} />
-            Owner Command Center
-          </h1>
-          <p className="text-stone-500 mt-1">Intelegensi Profit & Audit Integritas HPP</p>
+    <div className={`${embedded ? 'pt-2' : 'p-4 md:p-6 lg:p-8'}`} data-component-id="OwnerDashboard" data-error-domain="analytics">
+      {!embedded && (
+        <div className="flex justify-between items-center mb-8">
+          <div>
+            <h1 className="text-3xl font-serif font-bold text-gray-900 flex items-center gap-3">
+              <TrendingUp className="text-brand-900" size={32} />
+              Owner Command Center
+            </h1>
+            <p className="text-stone-500 mt-1">Intelegensi Profit & Audit Integritas HPP</p>
+          </div>
+          <div className="text-sm font-bold bg-stone-100 text-stone-600 px-4 py-2 rounded-full border border-stone-200">
+            30 Hari Terakhir
+          </div>
         </div>
-        <div className="text-sm font-bold bg-stone-100 text-stone-600 px-4 py-2 rounded-full border border-stone-200">
-          30 Hari Terakhir
-        </div>
-      </div>
+      )}
 
       {/* KPI Row */}
       <div className="grid grid-cols-1 md:grid-cols-4 gap-6 mb-8">
-        <div className="bg-white p-6 rounded-2xl shadow-sm border border-stone-200 flex flex-col justify-center">
+        <div className="bg-white p-6 rounded-2xl shadow-sm border border-stone-200 flex flex-col justify-center relative overflow-hidden group">
           <div className="text-sm font-semibold text-stone-500 mb-1 flex items-center gap-2"><DollarSign size={16}/> Total Omzet (30d)</div>
           <div className="text-3xl lg:text-4xl font-bold text-brand-900">{formatRupiah(totalOmzet30d)}</div>
+          {/* Target Track - Eksekusi Strategi Terukur */}
+          <div className="w-full bg-stone-100 rounded-full h-1.5 mt-4">
+            <div className="bg-brand-900 h-1.5 rounded-full" style={{ width: `${Math.min((totalOmzet30d / 50000000) * 100, 100)}%` }}></div>
+          </div>
+          <div className="text-[10px] text-stone-400 mt-1 mt-1 flex justify-between">
+            <span>Target: Rp 50Jt</span>
+            <span>{Math.round(Math.min((totalOmzet30d / 50000000) * 100, 100))}%</span>
+          </div>
         </div>
-        <div className="bg-emerald-50 p-6 rounded-2xl shadow-sm border border-emerald-200 flex flex-col justify-center">
+        <div className="bg-emerald-50 p-6 rounded-2xl shadow-sm border border-emerald-200 flex flex-col justify-center relative overflow-hidden">
           <div className="text-sm font-semibold text-emerald-800 mb-1 flex items-center gap-2"><Activity size={16}/> Gross Profit (30d)</div>
           <div className="text-3xl lg:text-4xl font-bold text-emerald-700">{formatRupiah(totalProfit30d)}</div>
+          {/* ROI Proxy */}
+          <div className="text-[10px] text-emerald-600 font-bold mt-2 bg-emerald-100 w-max px-2 py-0.5 rounded">
+            Margin: {totalOmzet30d > 0 ? Math.round((totalProfit30d / totalOmzet30d) * 100) : 0}% 
+          </div>
         </div>
         <div className={`p-6 rounded-2xl shadow-sm border flex flex-col justify-center cursor-pointer transition-colors ${missingCostTxs.length > 0 ? 'bg-amber-50 border-amber-200 hover:bg-amber-100' : 'bg-white border-stone-200'}`} onClick={() => missingCostTxs.length > 0 && setShowCostModal(true)}>
           <div className={`text-sm font-semibold mb-1 flex items-center justify-between ${missingCostTxs.length > 0 ? 'text-amber-800' : 'text-stone-500'}`}>

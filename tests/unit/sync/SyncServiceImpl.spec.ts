@@ -11,7 +11,6 @@ const createQueryMock = () => {
   const mock: any = {
     equals: vi.fn().mockImplementation(() => mock),
     anyOf: vi.fn().mockImplementation(() => mock),
-    sortBy: vi.fn().mockResolvedValue([]),
     filter: vi.fn().mockImplementation(() => mock),
     toArray: vi.fn().mockResolvedValue([]),
     first: vi.fn().mockResolvedValue(null),
@@ -92,7 +91,7 @@ const mockOnline = vi.spyOn(navigator, 'onLine', 'get');
 describe('SyncServiceImpl', () => {
   let syncService: SyncServiceImpl;
 
-    beforeEach(() => {
+  beforeEach(() => {
     if (syncService) {
       syncService.stopAutoSync();
     }
@@ -223,8 +222,9 @@ describe('SyncServiceImpl', () => {
       vi.useFakeTimers();
       const processSpy = vi.spyOn(syncService, 'processSyncQueue').mockRejectedValue(new Error('Initial start sync error'));
       syncService.startAutoSync();
-      await vi.runOnlyPendingTimersAsync();
+      await vi.advanceTimersByTimeAsync(8000);
       syncService.stopAutoSync();
+      vi.useRealTimers();
     });
     it('starts and stops auto sync without errors', async () => {
       vi.useFakeTimers();
@@ -239,28 +239,39 @@ describe('SyncServiceImpl', () => {
       
       // Simulate an online event
       window.dispatchEvent(new Event('online'));
-      await vi.runOnlyPendingTimersAsync();
+      await vi.advanceTimersByTimeAsync(8000);
 
       // Simulate online event with error
       processSpy.mockRejectedValue(new Error('Online sync fail'));
       window.dispatchEvent(new Event('online'));
-      await vi.runOnlyPendingTimersAsync();
+      await vi.advanceTimersByTimeAsync(8000);
 
       processSpy.mockRejectedValue(new Error('Sync interval error'));
-      await vi.runOnlyPendingTimersAsync();
+      await vi.advanceTimersByTimeAsync(8000);
 
       syncService.stopAutoSync();
       expect(clearIntervalSpy).toHaveBeenCalled();
+      vi.useRealTimers();
     });
   });
 
   describe('processSyncQueue', () => {
+    let originalSetTimeout: any;
+
     beforeEach(() => {
+       originalSetTimeout = global.setTimeout;
+       // Mock setTimeout so that the 50ms throttling doesn't hang our tests
+       global.setTimeout = vi.fn((cb) => typeof cb === 'function' && cb()) as any;
+       
        Object.defineProperty(navigator, 'locks', {
          value: { request: vi.fn(async (name, options, cb) => await cb(true)) },
          configurable: true,
          writable: true
        });
+    });
+
+    afterEach(() => {
+       global.setTimeout = originalSetTimeout;
     });
 
     it('should have auto-sync configuration valid (skipped check)', () => {
@@ -308,7 +319,6 @@ describe('SyncServiceImpl', () => {
       expect(db.sync_events.where).toHaveBeenCalledTimes(0);
       
       fetchSpy.mockRestore();
-      vi.useRealTimers();
     });
     
     it('processes generic chunk of pending events', async () => {
@@ -322,7 +332,7 @@ describe('SyncServiceImpl', () => {
       ];
       
       const query = {
-        anyOf: vi.fn().mockReturnValue({ sortBy: vi.fn().mockResolvedValue(events) })
+        anyOf: vi.fn().mockReturnValue({ toArray: vi.fn().mockResolvedValue(events) })
       };
       (db.sync_events.where as any).mockReturnValue(query);
 
@@ -357,7 +367,7 @@ describe('SyncServiceImpl', () => {
       ];
       
       const query = {
-        anyOf: vi.fn().mockReturnValue({ sortBy: vi.fn().mockResolvedValue(events) })
+        anyOf: vi.fn().mockReturnValue({ toArray: vi.fn().mockResolvedValue(events) })
       };
       (db.sync_events.where as any).mockReturnValue(query);
 
@@ -388,7 +398,7 @@ describe('SyncServiceImpl', () => {
       ];
       
       const query = {
-        anyOf: vi.fn().mockReturnValue({ sortBy: vi.fn().mockResolvedValue(events) })
+        anyOf: vi.fn().mockReturnValue({ toArray: vi.fn().mockResolvedValue(events) })
       };
       (db.sync_events.where as any).mockReturnValue(query);
 
@@ -417,7 +427,7 @@ describe('SyncServiceImpl', () => {
     ];
     
     const query = {
-      anyOf: vi.fn().mockReturnValue({ sortBy: vi.fn().mockResolvedValue(events) })
+      anyOf: vi.fn().mockReturnValue({ toArray: vi.fn().mockResolvedValue(events) })
     };
     (db.sync_events.where as any).mockReturnValue(query);
 
@@ -442,7 +452,7 @@ describe('SyncServiceImpl', () => {
        { id: 1, entity_type: 'stock', action: 'UPDATE', payload: { client_txn_id: '123', version: 1 }, status: 'PENDING' }
     ];
     const query = {
-      anyOf: vi.fn().mockReturnValue({ sortBy: vi.fn().mockResolvedValue(events) })
+      anyOf: vi.fn().mockReturnValue({ toArray: vi.fn().mockResolvedValue(events) })
     };
     (db.sync_events.where as any).mockReturnValue(query);
 
@@ -466,7 +476,7 @@ describe('SyncServiceImpl', () => {
 
     const events = [{ id: 1, entity_type: 'stock', action: 'INSERT', payload: { client_txn_id: '123' }, status: 'PENDING' }];
     const query = createQueryMock();
-    query.sortBy.mockResolvedValue(events);
+    query.toArray.mockResolvedValue(events);
     (db.sync_events.where as any).mockReturnValue(query);
 
     const commitMock = vi.fn().mockRejectedValue({ code: 'permission-denied' });
@@ -495,7 +505,7 @@ describe('SyncServiceImpl', () => {
       retry_count: 4
     }];
     const query = createQueryMock();
-    query.sortBy.mockResolvedValue(events);
+    query.toArray.mockResolvedValue(events);
     (db.sync_events.where as any).mockReturnValue(query);
 
     const commitMock = vi.fn().mockRejectedValue(new Error('Persistent error'));

@@ -2,9 +2,9 @@ import React, { useState, useEffect } from 'react';
 import { Link, useRouterState } from '@tanstack/react-router';
 import { motion, AnimatePresence } from 'motion/react';
 import { 
-  X, LayoutDashboard, Briefcase, Building, Settings, 
-  ChevronDown, ChevronRight, Package, Wrench, 
-  Users, FileText, Printer, Receipt, Key, Cloud, CloudOff
+  X, Briefcase, Settings, 
+  ChevronRight, ChevronDown, FileText, Wrench, Key, Cloud, CloudOff,
+  Home, TrendingUp, LayoutDashboard, LucideIcon
 } from 'lucide-react';
 import { formatDistanceToNow } from 'date-fns';
 import { id as localeId } from 'date-fns/locale';
@@ -46,41 +46,46 @@ function useSyncStatus() {
   return { isOk, isStale, lastSyncAt, timeLabel };
 }
 
-const menuGroups = [
+type SubItem = { label: string; path: string; icon: LucideIcon };
+type MenuGroup = {
+  id: string;
+  label: string;
+  icon: LucideIcon;
+  path?: string;
+  subItems?: SubItem[];
+};
+
+const menuGroups: MenuGroup[] = [
   {
     id: 'home',
-    label: 'Dashboard',
-    icon: LayoutDashboard,
+    label: 'Beranda',
+    icon: Home,
     path: '/',
   },
   {
     id: 'workspace',
-    label: 'Operasional Toko',
-    icon: Briefcase,
-    subItems: [
-      { label: 'Inventaris', path: '/inventory', icon: Package },
-      { label: 'Servis & Reparasi', path: '/services', icon: Wrench },
-      { label: 'Kasir (POS)', path: '/cashier', icon: Receipt },
-    ]
+    label: 'Front Line',
+    icon: LayoutDashboard,
+    path: '/workspace',
   },
   {
     id: 'office',
-    label: 'Manajemen',
-    icon: Building,
-    subItems: [
-      { label: 'Laporan Keuangan', path: '/finance', icon: FileText },
-      { label: 'Pegawai', path: '/employees', icon: Users },
-    ]
+    label: 'Back Office',
+    icon: Briefcase,
+    path: '/office',
+  },
+  {
+    id: 'executive',
+    label: 'Eksekutif',
+    icon: TrendingUp,
+    path: '/executive',
   },
   {
     id: 'settings',
-    label: 'Pengaturan',
+    label: 'Settings',
     icon: Settings,
-    subItems: [
-      { label: 'Pengaturan Printer', path: '/settings/printer', icon: Printer },
-      { label: 'Format Struk', path: '/settings/receipt', icon: Receipt },
-      { label: 'Sistem', path: '/settings', icon: Settings },
-    ]
+    path: '/settings',
+    subItems: []
   }
 ];
 

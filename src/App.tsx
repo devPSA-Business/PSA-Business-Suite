@@ -63,10 +63,15 @@ export default function App() {
       import('./shared/constants/errorMessages')
     ]).then(([{ isConfigValid }, { ERROR_MESSAGES }]) => {
       if (!isConfigValid) {
-        logger.warn(`[App] ${ERROR_MESSAGES.FIREBASE_CONFIG_MISSING}`);
+        logger.warn(`[App] ${ERROR_MESSAGES.FIREBASE_CONFIG_MISSING || 'Cloud configuration missing. Offline mode active.'}`);
       } else {
         logger.info('[App] Firebase configuration detected. Cloud features are enabled.');
       }
+    }).catch(err => {
+      logger.error('[App] Failed to load critical assets (firebase/errorMessages):', { 
+        error: err instanceof Error ? err.message : String(err) 
+      });
+      // Fallback: Aplikasi tetap bisa jalan tapi dengan log warning
     });
   }, []);
 

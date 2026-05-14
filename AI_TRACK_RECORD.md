@@ -28,6 +28,8 @@ Catatan perubahan besar untuk PSA Business Suite v1.4+.
 | 2026-05-10 | Cloud Run Sandbox (AI Studio): Implementasi workspace developer untuk preview/auditing. Import file berhasil (91 deps, lint = 100%, server listening). | Selesai | Rendah |
 | 2026-05-10 | **Tinjauan Keamanan Audit**: Menyelesaikan kerentanan *Blanket Read* di `firestore.rules` (melanggar Pilar Zero Trust) pada rute `allow list` stok/transaksi dengan memaksakan validasi `belongsToBranch(resource.data)`. Merekam ADR-005. | Selesai | Sedang |
 | 2026-05-10 | **MIGRATETOBFF & P0 Kepatuhan**: Refaktor Crypto PIN (PBKDFH) ke murni fungsionalitas Backend (BFF). Menghapus endpoint API `/api/get-security-config` yang rentan dan menggantinya dengan rute perhitungan hash `/api/hash-pin` yang mengeksekusi iterasi menggunakan `crypto.pbkdf2` tanpa mengungkap Pepper ke jaringan klien. Mendukung *offline-mode* melalui mekanisme "Deferred Verification" (percobaan Unwrap *device-key* secara dinamis). Dilarang sepenuhnya VITE_CRYPTO_PEPPER. Celah Pepper exposure dihentikan. | Selesai | Tinggi |
+| 2026-05-12 | CI/CD Hardening: Pin semua GitHub Actions ke commit SHA penuh (40 karakter) sesuai kebijakan keamanan audit, terekam di ADR 006. | Selesai | Rendah |
+| 2026-05-13 | **EVALUASI & PENYEMPURNAAN FINAL**: Resolusi konflik `package-lock.json` & pembersihan `overrides` conflict dependensi. Pinning final GitHub Actions (upload-artifact v4.6.0 SHA). Verifikasi kepatuhan **PolicyPrompt P0** (Pembersihan PII di Logger, Zero-Trust di firestore.rules, dan Math Precision via `decimal.js`). Semua unit test (165 test) PASSED. | Selesai | Rendah |
 
 
 ## Perbaikan TS Critical:

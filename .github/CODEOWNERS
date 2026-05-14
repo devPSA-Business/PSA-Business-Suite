@@ -1,3 +1,32 @@
-/src/ @devPSA-Business/backend-team @devPSA-Business/frontend-team
-/.github/ @devPSA-Business/devops
-package.json @devPSA-Business/backend-team
+# Kepemilikan Kode (Code Owners)
+# ----------------------------------------------------
+# File ini digunakan oleh GitHub untuk menentukan siapa
+# penanggung jawab utama (maintainer) dari setiap modul 
+# untuk keperluan code review secara otomatis.
+# ----------------------------------------------------
+
+# Global owner
+*       @devPSA-Business
+
+# Backend & Infrastructure
+/functions/                   @devPSA-Business
+/src/infrastructure/          @devPSA-Business
+/src/shared/api/              @devPSA-Business
+/src/lib/                     @devPSA-Business
+
+# Security & Compliance
+SECURITY.md                   @devPSA-Business
+PRIVACY.md                    @devPSA-Business
+AGENTS.md                     @devPSA-Business
+firestore.rules               @devPSA-Business
+/*.rules                      @devPSA-Business
+/src/infrastructure/crypto/   @devPSA-Business
+
+# Core Sub-Modules
+/src/features/gold/           @devPSA-Business
+/src/features/auth/           @devPSA-Business
+/src/features/pos/            @devPSA-Business
+/src/features/inventory/      @devPSA-Business
+
+# CI/CD & GitHub Workflows
+/.github/                     @devPSA-Business

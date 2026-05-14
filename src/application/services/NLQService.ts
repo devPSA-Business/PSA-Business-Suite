@@ -3,6 +3,7 @@
 import { logger } from '../../lib/logger';
 import { functions } from '../../shared/api/firebase';
 import { httpsCallable } from 'firebase/functions';
+import { DIContainer } from '../../infrastructure/di/Container';
 
 interface AggregateData {
   customer?: {
@@ -27,7 +28,7 @@ export class NLQService {
       payload.customer.email = '<<PII_REMOVED>>';
     }
     if (typeof payload.text === 'string') {
-      payload.text = payload.text.replace(/\b[A-Za-z0-9._%+-]+@[A-Za-z0-9.-]+\.[A-Z|a-z]{2,}\b/g, '<<PII_REMOVED>>');
+      payload.text = payload.text.replace(/\b[A-Za-z0-9._%+-]+@?[A-Za-z0-9.-]+\.[A-Z|a-z]{2,}\b/g, '<<PII_REMOVED>>');
       payload.text = payload.text.replace(/\b\d{12,19}\b/g, '<<PII_REMOVED>>');
       payload.text = payload.text.replace(/\+?\d{7,15}/g, '<<PII_REMOVED>>');
     }
@@ -46,6 +47,20 @@ export class NLQService {
     }
 
     this.requestCount++;
+    
+    // P0: Log in-the-clear request strictly to encrypted audit_logs
+    await DIContainer.unitOfWork.registerAudit(
+      'NLQ_QUERY_EXECUTED',
+      userId,
+      `User initiated NLQ query`,
+      {
+        userId,
+        payloadDiff: JSON.stringify({ question, aggregates })
+      }
+    ).catch((err) => {
+      logger.error('Failed to log original NLQ request to audit_log', err);
+    });
+
     const sanitizedAggregates = this.sanitize(aggregates);
 
     try {

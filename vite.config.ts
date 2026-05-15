@@ -7,13 +7,7 @@ import removeConsole from 'vite-plugin-remove-console';
 
 export default defineConfig(({mode}) => {
   const env = loadEnv(mode, '.', '');
-  
-  // VITE_BASE_PATH diset ke '/PSA-Business-Suite/' untuk GitHub Pages deployment.
-  // Untuk Firebase Hosting, biarkan kosong (default '/').
-  const basePath = env.VITE_BASE_PATH || '/';
-
   return {
-    base: basePath,
     plugins: [
       react(), 
       tailwindcss(),
@@ -30,8 +24,7 @@ export default defineConfig(({mode}) => {
           background_color: '#ffffff',
           display: 'standalone',
           orientation: 'any',
-          start_url: basePath,
-          scope: basePath,
+          start_url: '/',
           icons: [
             { src: 'icon-180.png', sizes: '180x180', type: 'image/png' },
             { src: 'icon-192.png', sizes: '192x192', type: 'image/png', purpose: 'any' },
@@ -92,12 +85,10 @@ export default defineConfig(({mode}) => {
       rollupOptions: {
         output: {
           manualChunks: {
-            'vendor-react': ['react', 'react-dom', 'react-is', '@tanstack/react-router'],
+            'vendor-react': ['react', 'react-dom', '@tanstack/react-router'],
             'vendor-db': ['dexie', 'dexie-react-hooks', 'firebase/app', 'firebase/firestore'],
-            'vendor-ui': ['lucide-react'],
-            'vendor-motion': ['motion'],
-            'vendor-chart': ['recharts'],
-            'vendor-date': ['date-fns'],
+            'vendor-ui': ['lucide-react', 'motion'],
+            'vendor-chart': ['recharts']
           }
         }
       }

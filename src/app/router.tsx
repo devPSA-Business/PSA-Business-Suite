@@ -50,7 +50,6 @@ const cashierRoute = createRoute({ getParentRoute: () => rootRoute, path: '/cash
 const servicePosRoute = createRoute({ getParentRoute: () => rootRoute, path: '/service-pos', beforeLoad: requireAuth, component: lazyRouteComponent(() => import('../features/services/ui/ServicePosPage'), 'ServicePosPage') });
 const buybackRoute = createRoute({ getParentRoute: () => rootRoute, path: '/buyback', beforeLoad: requireRole([UserRole.ADMIN, UserRole.MANAGER]), component: lazyRouteComponent(() => import('../features/gold/ui/ForensicBuybackPage'), 'ForensicBuybackPage') });
 const goldBuybackSalesRoute = createRoute({ getParentRoute: () => rootRoute, path: '/gold-buyback-sales', beforeLoad: requireRole([UserRole.ADMIN, UserRole.MANAGER]), component: lazyRouteComponent(() => import('../features/gold/ui/GoldBuybackSalesPage'), 'GoldBuybackSalesPage') });
-const goldTreasuryRoute = createRoute({ getParentRoute: () => rootRoute, path: '/gold-treasury', beforeLoad: requireRole([UserRole.ADMIN, UserRole.MANAGER]), component: lazyRouteComponent(() => import('../features/gold/ui/GoldTreasuryPage'), 'GoldTreasuryPage') });
 const receiveStockRoute = createRoute({ getParentRoute: () => rootRoute, path: '/receive-stock', beforeLoad: requireRole([UserRole.ADMIN, UserRole.MANAGER]), component: lazyRouteComponent(() => import('../features/inventory/ui/ReceiveStockPage'), 'ReceiveStockPage') });
 const barcodePrintRoute = createRoute({ getParentRoute: () => rootRoute, path: '/barcode-print', beforeLoad: requireRole([UserRole.ADMIN, UserRole.MANAGER]), component: lazyRouteComponent(() => import('../features/inventory/ui/BarcodePrintPage'), 'BarcodePrintPage') });
 const servicesRoute = createRoute({ getParentRoute: () => rootRoute, path: '/services', beforeLoad: requireAuth, component: lazyRouteComponent(() => import('../features/services/ui/RepairPage'), 'RepairPage') });
@@ -127,7 +126,7 @@ const syncDlqRoute = createRoute({ getParentRoute: () => rootRoute, path: '/sett
 const routeTree = rootRoute.addChildren([
   indexRoute, workspaceRoute, officeRoute, cashierRoute, dashboardRoute, 
   auditRoute, systemAuditRoute, syncStatusRoute, conflictResolutionRoute, financeRoute, servicePosRoute, buybackRoute,
-  goldBuybackSalesRoute, goldTreasuryRoute, inventoryRoute, receiveStockRoute, barcodePrintRoute,
+  goldBuybackSalesRoute, inventoryRoute, receiveStockRoute, barcodePrintRoute,
   servicesRoute, shiftRoute, handoverRoute, settingsRoute, executiveRoute,
   lockedRoute, loginRoute, onboardingRoute, employeesRoute, customersRoute, printerSettingsRoute, receiptSettingsRoute, syncDlqRoute, ownerDashboardRoute
 ]);

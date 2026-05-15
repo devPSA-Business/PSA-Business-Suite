@@ -13,12 +13,11 @@ import { handleNumberInputKeyDown, isValidNumericValue, sanitizeNumberInput } fr
 
 interface BuybackFormProps {
   hideBackButton?: boolean;
-  onSuccess?: () => void;
 }
 
 import { mapErrorToUser } from '../../../shared/utils/errorMapper';
 
-export function BuybackForm({ hideBackButton, onSuccess }: BuybackFormProps = {}) {
+export function BuybackForm({ hideBackButton }: BuybackFormProps = {}) {
   const user = useAuthStore((state) => state.user);
   const addToast = useToastStore((state) => state.addToast);
   const marketPricePerGram = useGoldStore((state) => state.marketPricePerGram);
@@ -95,7 +94,6 @@ export function BuybackForm({ hideBackButton, onSuccess }: BuybackFormProps = {}
       });
       
       setIsSuccess(true);
-      if (onSuccess) { setTimeout(onSuccess, 1500); }
       setFormData({
         customerName: '',
         weightGram: '',

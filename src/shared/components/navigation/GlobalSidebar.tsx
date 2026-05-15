@@ -4,7 +4,7 @@ import { motion, AnimatePresence } from 'motion/react';
 import { 
   X, Briefcase, Settings, 
   ChevronRight, ChevronDown, FileText, Wrench, Key, Cloud, CloudOff,
-  Home, TrendingUp, LayoutDashboard, LucideIcon
+  Home, TrendingUp, LayoutDashboard, Landmark, LucideIcon
 } from 'lucide-react';
 import { formatDistanceToNow } from 'date-fns';
 import { id as localeId } from 'date-fns/locale';
@@ -81,6 +81,12 @@ const menuGroups: MenuGroup[] = [
     path: '/executive',
   },
   {
+    id: 'gold-treasury',
+    label: 'Gold Treasury',
+    icon: Landmark,
+    path: '/gold-treasury',
+  },
+  {
     id: 'settings',
     label: 'Settings',
     icon: Settings,
@@ -123,6 +129,10 @@ export function GlobalSidebar() {
   }).filter(group => {
     if (user?.role === 'CASHIER') {
       return group.id === 'home' || group.id === 'workspace';
+    }
+    // Gold Treasury only for ADMIN/MANAGER
+    if (group.id === 'gold-treasury' && user?.role !== 'ADMIN' && user?.role !== 'MANAGER') {
+      return false;
     }
     return true;
   });

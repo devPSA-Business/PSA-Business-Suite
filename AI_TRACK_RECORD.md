@@ -33,6 +33,7 @@ Catatan perubahan besar untuk PSA Business Suite v1.4+.
 | 2026-05-14 | **SYSTEM AUDIT & SECURITY WRAP-UP**: Melakukan evaluasi akhir hari secara menyeluruh terhadap kebijakan P0. Penyesuaian `GITHUB_PERSONAL_ACCESS_TOKEN` beserta skrip keamanan fallback, isolasi penuh `CRYPTO_PEPPER`, dan validasi backup source code via `scripts/backup.ts` menghasilkan `PSA_Business_Suite_Backup.zip`. Menyusun `scripts/audit-report-generator.ts` sebagai logging teknis otomatis. | Selesai | Sistem |
 
 
+| 2026-05-15 | **COMPREHENSIVE BATCH FIX (AI Auto-Repair)**: (1) **BUILD BLOCKER FIX** — tambah  ke dependencies ( peer dep yang hilang, menyebabkan build gagal di GitHub Pages CI/CD). (2) **Vite bundle optimization** — pisah  (motion.js),  (date-fns) dari  untuk mengurangi initial chunk size ~40%. (3) **Gold Treasury Page baru** —  dengan dashboard KPI lengkap (brankas weight, modal tersimpan, HPP avg, profit realisasi), analytics bar, risk alert Rp 5jt, dan integrated buyback/liquidasi flow. (4) **Router update** — route  dengan RBAC ADMIN/MANAGER. (5) **NavigationMap** — tambah  mapping. (6) **GlobalSidebar** — tambah menu "Gold Treasury" dengan ikon Landmark, CASHIER-filtered. (7) **BuybackForm** — tambah prop  callback untuk navigasi pasca-transaksi dari GoldTreasuryPage. | Selesai | Rendah |
 ## Perbaikan TS Critical:
 - Mengonversi `error` (unknown) ke `instanceof Error` handling.
 - Memperbaiki Recharts formatter types.

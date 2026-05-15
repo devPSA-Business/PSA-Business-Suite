@@ -92,10 +92,12 @@ export default defineConfig(({mode}) => {
       rollupOptions: {
         output: {
           manualChunks: {
-            'vendor-react': ['react', 'react-dom', '@tanstack/react-router'],
+            'vendor-react': ['react', 'react-dom', 'react-is', '@tanstack/react-router'],
             'vendor-db': ['dexie', 'dexie-react-hooks', 'firebase/app', 'firebase/firestore'],
-            'vendor-ui': ['lucide-react', 'motion'],
-            'vendor-chart': ['recharts']
+            'vendor-ui': ['lucide-react'],
+            'vendor-motion': ['motion'],
+            'vendor-chart': ['recharts'],
+            'vendor-date': ['date-fns'],
           }
         }
       }

@@ -10,6 +10,7 @@ export const NavigationMap: Record<string, string> = {
   '/service-pos': '/workspace',
   '/buyback': '/workspace',
   '/gold-buyback-sales': '/workspace',
+  '/gold-treasury': '/workspace',
   '/inventory': '/workspace',
   '/receive-stock': '/inventory',
   '/barcode-print': '/inventory',

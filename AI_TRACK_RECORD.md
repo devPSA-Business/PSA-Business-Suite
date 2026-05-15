@@ -37,3 +37,4 @@ Catatan perubahan besar untuk PSA Business Suite v1.4+.
 - Mengonversi `error` (unknown) ke `instanceof Error` handling.
 - Memperbaiki Recharts formatter types.
 - Menyelaraskan mapping data `User` dan `Customer` di infrastructure layer.
+| 2026-05-15 | **KONFIGURASI KRITIS (Claude Session)**: (1) Fix `tsconfig.json` — tambah `types: [node, w3c-web-usb]` & `include: [src, tests]` yang menyelesaikan ~717 TypeScript compilation errors. (2) Fix `dependabot.yml` — konfigurasi ecosystem npm yang sebelumnya kosong/broken, tambah fungsi `functions/` directory, group updates (firebase/react/vite/tanstack), timezone Asia/Jakarta, ignore semver-major. (3) Fix `vitest.config.ts` — tambah coverage thresholds (lines/functions: 80%, branches: 75%) & critical path targets. (4) Fix `.env.example` — dokumentasi lengkap semua VITE_ env vars Firebase yang dibutuhkan. (5) Perbaikan `.gitignore` — tambah *.tsbuildinfo, temp_sa.json, IDE files. | Selesai | Rendah |

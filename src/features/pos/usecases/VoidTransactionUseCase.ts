@@ -88,11 +88,11 @@ export class VoidTransactionUseCase {
       await this.unitOfWork.registerAudit(
         'VOID_RETAIL_TRANSACTION',
         dto.authorizedBy,
-        `Membatalkan transaksi ${dto.transactionId}. Alasan: ${dto.reason}`,
-        { entityId: dto.transactionId, payloadDiff: JSON.stringify({ reason: dto.reason, authorizedBy: dto.authorizedBy }) }
+        `Voiding transaction ${dto.transactionId} over reason: ${dto.reason}`,
+        { entityId: dto.transactionId }
       );
 
-      // Void confirmed — no return value (Promise<void>)
+      return voidedTransaction;
     }, ['transactions', 'stock', 'stock_history', 'shift_totals']);
   }
 }

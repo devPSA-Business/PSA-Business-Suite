@@ -18,7 +18,17 @@ export default defineConfig({
         'src/lib/seeder.ts',
         'src/shared/utils/sampleData.ts',
         'src/shared/utils/seedData.ts'
-      ]
+      ],
+      thresholds: {
+        lines: 80,
+        functions: 80,
+        branches: 75,
+        statements: 80,
+        // Critical paths — higher coverage targets
+        'src/infrastructure/services/SyncServiceImpl.ts': { lines: 80, functions: 80 },
+        'src/shared/store/useSecurityStore.ts': { lines: 75, functions: 75 },
+        'src/lib/cryptoIndexedDB.ts': { lines: 85, functions: 85 },
+      }
     }
   },
   resolve: {

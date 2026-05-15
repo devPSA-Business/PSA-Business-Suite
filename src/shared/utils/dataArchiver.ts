@@ -4,10 +4,21 @@ import { Dexie } from 'dexie';
 
 /**
  * @ai_context Auto-Pruner (Zero Maintenance Strategy Phase 2).
- * @business_rule Dijalankan di background atau saat Admin menekan bersihkan data lokal.
- * @security_tier MEDIUM
- * PERHATIAN: HANYA MENGHAPUS LOG DAN EVENT YANG SUDAH SYNC.
- * TRANSAKSI DAN DATA BUYBACK EMAS WAJIB DIPERTAHANKAN (offline reference).
+ * Dijalankan di background atau saat Admin menekan bersihkan data lokal.
+ * Tidak perlu repot pop-up download file JSON untuk Founder. Asalkan sudah di Cloud (SYNCED),
+ * hapus dari Dexie tablet untuk menghemat storage offline.
+ * 
+ * PERHATIAN: HANYA MENGHAPUS LOG DAN EVENT YANG SUDAH SYNC. TRANSAKSI HARUS DIPERTAHANKAN
+ * UNTUK REFERENSI BUYBACK SAAT OFFLINE.
+ */
+/**
+ * @ai_context Auto-Pruner (Zero Maintenance Strategy Phase 2).
+ * Dijalankan di background atau saat Admin menekan bersihkan data lokal.
+ * Tidak perlu repot pop-up download file JSON untuk Founder. Asalkan sudah di Cloud (SYNCED),
+ * hapus dari Dexie tablet untuk menghemat storage offline.
+ * 
+ * PERHATIAN: HANYA MENGHAPUS LOG DAN EVENT YANG SUDAH SYNC. TRANSAKSI HARUS DIPERTAHANKAN
+ * UNTUK REFERENSI BUYBACK SAAT OFFLINE.
  */
 export const archiveOldLogsAndEvents = async (): Promise<{ count: number }> => {
   try {

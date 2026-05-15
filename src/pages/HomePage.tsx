@@ -107,7 +107,7 @@ export function HomePage() {
                 <h3 className="font-bold text-stone-800 mb-1">Butuh Pantauan Cepat?</h3>
                 <p className="text-xs text-stone-500">Akses laporan dan analitik instan toko Anda.</p>
               </div>
-              <Link to="/executive" className="px-4 py-2 bg-stone-900 text-white rounded-xl text-sm font-bold hover:bg-stone-800 transition-colors flex items-center gap-2">
+              <Link to="/dashboard" className="px-4 py-2 bg-stone-900 text-white rounded-xl text-sm font-bold hover:bg-stone-800 transition-colors flex items-center gap-2">
                 <Activity size={16} /> Buka Analitik
               </Link>
             </div>

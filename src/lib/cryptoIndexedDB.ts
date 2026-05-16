@@ -55,7 +55,7 @@ export class CryptoIndexedDB {
     return window.crypto.subtle.deriveKey(
       {
         name: 'PBKDF2',
-        salt: salt,
+        salt: salt as Uint8Array<ArrayBuffer>,
         iterations: iterations,
         hash: 'SHA-256',
       },
@@ -150,7 +150,7 @@ export class CryptoIndexedDB {
       iv = new Uint8Array(this.base64ToArrayBuffer(parts[0]));
       wrappedKeyBuffer = this.base64ToArrayBuffer(parts[1]);
     } else {
-      iv = salt.slice(0, 12);
+      iv = new Uint8Array(salt.buffer as ArrayBuffer, 0, 12);
       wrappedKeyBuffer = this.base64ToArrayBuffer(cleanWrappedKey);
     }
     
@@ -159,7 +159,7 @@ export class CryptoIndexedDB {
         'raw',
         wrappedKeyBuffer,
         unwrappingKey,
-        { name: this.ALGO, iv: iv },
+        { name: this.ALGO, iv: iv as unknown as Uint8Array<ArrayBuffer> },
         { name: this.ALGO, length: this.KEY_LENGTH },
         extractable, 
         extractable ? ['encrypt', 'decrypt', 'wrapKey', 'unwrapKey'] : ['encrypt', 'decrypt']

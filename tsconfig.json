@@ -9,6 +9,7 @@
       "DOM",
       "DOM.Iterable"
     ],
+    "types": ["w3c-web-usb"],
     "skipLibCheck": true,
     "moduleResolution": "bundler",
     "isolatedModules": true,

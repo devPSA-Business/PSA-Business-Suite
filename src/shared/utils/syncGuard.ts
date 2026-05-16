@@ -3,6 +3,7 @@
  * @security_tier : HIGH
  */
 import { db } from '../api/db';
+import { logger } from '../../lib/logger';
 
 const IN_FLIGHT_KEYS = new Map<string, number>();
 const TTL_MS = 5 * 60 * 1000; // 5 menit
@@ -22,7 +23,7 @@ export async function guardSyncEnqueue(
   }
 
   if (IN_FLIGHT_KEYS.has(idempotencyKey)) {
-    console.warn(`[SyncGuard] Duplicate sync blocked (in-flight): ${idempotencyKey}`);
+    logger.warn('[SyncGuard] Duplicate sync blocked (in-flight)', { idempotencyKey });
     return false;
   }
 
@@ -34,11 +35,11 @@ export async function guardSyncEnqueue(
       .first();
 
     if (existing) {
-      console.warn(`[SyncGuard] Duplicate sync blocked (IndexedDB): ${idempotencyKey}`);
+      logger.warn('[SyncGuard] Duplicate sync blocked (IndexedDB)', { idempotencyKey });
       return false;
     }
   } catch (error) {
-    console.error('[SyncGuard] Gagal mengecek IndexedDB', error);
+    logger.error('[SyncGuard] Gagal mengecek IndexedDB', { error: String(error) });
   }
 
   IN_FLIGHT_KEYS.set(idempotencyKey, now);

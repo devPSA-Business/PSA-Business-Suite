@@ -92,7 +92,7 @@ export const hashPin = async (
   const hashBuffer = await crypto.subtle.deriveBits(
     {
       name: 'PBKDF2',
-      salt: salt,
+      salt: salt as Uint8Array<ArrayBuffer>,
       iterations: iterations,
       hash: 'SHA-256'
     },
@@ -281,7 +281,7 @@ export const useSecurityStore = create<SecurityState>()(
           
           set({ failedAttempts: 0, absoluteFailedAttempts: 0, isPinVerified: true });
           db.keyval.delete('absolute_failed_attempts').catch(console.error);
-          useAuthStore.getState().login({ id: user.id, name: user.name, role: user.role });
+          useAuthStore.getState().login({ id: user.id, name: user.name, role: user.role, branchId: user.branchId });
           
           return true;
         } catch (error) {

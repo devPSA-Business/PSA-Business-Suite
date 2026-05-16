@@ -95,6 +95,6 @@ export class SetupStoreUseCase {
     }, ['store_profile', 'users']);
 
     // Update store state OUTSIDE of the transaction
-    useSecurityStore.getState().initSetupState();
+    await useSecurityStore.getState().initSetupState();
   }
 }

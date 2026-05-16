@@ -416,9 +416,9 @@ export class SyncServiceImpl implements ISyncService {
     } else {
       // Accept server changes (F6: Expanded to all relevant tables)
       const ALL_CONFLICT_TABLES = [
-        'sync_events', 
-        'stock', 
-        'customers', 
+        'sync_events',
+        'stock',
+        'customers',
         'repair_services',
         'gold_buyback',
         'shifts',
@@ -427,7 +427,8 @@ export class SyncServiceImpl implements ISyncService {
         'gold_liquidations',
         'custom_orders',
         'appointments',
-        'audit_logs'
+        'financial_closures', // fix: sebelumnya tidak ada → conflict resolution gagal untuk penutupan harian
+        'audit_logs',
       ];
 
       await uow.execute(async () => {
@@ -467,6 +468,9 @@ export class SyncServiceImpl implements ISyncService {
               break;
             case 'appointments':
               await db.appointments.put(payload);
+              break;
+            case 'financial_closures':
+              await db.financial_closures.put(payload);
               break;
             default:
               logger.error(`[SyncService] resolveConflict: unhandled entity_type "${event.entity_type}"`);

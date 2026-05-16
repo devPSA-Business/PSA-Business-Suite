@@ -1,0 +1,59 @@
+# ══════════════════════════════════════════════════════════════════════════════
+# Stale Bot — Auto-close Issues & PRs yang Tidak Aktif
+# ══════════════════════════════════════════════════════════════════════════════
+# OTOMATIS — Berjalan setiap hari jam 01:00 UTC.
+# Issues: warning setelah 30 hari, close setelah 7 hari lagi.
+# PRs:    warning setelah 14 hari, close setelah 7 hari lagi.
+# Pengecualian: label 'pinned', 'security', 'review: HUMANREQUIRED'.
+# ══════════════════════════════════════════════════════════════════════════════
+name: Stale Issue & PR Cleanup
+
+on:
+  schedule:
+    - cron: '0 1 * * *' # Setiap hari 01:00 UTC (08:00 WIB)
+  workflow_dispatch:
+
+jobs:
+  stale:
+    name: Mark & Close Stale Issues/PRs
+    runs-on: ubuntu-latest
+    permissions:
+      issues: write
+      pull-requests: write
+
+    steps:
+      - uses: actions/stale@5bef64f2c2a55dd3b819a79cc1b9ada2d76f5b30 # v9.1.0
+        with:
+          repo-token: ${{ secrets.GITHUB_TOKEN }}
+
+          # ── Issues ────────────────────────────────────────────────
+          days-before-issue-stale: 30
+          days-before-issue-close: 7
+          stale-issue-label: 'stale'
+          stale-issue-message: |
+            Issue ini tidak ada aktivitas selama **30 hari** dan ditandai sebagai *stale*.
+            Jika masih relevan, silakan tambahkan komentar untuk melanjutkan diskusi.
+            Jika tidak ada aktivitas dalam 7 hari, issue ini akan ditutup otomatis.
+          close-issue-message: |
+            Issue ditutup otomatis karena tidak ada aktivitas selama 37 hari.
+            Buka kembali jika masalah ini masih relevan.
+
+          # ── Pull Requests ─────────────────────────────────────────
+          days-before-pr-stale: 14
+          days-before-pr-close: 7
+          stale-pr-label: 'stale'
+          stale-pr-message: |
+            PR ini tidak ada aktivitas selama **14 hari** dan ditandai sebagai *stale*.
+            Jika masih dalam pengerjaan, update branch atau tambahkan komentar.
+            Jika tidak ada aktivitas dalam 7 hari, PR ini akan ditutup otomatis.
+          close-pr-message: |
+            PR ditutup otomatis karena tidak ada aktivitas selama 21 hari.
+            Buka kembali jika pekerjaan ini ingin dilanjutkan.
+
+          # ── Pengecualian (JANGAN close otomatis) ─────────────────
+          exempt-issue-labels: 'pinned,area: security,review: HUMANREQUIRED,priority: high'
+          exempt-pr-labels: 'pinned,area: security,review: HUMANREQUIRED,priority: high'
+          exempt-draft-pr: true # Draft PR tidak di-stale
+
+          # Proses maks 200 item per run
+          operations-per-run: 200

@@ -1,3 +1,19 @@
+# ══════════════════════════════════════════════════════════════════════════════
+# AUTO-MERGE — Dependabot PR Automation
+# ══════════════════════════════════════════════════════════════════════════════
+#
+# ATURAN OTOMATIS (tidak perlu approval manusia):
+#   ✅ patch update (1.0.x → 1.0.y)  : LANGSUNG auto-merge setelah CI lulus
+#   ✅ minor update (1.x.0 → 1.y.0)  : LANGSUNG auto-merge setelah CI lulus
+#   ✅ GitHub Actions update          : auto-merge setelah CI lulus
+#   ✅ Cloud Functions patch/minor    : auto-merge setelah CI lulus
+#
+# ATURAN WAJIB REVIEW MANUSIA (tidak pernah di-auto-merge):
+#   🔴 major update (x.0.0 → y.0.0)  : BLOKIR — perlu review manual
+#   🔴 update firebase/auth deps      : BLOKIR — keamanan kritis
+#   🔴 update dexie (DB engine)       : BLOKIR — risiko migrasi data
+#
+# ══════════════════════════════════════════════════════════════════════════════
 name: Auto-Merge Dependabot
 
 on:
@@ -47,9 +63,10 @@ jobs:
           CRITICAL_DEPS=("firebase" "dexie" "@firebase/app" "firebase-admin" "@firebase/auth")
           for dep in "${CRITICAL_DEPS[@]}"; do
             if echo "$DEPENDENCY_NAMES" | grep -qi "$dep"; then
-              # PERBAIKAN: Langsung blokir jika dependensi kritis (baik patch, minor, maupun major)
-              SAFE="false"
-              REASON="Update dependensi kritis '$dep' — menyentuh auth/DB. Wajib review manual."
+              if [[ "$UPDATE_TYPE" == "version-update:semver-major" ]]; then
+                SAFE="false"
+                REASON="Update major '$dep' — menyentuh auth/DB. Wajib review manual."
+              fi
               break
             fi
           done

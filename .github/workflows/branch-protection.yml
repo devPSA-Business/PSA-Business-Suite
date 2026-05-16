@@ -1,13 +1,143 @@
-name: Branch Protection
+# ══════════════════════════════════════════════════════════════════════════════
+# PR Guard — Sensitive Files Detector & HUMANREVIEWREQUIRED Enforcer
+# ══════════════════════════════════════════════════════════════════════════════
+# DECISION MATRIX:
+#   ✅ AUTO-MERGE  : Docs, tests, UI components, non-sensitive config
+#   🚨 HUMAN ONLY  : auth/, firestore.rules, db.ts (schema), crypto/,
+#                    secrets config, payment, offline sync logic
+#
+# Bot akan auto-label PR dan BLOKIR auto-merge jika menyentuh file krusial.
+# ══════════════════════════════════════════════════════════════════════════════
+name: PR Guard — Sensitive File Detector
 
 on:
   pull_request:
-    branches: [main]
+    types: [opened, synchronize, reopened, ready_for_review]
+  pull_request_review:
+    types: [submitted]
 
 jobs:
-  enforce:
+  # ── Cek PR Title (Conventional Commits) ─────────────────────────────────
+  pr_title_check:
+    name: PR Title — Conventional Commits
     runs-on: ubuntu-latest
+    if: github.event_name == 'pull_request'
     steps:
-      - name: Ensure Audit Passed
+      - name: Validate PR Title Format
+        uses: amannn/action-semantic-pull-request@0723387faaf9b38adef4775cd42cfd5155ed6017 # v5.5.3
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        with:
+          types: |
+            feat
+            fix
+            chore
+            ci
+            docs
+            refactor
+            perf
+            test
+            revert
+            security
+          requireScope: false
+          subjectPattern: ^(?![A-Z]).+$
+          subjectPatternError: >
+            Judul PR harus diawali huruf kecil.
+            Contoh: "feat: tambah halaman laporan bulanan"
+
+  # ── Deteksi File Sensitif & Enforce HUMANREVIEWREQUIRED ──────────────────
+  sensitive_file_guard:
+    name: Sensitive File Guard
+    runs-on: ubuntu-latest
+    if: github.event_name == 'pull_request'
+    permissions:
+      contents: read
+      pull-requests: write
+      issues: write
+
+    steps:
+      - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
+
+      - name: Get changed files
+        id: changed
+        uses: tj-actions/changed-files@c3a1bb2c992d77180ae65be6ae6c166cf40f857c # v45.0.4
+        with:
+          separator: '\n'
+
+      - name: Classify PR sensitivity & enforce policy
+        id: classify
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          PR_NUMBER: ${{ github.event.pull_request.number }}
+          CHANGED_FILES: ${{ steps.changed.outputs.all_changed_files }}
         run: |
-          echo "✅ Semua audit harus lulus sebelum merge"
+          # ── Definisi file-file KRUSIAL (wajib review manusia) ─────────────
+          CRITICAL_PATTERNS=(
+            "src/features/auth/"
+            "src/infrastructure/crypto/"
+            "src/shared/api/db.ts"
+            "src/shared/store/useSecurityStore"
+            "src/lib/cryptoIndexedDB"
+            "firestore.rules"
+            "deny_rules.rules"
+            "functions/src/"
+            ".env"
+            "server.ts"
+            "api/index.ts"
+          )
+
+          IS_CRITICAL=false
+          CRITICAL_FILES_FOUND=""
+
+          while IFS= read -r file; do
+            [ -z "$file" ] && continue
+            for pattern in "${CRITICAL_PATTERNS[@]}"; do
+              if [[ "$file" == *"$pattern"* ]]; then
+                IS_CRITICAL=true
+                CRITICAL_FILES_FOUND="$CRITICAL_FILES_FOUND\n  🔴 \`$file\`"
+                break
+              fi
+            done
+          done <<< "$CHANGED_FILES"
+
+          echo "is_critical=$IS_CRITICAL" >> "$GITHUB_OUTPUT"
+          echo "critical_files=$CRITICAL_FILES_FOUND" >> "$GITHUB_OUTPUT"
+
+          if [ "$IS_CRITICAL" = "true" ]; then
+            echo "🚨 PR menyentuh file KRUSIAL — wajib review manusia"
+            # Label PR
+            gh pr edit "$PR_NUMBER" \
+              --add-label "review: HUMANREQUIRED,area: security" 2>/dev/null || true
+            # Post comment informatif
+            gh pr comment "$PR_NUMBER" --body "## 🚨 HUMANREVIEWREQUIRED — Review Manual Diperlukan
+
+Berdasarkan **PolicyPrompt P0** (AGENTS.md §2.1), PR ini menyentuh file yang dikategorikan **KRUSIAL** dan **tidak dapat di-auto-merge**:
+
+$(echo -e "$CRITICAL_FILES_FOUND")
+
+### Mengapa ini krusial?
+File-file tersebut menyentuh satu atau lebih area berikut:
+- 🔐 **Auth/Crypto** — logic autentikasi atau enkripsi PIN
+- 🗄️ **Database Schema** — perubahan struktur IndexedDB/Firestore
+- 🔒 **Security Rules** — firestore.rules atau deny_rules
+- ⚙️ **Backend/BFF** — server.ts, Cloud Functions, API handler
+- 🔑 **Secrets Config** — file environment atau konfigurasi kunci
+
+### Langkah selanjutnya
+1. Pemilik repo (**@devPSA-Business**) harus melakukan review manual
+2. Pastikan ada ADR tertulis untuk perubahan skema atau arsitektur
+3. Setelah disetujui, merge baru boleh dilakukan
+
+> *Pesan ini dibuat otomatis oleh PR Guard workflow.*" 2>/dev/null || true
+          else
+            echo "✅ PR tidak menyentuh file krusial — auto-merge eligible"
+            gh pr edit "$PR_NUMBER" \
+              --add-label "review: auto-eligible" 2>/dev/null || true
+          fi
+
+      - name: Block if critical (status check)
+        if: steps.classify.outputs.is_critical == 'true'
+        run: |
+          echo "❌ PR menyentuh file krusial. Status check GAGAL."
+          echo "Diperlukan review manual dari @devPSA-Business."
+          exit 1

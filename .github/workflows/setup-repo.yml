@@ -1,0 +1,136 @@
+# ══════════════════════════════════════════════════════════════════════════════
+# Setup Repo — Konfigurasi GitHub Sekali Jalan via API
+# ══════════════════════════════════════════════════════════════════════════════
+# CARA PAKAI (owner @devPSA-Business):
+#   GitHub → Actions → "Setup Repo" → Run workflow → Run workflow
+#   ⚠️  Jalankan SEKALI saja. Setelah itu, pengaturan otomatis aktif selamanya.
+#
+# Yang dikonfigurasi otomatis:
+#   ✅ Branch protection `main`   : require CI lulus, squash-only merge
+#   ✅ Auto-delete head branches  : branch PR otomatis hapus setelah merge
+#   ✅ Auto-merge enabled         : dependabot patch/minor auto-merge
+#   ✅ Squash merge default       : riwayat git tetap bersih
+#   ✅ Labels standar PSA         : needs-human-review, area:*, review:*, dsb.
+#   ✅ Disable wiki & projects    : tidak digunakan, kurangi noise
+# ══════════════════════════════════════════════════════════════════════════════
+name: Setup Repo (Jalankan Sekali)
+
+on:
+  workflow_dispatch:
+    inputs:
+      confirm:
+        description: 'Ketik "YA" untuk konfirmasi menjalankan setup'
+        required: true
+        default: ''
+
+jobs:
+  setup:
+    name: Konfigurasi GitHub Repository
+    runs-on: ubuntu-latest
+    if: github.event.inputs.confirm == 'YA'
+    permissions:
+      contents: write
+
+    env:
+      GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+      REPO: ${{ github.repository }}
+
+    steps:
+      - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
+
+      # ── 1. Pengaturan Dasar Repository ─────────────────────────────────────
+      - name: 1. Konfigurasi repo (auto-delete, squash, auto-merge)
+        run: |
+          gh api "repos/$REPO" \
+            --method PATCH \
+            --field allow_squash_merge=true \
+            --field allow_merge_commit=false \
+            --field allow_rebase_merge=false \
+            --field squash_merge_commit_title="PR_TITLE" \
+            --field squash_merge_commit_message="PR_BODY" \
+            --field delete_branch_on_merge=true \
+            --field allow_auto_merge=true \
+            --field has_wiki=false \
+            --field has_projects=false
+          echo "✅ Repo settings dikonfigurasi"
+
+      # ── 2. Branch Protection: main ─────────────────────────────────────────
+      - name: 2. Branch protection — main
+        run: |
+          gh api "repos/$REPO/branches/main/protection" \
+            --method PUT \
+            --header "Accept: application/vnd.github+json" \
+            --field required_status_checks='{"strict":true,"contexts":["CI — Quality Gate / build-test","Forensic Architecture & Policy Audit","Sensitive File Guard","PR Title — Conventional Commits"]}' \
+            --field enforce_admins=false \
+            --field required_pull_request_reviews='{"dismiss_stale_reviews":true,"require_code_owner_reviews":true,"required_approving_review_count":1,"require_last_push_approval":false,"bypass_pull_request_allowances":{"apps":["dependabot"],"users":[],"teams":[]}}' \
+            --field restrictions=null \
+            --field allow_force_pushes=false \
+            --field allow_deletions=false \
+            --field required_linear_history=true \
+            --field required_conversation_resolution=true
+          echo "✅ Branch protection main dikonfigurasi"
+
+      # ── 3. Labels Standar PSA ──────────────────────────────────────────────
+      - name: 3. Buat labels standar
+        run: |
+          create_label() {
+            gh label create "$1" --color "$2" --description "$3" --force 2>/dev/null || true
+          }
+
+          # Status review
+          create_label "needs-human-review"   "B60205" "🔴 Wajib review manual — jangan auto-merge"
+          create_label "auto-merge: safe"     "0E8A16" "✅ Aman di-auto-merge setelah CI lulus"
+          create_label "review: HUMANREQUIRED" "B60205" "🔴 File krusial terdeteksi — wajib owner review"
+
+          # Area
+          create_label "area: auth"           "1D76DB" "Menyentuh fitur autentikasi"
+          create_label "area: pos"            "5319E7" "Menyentuh fitur Point of Sale"
+          create_label "area: inventory"      "0075CA" "Menyentuh fitur inventori"
+          create_label "area: gold"           "E4E669" "Menyentuh fitur Emas/Gold Treasury"
+          create_label "area: reports"        "0052CC" "Menyentuh fitur laporan"
+          create_label "area: infrastructure" "D93F0B" "Menyentuh infrastruktur/DB/Firestore"
+          create_label "area: security"       "B60205" "Menyentuh layer keamanan"
+          create_label "area: ci"             "EDEDED" "Menyentuh CI/CD workflows"
+          create_label "area: docs"           "0075CA" "Dokumentasi saja"
+
+          # Tipe
+          create_label "type: deps-patch"     "BFD4F2" "Dependabot patch update"
+          create_label "type: deps-minor"     "BFD4F2" "Dependabot minor update"
+          create_label "type: deps-major"     "D93F0B" "Dependabot MAJOR update — perlu review"
+          create_label "type: bug"            "B60205" "Bug fix"
+          create_label "type: feature"        "0E8A16" "Fitur baru"
+
+          # Housekeeping
+          create_label "stale"                "EDEDED" "Tidak aktif — akan ditutup otomatis"
+          create_label "pinned"               "0075CA" "Jangan ditutup meski stale"
+
+          echo "✅ Labels dikonfigurasi"
+
+      # ── 4. Aktifkan GitHub Advanced Security (jika tersedia) ───────────────
+      - name: 4. Aktifkan security features
+        run: |
+          # Secret scanning & push protection
+          gh api "repos/$REPO" \
+            --method PATCH \
+            --field security_and_analysis='{"secret_scanning":{"status":"enabled"},"secret_scanning_push_protection":{"status":"enabled"}}' \
+            2>/dev/null && echo "✅ Secret scanning aktif" || echo "⚠️  Secret scanning: perlu GitHub Advanced Security (skip)"
+
+      # ── Ringkasan ──────────────────────────────────────────────────────────
+      - name: Ringkasan Setup
+        run: |
+          echo ""
+          echo "╔══════════════════════════════════════════════════════╗"
+          echo "║   PSA Business Suite — Repository Setup Selesai    ║"
+          echo "╠══════════════════════════════════════════════════════╣"
+          echo "║  ✅ Auto-delete branches setelah merge              ║"
+          echo "║  ✅ Squash merge only (riwayat git bersih)          ║"
+          echo "║  ✅ Auto-merge enabled (untuk dependabot aman)      ║"
+          echo "║  ✅ Branch protection main aktif                    ║"
+          echo "║  ✅ Labels standar PSA terpasang                    ║"
+          echo "║  ✅ Wiki & Projects dinonaktifkan                   ║"
+          echo "╚══════════════════════════════════════════════════════╝"
+          echo ""
+          echo "Langkah selanjutnya:"
+          echo "  → Pastikan secrets sudah diisi: Settings > Secrets"
+          echo "     VITE_FIREBASE_*, VITE_CRYPTO_PEPPER"
+          echo "  → Cek branch protection: Settings > Branches"

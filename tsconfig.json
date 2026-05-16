@@ -9,7 +9,6 @@
       "DOM",
       "DOM.Iterable"
     ],
-    "types": ["node", "w3c-web-usb"],
     "skipLibCheck": true,
     "moduleResolution": "bundler",
     "isolatedModules": true,
@@ -32,6 +31,5 @@
     "useUnknownInCatchVariables": true,
     "strictNullChecks": true
   },
-  "include": ["src", "tests"],
-  "exclude": ["functions", "node_modules"]
+  "exclude": ["functions"]
 }

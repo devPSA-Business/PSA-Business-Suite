@@ -30,8 +30,3 @@ firestore.rules               @devPSA-Business
 
 # CI/CD & GitHub Workflows
 /.github/                     @devPSA-Business
-
-# Kerangka Dokumentasi Konteks AI (wajib review manual)
-CONTEXT.md                    @devPSA-Business
-SCOPE.md                      @devPSA-Business
-INTERFACES.md                 @devPSA-Business

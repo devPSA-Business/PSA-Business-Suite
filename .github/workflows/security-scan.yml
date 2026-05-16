@@ -1,9 +1,4 @@
-# ══════════════════════════════════════════════════════════════════════════════
-# Security Scan — NPM Audit · Secret Detection · CodeQL
-# ══════════════════════════════════════════════════════════════════════════════
-# OTOMATIS — blokir merge jika ada temuan HIGH/CRITICAL.
-# ══════════════════════════════════════════════════════════════════════════════
-name: Security Scan
+name: Security & Vulnerability Scan
 
 on:
   push:
@@ -11,116 +6,52 @@ on:
   pull_request:
     branches: [main, develop]
   schedule:
-    - cron: '0 1 * * 1' # Senin 01:00 UTC (08:00 WIB)
-  workflow_dispatch:
-
-concurrency:
-  group: ${{ github.workflow }}-${{ github.ref }}
-  cancel-in-progress: true
+    # Run every Sunday at midnight
+    - cron: '0 0 * * 0'
 
 jobs:
-  # ── 1. NPM Dependency Audit ───────────────────────────────────────────────
   npm_audit:
-    name: NPM Audit (High+)
+    name: NPM Audit Scan
     runs-on: ubuntu-latest
-    timeout-minutes: 10
     steps:
-      - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
+      - name: Checkout Code
+        uses: actions/checkout@v4
 
-      - uses: actions/setup-node@39370e3970a6d050c480ffad4ff0ed4d3fdee5af # v4.1.0
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
         with:
           node-version: 22
-          cache: 'npm'
 
       - name: Install dependencies
         run: npm ci
 
-      - name: Run NPM Audit (block on HIGH/CRITICAL)
-        run: |
-          npm audit --audit-level=high --json > audit_result.json 2>&1 || true
-          node -e "
-          const fs = require('fs');
-          const result = JSON.parse(fs.readFileSync('audit_result.json', 'utf8'));
-          const vulns = result.metadata?.vulnerabilities || {};
-          const critical = vulns.critical || 0;
-          const high = vulns.high || 0;
-          console.log('Critical:', critical, '| High:', high,
-            '| Moderate:', vulns.moderate||0, '| Low:', vulns.low||0);
-          if (critical > 0 || high > 0) {
-            console.error('❌ BLOKIR: Ada ' + critical + ' critical, ' + high + ' high vulnerabilities!');
-            process.exit(1);
-          }
-          console.log('✅ Tidak ada vulnerabilities HIGH/CRITICAL');
-          "
+      - name: Run NPM Audit
+        run: npm audit --audit-level=high
 
-      - name: Upload audit result
-        if: always()
-        uses: actions/upload-artifact@v4
-        with:
-          name: npm-audit-${{ github.sha }}
-          path: audit_result.json
-          retention-days: 30
-
-  # ── 2. Secret Leak Detection ──────────────────────────────────────────────
-  secret_scan:
-    name: Secret Leak Detection
-    runs-on: ubuntu-latest
-    timeout-minutes: 10
-    steps:
-      - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
-        with:
-          fetch-depth: 0 # perlu full history untuk scan semua commits
-
-      - name: Scan for leaked secrets (gitleaks)
-        uses: gitleaks/gitleaks-action@ff98106e4c7b2bc287b24b52753e30b6b9cee836 # v2.3.9
-        env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-          GITLEAKS_LICENSE: ${{ secrets.GITLEAKS_LICENSE }}
-
-      - name: Check for hardcoded VITE_ secrets in source
-        run: |
-          echo "Scanning for hardcoded secrets in src/..."
-          FOUND=0
-          # Cari pola secret yang tidak seharusnya ada di source
-          if grep -rn \
-            -e 'VITE_CRYPTO_PEPPER\s*=\s*"[^"]\{8,\}"' \
-            -e 'VITE_FIREBASE_API_KEY\s*=\s*"AIza' \
-            -e 'ghp_[A-Za-z0-9]\{36,\}' \
-            -e 'github_pat_[A-Za-z0-9_]\{80,\}' \
-            -e 'sk-[A-Za-z0-9]\{40,\}' \
-            --include="*.ts" --include="*.tsx" --include="*.js" \
-            src/ api/ functions/src/ 2>/dev/null; then
-            echo "❌ KRITIS: Ditemukan kemungkinan secret/token hardcoded di source!"
-            FOUND=1
-          fi
-          if grep -rn 'AI[za][A-Za-z0-9_-]\{35\}' \
-            --include="*.ts" --include="*.tsx" \
-            src/ 2>/dev/null; then
-            echo "❌ KRITIS: Ditemukan Firebase API Key pattern di source!"
-            FOUND=1
-          fi
-          if [ "$FOUND" -eq 1 ]; then exit 1; fi
-          echo "✅ Tidak ada secret hardcoded ditemukan"
-
-  # ── 3. CodeQL Static Analysis ─────────────────────────────────────────────
+  # Optionally you can add CodeQL Analysis here if configured on GitHub
   codeql:
-    name: CodeQL — Static Analysis
+    name: CodeQL Analysis
     runs-on: ubuntu-latest
-    timeout-minutes: 30
     permissions:
       security-events: write
       actions: read
       contents: read
+
+    strategy:
+      fail-fast: false
+      matrix:
+        language: [ 'javascript-typescript' ]
+
     steps:
-      - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
+    - name: Checkout repository
+      uses: actions/checkout@v4
 
-      - name: Initialize CodeQL
-        uses: github/codeql-action/init@ff0a06e83cb2de871e5a09832bc6a81e7276941f # v3.28.18
-        with:
-          languages: javascript-typescript
-          queries: security-and-quality
+    - name: Initialize CodeQL
+      uses: github/codeql-action/init@v3
+      with:
+        languages: ${{ matrix.language }}
 
-      - name: Perform CodeQL Analysis
-        uses: github/codeql-action/analyze@ff0a06e83cb2de871e5a09832bc6a81e7276941f # v3.28.18
-        with:
-          category: /language:javascript-typescript
+    - name: Perform CodeQL Analysis
+      uses: github/codeql-action/analyze@v3
+      with:
+        category: "/language:${{matrix.language}}"

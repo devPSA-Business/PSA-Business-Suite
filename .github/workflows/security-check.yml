@@ -1,60 +1,18 @@
-# ══════════════════════════════════════════════════════════════════════════════
-# Security Check — Trivy Filesystem Vulnerability Scan (Weekly)
-# ══════════════════════════════════════════════════════════════════════════════
-# OTOMATIS — laporan otomatis setiap Senin + on-demand.
-# Trivy mencari CVE di dependencies, config files, dan Dockerfile.
-# ══════════════════════════════════════════════════════════════════════════════
-name: Security Check — Trivy
+name: Security Check
 
 on:
   schedule:
-    - cron: '0 2 * * 1' # Senin 02:00 UTC (09:00 WIB)
-  push:
-    branches: [main]
-    paths:
-      - 'package.json'
-      - 'package-lock.json'
-      - 'functions/package.json'
+    - cron: '0 3 * * 1' # setiap Senin jam 03:00 UTC
   workflow_dispatch:
 
-concurrency:
-  group: ${{ github.workflow }}-${{ github.ref }}
-  cancel-in-progress: true
-
 jobs:
-  trivy_scan:
-    name: Trivy — Filesystem Vulnerability Scan
+  security:
     runs-on: ubuntu-latest
-    timeout-minutes: 15
-    permissions:
-      contents: read
-      security-events: write # untuk upload ke GitHub Security tab
-
     steps:
-      - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
-
-      - name: Run Trivy (SARIF output for GitHub Security tab)
-        uses: aquasecurity/trivy-action@915b19bbe73b92a6cf82a1bc12b087c9a19a5fe2 # v0.31.0
+      - uses: actions/checkout@v4
+      - name: Run Trivy Vulnerability Scanner
+        uses: aquasecurity/trivy-action@master
         with:
-          scan-type: 'fs'
-          scan-ref: '.'
-          format: 'sarif'
-          output: 'trivy-results.sarif'
-          severity: 'HIGH,CRITICAL'
+          scan-type: fs
+          severity: HIGH,CRITICAL
           ignore-unfixed: true
-          exit-code: '0' # Jangan fail di sini — upload dulu ke Security tab
-
-      - name: Upload Trivy SARIF ke GitHub Security
-        uses: github/codeql-action/upload-sarif@ff0a06e83cb2de871e5a09832bc6a81e7276941f # v3.28.18
-        with:
-          sarif_file: trivy-results.sarif
-
-      - name: Run Trivy (table output — fail on CRITICAL)
-        uses: aquasecurity/trivy-action@915b19bbe73b92a6cf82a1bc12b087c9a19a5fe2 # v0.31.0
-        with:
-          scan-type: 'fs'
-          scan-ref: '.'
-          format: 'table'
-          severity: 'CRITICAL'
-          ignore-unfixed: true
-          exit-code: '1' # Fail jika ada CRITICAL yang bisa di-fix

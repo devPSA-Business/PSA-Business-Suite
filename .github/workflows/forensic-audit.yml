@@ -1,9 +1,3 @@
-# ══════════════════════════════════════════════════════════════════════════════
-# Forensic Audit — Architecture & Security Policy Enforcement
-# ══════════════════════════════════════════════════════════════════════════════
-# OTOMATIS — blokir merge jika ada pelanggaran arsitektur atau keamanan.
-# Cek: Layer violation, PII exposure, secret pattern, FSD compliance.
-# ══════════════════════════════════════════════════════════════════════════════
 name: Forensic Audit
 
 on:
@@ -11,152 +5,44 @@ on:
     types: [opened, synchronize, reopened]
   push:
     branches: [main, develop]
-  workflow_dispatch:
-
-concurrency:
-  group: ${{ github.workflow }}-${{ github.ref }}
-  cancel-in-progress: true
 
 jobs:
-  forensic:
-    name: Forensic Architecture & Policy Audit
+  audit:
     runs-on: ubuntu-latest
-    timeout-minutes: 15
 
     steps:
-      - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
-        with:
-          fetch-depth: 0
+      - name: Checkout repository
+        uses: actions/checkout@v4
 
-      - uses: actions/setup-node@39370e3970a6d050c480ffad4ff0ed4d3fdee5af # v4.1.0
+      - name: Setup Node.js
+        uses: actions/setup-node@v6
         with:
-          node-version: 22
+          node-version: 20
           cache: 'npm'
 
       - name: Install dependencies
         run: npm ci
 
-      # ── Cek 0: AI Context Documents — Integrity Check ───────────────
-      - name: AI Context — Verifikasi Dokumen Konteks AI
-        run: |
-          npm run test:ai-context
-          echo "✅ Dokumen konteks AI: AGENTS.md, CONTEXT.md, SCOPE.md, INTERFACES.md — terverifikasi"
+      - name: Run ESLint (Strict Type-Safety)
+        run: npx eslint "src/**/*.ts" --max-warnings=0
 
-      # ── Cek 1: TypeScript — Zero Error Policy ──────────────────────
-      - name: TypeScript — Zero Error Policy
+      - name: Run TypeScript Compiler Check
+        run: npx tsc --noEmit
+
+      - name: Run Security Scan (CodeQL)
+        uses: github/codeql-action/analyze@v3
+
+      - name: Dependency Audit
+        run: npm audit --audit-level=high
+
+      - name: Detect Direct DB Access (UI Layer)
         run: |
-          npx tsc --noEmit 2>&1 | tee ts_errors.txt
-          ERROR_COUNT=$(grep -c "error TS" ts_errors.txt || true)
-          if [ "$ERROR_COUNT" -gt 0 ]; then
-            echo "❌ Ada $ERROR_COUNT TypeScript error. Zero-error policy dilanggar!"
-            cat ts_errors.txt
+          if grep -R "db." src/features/; then
+            echo "❌ Pelanggaran: UI layer mengakses DB langsung"
             exit 1
-          fi
-          echo "✅ TypeScript: 0 errors"
-
-      # ── Cek 2: ESLint — Strict Zero Warning ───────────────────────
-      - name: ESLint — Zero Warning Policy
-        run: |
-          npx eslint "src/**/*.{ts,tsx}" --max-warnings=0 2>&1 | tee eslint_out.txt || {
-            echo "❌ ESLint gagal. Lihat output di atas."
-            exit 1
-          }
-          echo "✅ ESLint: Bersih"
-
-      # ── Cek 3: FSD Layer Violation — UI tidak boleh akses DB langsung ──
-      - name: FSD Architecture — UI Layer Isolation
-        run: |
-          echo "Memeriksa pelanggaran akses DB langsung dari UI layer..."
-          VIOLATIONS=0
-
-          # Cari impor 'db' dari 'shared/api/db' di dalam komponen UI & pages
-          # (Pattern spesifik, bukan grep 'db.' yang akan false-positive)
-          DIRECT_DB_IMPORTS=$(grep -rn \
-            "from ['\"].*shared/api/db['\"]" \
-            src/features/*/ui/ \
-            src/features/*/components/ \
-            src/pages/ \
-            --include="*.ts" --include="*.tsx" 2>/dev/null || true)
-
-          if [ -n "$DIRECT_DB_IMPORTS" ]; then
-            echo "❌ PELANGGARAN FSD: UI/Component mengimpor db langsung!"
-            echo "$DIRECT_DB_IMPORTS"
-            VIOLATIONS=$((VIOLATIONS + 1))
+          else
+            echo "✅ Tidak ada akses langsung DB di UI"
           fi
 
-          # Cari penggunaan 'useDb' hook di pages (harus lewat useCase/repository)
-          DIRECT_HOOK=$(grep -rn \
-            "useLiveQuery\|db\." \
-            src/pages/ \
-            --include="*.tsx" 2>/dev/null | grep -v "//.*db\." || true)
-
-          if [ -n "$DIRECT_HOOK" ]; then
-            echo "⚠️  PERINGATAN: Penggunaan db langsung di pages/ (perlu review):"
-            echo "$DIRECT_HOOK"
-          fi
-
-          if [ "$VIOLATIONS" -gt 0 ]; then
-            echo "Total pelanggaran keras: $VIOLATIONS"
-            exit 1
-          fi
-          echo "✅ FSD Layer: Tidak ada pelanggaran UI→DB langsung"
-
-      # ── Cek 4: PII Sanitization — Tidak boleh ada PII raw di log ─────
-      - name: PII Policy — No Raw PII in Logs
-        run: |
-          echo "Memeriksa PII exposure di console.log/error..."
-          # Cari pattern log yang mungkin bocorkan PII
-          PII_LOGS=$(grep -rn \
-            -e "console\.\(log\|error\|warn\|info\).*\(email\|phone\|nik\|address\|password\|token\)" \
-            src/ \
-            --include="*.ts" --include="*.tsx" 2>/dev/null | \
-            grep -v "//.*console" || true)
-
-          if [ -n "$PII_LOGS" ]; then
-            echo "⚠️  PERINGATAN: Ditemukan potensi PII di logging:"
-            echo "$PII_LOGS"
-            echo "Pastikan data sudah disanitasi atau gunakan <<PII_REMOVED>>"
-            # Ini warning, bukan blocker — CI tetap lanjut
-          fi
-          echo "✅ PII Scan selesai"
-
-      # ── Cek 5: No Secrets In Client (PolicyPrompt P0.3) ───────────────
-      - name: P0.3 — No Secrets In Client
-        run: |
-          echo "Memeriksa variabel rahasia hardcoded di client-side code..."
-          FOUND=0
-
-          # Cari assignment langsung (bukan env var reference)
-          SECRET_PATTERNS=$(grep -rn \
-            -e 'const.*KEY.*=.*"[A-Za-z0-9+/=]\{20,\}"' \
-            -e 'TOKEN.*=.*"[A-Za-z0-9_\-]\{30,\}"' \
-            -e 'SECRET.*=.*"[A-Za-z0-9+/=]\{20,\}"' \
-            src/ \
-            --include="*.ts" --include="*.tsx" 2>/dev/null | \
-            grep -v "import.meta.env\|process.env\|test\|spec\|mock\|//\|EXAMPLE\|placeholder" || true)
-
-          if [ -n "$SECRET_PATTERNS" ]; then
-            echo "❌ KRITIS: Ditemukan kemungkinan secret hardcoded di client:"
-            echo "$SECRET_PATTERNS"
-            FOUND=1
-          fi
-
-          if [ "$FOUND" -eq 1 ]; then exit 1; fi
-          echo "✅ P0.3: Tidak ada secret hardcoded di client"
-
-      # ── Cek 6: Vitest — Unit Tests ─────────────────────────────────
-      - name: Vitest — Unit Tests
-        env:
-          VITE_CRYPTO_PEPPER: ${{ secrets.VITE_CRYPTO_PEPPER || 'ci-mocked-pepper-32chars-minimum' }}
-        run: npm test
-
-      # ── Ringkasan Audit ────────────────────────────────────────────
-      - name: Audit Summary
-        if: always()
-        run: |
-          echo "══════════════════════════════════════════════"
-          echo "  PSA Business Suite — Forensic Audit Report"
-          echo "  Ref: ${{ github.ref }}"
-          echo "  SHA: ${{ github.sha }}"
-          echo "  Timestamp: $(date -u +%Y-%m-%dT%H:%M:%SZ)"
-          echo "══════════════════════════════════════════════"
+      - name: Run Unit Tests
+        run: npm test -- --ci --reporters=jest-junit

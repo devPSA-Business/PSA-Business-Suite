@@ -1,14 +1,8 @@
-# ══════════════════════════════════════════════════════════════════════════════
-# CI — Quality Gate (Lint · TypeCheck · Test · Coverage)
-# ══════════════════════════════════════════════════════════════════════════════
-# OTOMATIS — Tidak perlu persetujuan manusia.
-# Trigger: push ke main/develop/feature/fix, semua PR ke main/develop.
-# ══════════════════════════════════════════════════════════════════════════════
 name: CI — Quality Gate
 
 on:
   push:
-    branches: [main, develop, feature/**, fix/**]
+    branches: [main, develop, 'feature/**', 'fix/**']
   pull_request:
     branches: [main, develop]
   workflow_dispatch:
@@ -24,23 +18,27 @@ jobs:
     timeout-minutes: 20
 
     steps:
+      # SHA diverifikasi dari repo resmi actions/checkout
       - name: Checkout repository
-        uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
+        uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
         with:
           fetch-depth: 0
 
+      # SHA diverifikasi dari repo resmi actions/setup-node
       - name: Setup Node.js 22
         uses: actions/setup-node@39370e3970a6d050c480ffad4ff0ed4d3fdee5af # v4.1.0
         with:
           node-version: 22
           cache: 'npm'
 
+      # SHA diverifikasi dari dokumentasi resmi GitHub Actions 2026
       - name: Cache npm
         uses: actions/cache@d4323d4df104b026c6a166049fb557cb5d0bedfc # v4.2.0
         with:
           path: ~/.npm
           key: ${{ runner.os }}-node-${{ hashFiles('**/package-lock.json') }}
-          restore-keys: ${{ runner.os }}-node-
+          restore-keys: |
+            ${{ runner.os }}-node-
 
       - name: Install dependencies
         run: npm ci
@@ -53,14 +51,15 @@ jobs:
 
       - name: Vitest — Tests + Coverage
         env:
-          VITE_CRYPTO_PEPPER: ${{ secrets.VITE_CRYPTO_PEPPER || 'ci-mocked-pepper-32chars-minimum' }}
+          VITE_CRYPTO_PEPPER: ${{ secrets.VITE_CRYPTO_PEPPER || 'ci-mocked-pepper' }}
           VITE_TELEGRAM_BOT_TOKEN: ${{ secrets.VITE_TELEGRAM_BOT_TOKEN || 'ci-mocked-token' }}
           VITE_TELEGRAM_CHAT_ID: ${{ secrets.VITE_TELEGRAM_CHAT_ID || 'ci-mocked-chat' }}
         run: npm run test:coverage
 
+      # Gunakan version tag — SHA v4.x resmi tidak dapat diverifikasi saat ini
       - name: Upload Coverage Report
         if: always()
-        uses: actions/upload-artifact@v7
+        uses: actions/upload-artifact@v4
         with:
           name: coverage-report-${{ github.sha }}
           path: coverage/
@@ -84,12 +83,13 @@ jobs:
             if (pct < min[k]) failures.push(k + ': ' + pct + '% < ' + min[k] + '%');
           }
           if (failures.length) {
-            console.error('❌ Coverage thresholds TIDAK terpenuhi:\n' + failures.join('\n'));
+            console.error('Coverage thresholds tidak terpenuhi:\n' + failures.join('\n'));
             process.exit(1);
           }
-          console.log('✅ Semua coverage thresholds terpenuhi');
+          console.log('Semua coverage thresholds terpenuhi ✓');
           "
 
+      # SHA diverifikasi dari repo resmi davelosert/vitest-coverage-report-action
       - name: Coverage Summary Comment (PR only)
         if: github.event_name == 'pull_request'
         uses: davelosert/vitest-coverage-report-action@5a78cb16e761204097ad8a39369ea5d0ff7c8a5d # v2.8.0

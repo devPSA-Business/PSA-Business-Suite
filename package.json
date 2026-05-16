@@ -17,6 +17,7 @@
     "lint:fix": "eslint src --fix",
     "test": "vitest run",
     "test:coverage": "vitest run --coverage",
+    "test:ai-context": "tsx scripts/verify-ai-context.ts",
     "test:stress": "vitest run tests/stress",
     "test:backup": "tsx scripts/validate_backup.ts",
     "audit:deps": "npm ls --production --depth=0"

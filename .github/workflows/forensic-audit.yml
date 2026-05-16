@@ -36,6 +36,12 @@ jobs:
       - name: Install dependencies
         run: npm ci
 
+      # ── Cek 0: AI Context Documents — Integrity Check ───────────────
+      - name: AI Context — Verifikasi Dokumen Konteks AI
+        run: |
+          npm run test:ai-context
+          echo "✅ Dokumen konteks AI: AGENTS.md, CONTEXT.md, SCOPE.md, INTERFACES.md — terverifikasi"
+
       # ── Cek 1: TypeScript — Zero Error Policy ──────────────────────
       - name: TypeScript — Zero Error Policy
         run: |

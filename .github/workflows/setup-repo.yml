@@ -100,6 +100,7 @@ jobs:
           create_label "type: bug"            "B60205" "Bug fix"
           create_label "type: feature"        "0E8A16" "Fitur baru"
 
+          create_label "area: ai-context"       "C5DEF5" "Dokumen konteks AI (AGENTS/CONTEXT/SCOPE/INTERFACES)"
           # Housekeeping
           create_label "stale"                "EDEDED" "Tidak aktif — akan ditutup otomatis"
           create_label "pinned"               "0075CA" "Jangan ditutup meski stale"

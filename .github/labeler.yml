@@ -84,3 +84,12 @@
 
 "type: deps-minor":
   - head-branch: ["^dependabot/npm_and_yarn/.+"]
+
+"area: ai-context":
+  - changed-files:
+    - any-glob-to-any-file:
+      - CONTEXT.md
+      - SCOPE.md
+      - INTERFACES.md
+      - AGENTS.md
+      - scripts/verify-ai-context.ts

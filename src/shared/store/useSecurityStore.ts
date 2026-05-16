@@ -25,8 +25,7 @@ import { cryptoDB } from '../../lib/cryptoIndexedDB';
 import { cryptoKeyStore } from '../../lib/cryptoKeyStore';
 import { logger } from '../../lib/logger';
 import { dexieSecurityStorage } from '../../infrastructure/storage/dexieSecurityStorage';
-import { functions } from '../api/firebase';
-import { httpsCallable } from 'firebase/functions';
+
 
 interface SecurityState {
   isPinVerified: boolean;
@@ -63,24 +62,22 @@ export const hashPin = async (
   const encoder = new TextEncoder();
   const salt = typeof saltInput === 'string' ? encoder.encode(saltInput) : saltInput;
 
+  // @ai_context: Migrasi dari Cloud Functions (Blaze/berbayar) ke Web Crypto API (gratis, browser-native).
+  // @business_rule: VITE_CRYPTO_PEPPER di-bundle dalam build. Trade-off Zero-Cost vs Zero-Trust:
+  //   Acceptable untuk UMKM 1 toko karena pepper bukan kunci enkripsi data, hanya penguat hash PIN.
+  //   Bahaya nyata (brute force) tetap dicegah oleh PBKDF2 600K iterasi + salt unik per user.
+  // @security_tier: MEDIUM — pepper di client, tapi PBKDF2 tetap kuat secara kriptografis.
+  let pinWithOptionalPepper = pin;
   if (usePepper) {
-    try {
-      // Convert salt to hex string to send over HTTP
-      const saltHex = Array.from(salt).map(b => b.toString(16).padStart(2, '0')).join('');
-      if (!functions) throw new Error('Functions offline');
-      const hashPinCall = httpsCallable(functions, 'hashPin');
-      const res = await hashPinCall({ pin, saltHex, usePepper, iterations });
-      const data = res.data as { hash: string };
-      return data.hash;
-    } catch (_error) {
-      console.warn('Backend unavailable for hashPin. Falling back to unpeppered hash if permitted, or unwrap verification.');
-      // If offline, we return a special marker so verifyUserPin can rely on unwrapKeyWithPin
-      return 'OFFLINE_DEFERRED_VERIFICATION'; 
+    const pepper = import.meta.env.VITE_CRYPTO_PEPPER;
+    if (pepper && pepper.length > 0) {
+      pinWithOptionalPepper = pin + pepper;
     }
+    // Jika VITE_CRYPTO_PEPPER tidak diset (dev env), lanjutkan tanpa pepper — tidak throw error.
   }
-  
-  // Local PBKDF2 without pepper (for legacy V1 or when usePepper is false)
-  const pinBuffer = encoder.encode(pin);
+
+  // Web Crypto API PBKDF2 — tersedia di semua browser modern dan PWA
+  const pinBuffer = encoder.encode(pinWithOptionalPepper);
   const keyMaterial = await crypto.subtle.importKey(
     'raw',
     pinBuffer,

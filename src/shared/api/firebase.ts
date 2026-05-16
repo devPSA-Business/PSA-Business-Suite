@@ -3,7 +3,6 @@ import { initializeApp, getApp, getApps, FirebaseApp } from 'firebase/app';
 import { getFirestore, Firestore } from 'firebase/firestore';
 import { getStorage, FirebaseStorage } from 'firebase/storage';
 import { getAuth, Auth, setPersistence, browserLocalPersistence } from 'firebase/auth';
-import { getFunctions, Functions } from 'firebase/functions';
 import { initializeAppCheck, ReCaptchaEnterpriseProvider } from 'firebase/app-check';
 import { useAuthStore } from '../store/authStore';
 import { logger } from '../../lib/logger';
@@ -117,16 +116,10 @@ const getSafeStorage = (): FirebaseStorage => {
   return getStorage(firebaseApp);
 };
 
-const getSafeFunctions = (): Functions => {
-  if (!firebaseApp) return createUnconfiguredProxy<Functions>('Firebase Functions');
-  return getFunctions(firebaseApp, 'asia-southeast2'); // Or default
-};
-
 // Initialize Services Safely
 export const auth = getSafeAuth();
 export const firestoreDb = getSafeFirestore();
 export const storage = getSafeStorage();
-export const functions = getSafeFunctions();
 
 // App Check (Anti-Bot)
 if (typeof window !== 'undefined' && firebaseApp && isConfigValid) {

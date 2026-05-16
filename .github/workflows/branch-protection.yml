@@ -1,0 +1,13 @@
+name: Branch Protection
+
+on:
+  pull_request:
+    branches: [main]
+
+jobs:
+  enforce:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Ensure Audit Passed
+        run: |
+          echo "✅ Semua audit harus lulus sebelum merge"

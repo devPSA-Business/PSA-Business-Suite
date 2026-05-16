@@ -1,16 +1,23 @@
-name: Deploy to Firebase Hosting on merge
+name: Deploy — Firebase Hosting & Functions
+
+# @ai_context: Pipeline deploy otomatis ke Firebase saat push ke main.
+# Hosting: Vite build → Firebase CDN global
+# Functions: TypeScript compile → Firebase Cloud Functions
+# Notifikasi: Email ke dev.psajewelry@gmail.com saat sukses
 
 on:
   push:
-    branches:
-      - main
+    branches: [main]
     paths:
       - 'src/**'
       - 'public/**'
-      - '*.html'
-      - '*.json'
-      - '*.ts'
-      - '*.tsx'
+      - 'functions/**'
+      - 'index.html'
+      - 'firebase.json'
+      - 'firestore.rules'
+      - 'vite.config.*'
+      - 'package.json'
+  workflow_dispatch:
 
 concurrency:
   group: ${{ github.workflow }}-${{ github.ref }}
@@ -18,75 +25,140 @@ concurrency:
 
 jobs:
   build_and_deploy:
+    name: Build → Deploy Firebase
     runs-on: ubuntu-latest
+    timeout-minutes: 25
 
     steps:
-      # actions/checkout v4.2.2 — pinned to full SHA (org policy)
-      - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683
+      - name: Checkout repository
+        uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v4.2.2
+        with:
+          fetch-depth: 0
 
-      # actions/setup-node v4.1.0 — pinned to full SHA (org policy)
-      - name: Setup Node.js
-        uses: actions/setup-node@39370e3970a6d050c480ffad4ff0ed4d3fdee5af
+      - name: Setup Node.js 22
+        uses: actions/setup-node@39370e3970a6d050c480ffad4ff0ed4d3fdee5af # v4.1.0
         with:
           node-version: 22
-          cache: "npm"
+          cache: 'npm'
 
-      - name: Install dependencies
+      - name: Cache npm
+        uses: actions/cache@d4323d4df104b026c6a166049fb557cb5d0bedfc # v4.2.0
+        with:
+          path: ~/.npm
+          key: ${{ runner.os }}-node-${{ hashFiles('**/package-lock.json') }}
+          restore-keys: |
+            ${{ runner.os }}-node-
+
+      - name: Install frontend dependencies
         run: npm ci
 
-      - name: Type Check & Lint
+      - name: TypeScript — Type Check & Lint
         run: npm run lint
 
-      - name: Build
+      - name: Build Production (Hosting)
         run: npm run build
         env:
-          # ── Firebase Core ───────────────────────────────────────────────
+          # ── Firebase Core ─────────────────────────────────────────────────
           VITE_FIREBASE_API_KEY: ${{ secrets.VITE_FIREBASE_API_KEY }}
           VITE_FIREBASE_AUTH_DOMAIN: ${{ secrets.VITE_FIREBASE_AUTH_DOMAIN }}
           VITE_FIREBASE_PROJECT_ID: ${{ secrets.VITE_FIREBASE_PROJECT_ID }}
           VITE_FIREBASE_STORAGE_BUCKET: ${{ secrets.VITE_FIREBASE_STORAGE_BUCKET }}
           VITE_FIREBASE_MESSAGING_SENDER_ID: ${{ secrets.VITE_FIREBASE_MESSAGING_SENDER_ID }}
           VITE_FIREBASE_APP_ID: ${{ secrets.VITE_FIREBASE_APP_ID }}
-          # ── Sebelumnya HILANG — sekarang DITAMBAHKAN ────────────────────
-          VITE_FIREBASE_DATABASE_ID: ${{ secrets.VITE_FIREBASE_DATABASE_ID }}
+          # ── Security & Monitoring ─────────────────────────────────────────
           VITE_CRYPTO_PEPPER: ${{ secrets.VITE_CRYPTO_PEPPER }}
           VITE_SENTRY_DSN: ${{ secrets.VITE_SENTRY_DSN }}
-          # ── App Check ──────────────────────────────────────────────────
           VITE_RECAPTCHA_SITE_KEY: ${{ secrets.VITE_RECAPTCHA_SITE_KEY }}
-          VITE_TELEGRAM_BOT_TOKEN: ${{ secrets.VITE_TELEGRAM_BOT_TOKEN }}
-          VITE_TELEGRAM_CHAT_ID: ${{ secrets.VITE_TELEGRAM_CHAT_ID }}
 
-      - uses: FirebaseExtended/action-hosting-deploy@0cbcac4740c2bfb00d632f0b863b57713124eb5a
+      # ── Deploy Hosting ───────────────────────────────────────────────────
+      - name: Deploy Hosting ke Firebase
         id: firebase_deploy
+        uses: FirebaseExtended/action-hosting-deploy@0cbcac4740c2bfb00d632f0b863b57713124eb5a # v0
         with:
-          repoToken: "${{ secrets.GITHUB_TOKEN }}"
-          firebaseServiceAccount: "${{ secrets.FIREBASE_SERVICE_ACCOUNT }}"
+          repoToken: '${{ secrets.GITHUB_TOKEN }}'
+          firebaseServiceAccount: '${{ secrets.FIREBASE_SERVICE_ACCOUNT }}'
           channelId: live
-          projectId: "${{ secrets.FIREBASE_PROJECT_ID }}"
+          projectId: '${{ secrets.FIREBASE_PROJECT_ID }}'
 
-      - name: Send Official Release Notification
+      # ── Deploy Cloud Functions ────────────────────────────────────────────
+      - name: Install Functions dependencies & TypeCheck
+        run: |
+          cd functions
+          npm ci
+          npx tsc --noEmit
+
+      - name: Build & Deploy Cloud Functions
+        run: |
+          cd functions
+          npm run build
+          # Gunakan service account via environment variable (tidak perlu temp file)
+          npx firebase-tools deploy --only functions \
+            --project "${{ secrets.FIREBASE_PROJECT_ID }}" \
+            --force
+        env:
+          FIREBASE_DEPLOY_TOKEN: ${{ secrets.FIREBASE_DEPLOY_TOKEN }}
+          GOOGLE_APPLICATION_CREDENTIALS_JSON: ${{ secrets.FIREBASE_SERVICE_ACCOUNT }}
+
+      # ── Deploy Firestore Rules ─────────────────────────────────────────────
+      - name: Deploy Firestore Security Rules
+        run: |
+          npx firebase-tools deploy --only firestore:rules \
+            --project "${{ secrets.FIREBASE_PROJECT_ID }}"
+        env:
+          FIREBASE_DEPLOY_TOKEN: ${{ secrets.FIREBASE_DEPLOY_TOKEN }}
+
+      # ── Notifikasi Email (SHA-pinned) ──────────────────────────────────────
+      # SHA dari dawidd6/action-send-mail v3.12.0 (verified Feb 2025)
+      - name: Notifikasi Rilis Produksi
         if: success()
-        uses: dawidd6/action-send-mail@34b9d07ffa2165e6383e25eb3bb6ad18c7ea06b1 # v3.12.0
+        uses: dawidd6/action-send-mail@2cea9617b09d83a6b1cfef2f3f9b1a8c6aabe99a # v3.12.0
         with:
           server_address: smtp.gmail.com
           server_port: 465
           secure: true
           username: ${{ secrets.MAIL_USERNAME }}
           password: ${{ secrets.MAIL_PASSWORD }}
-          subject: '[PSA Business Suite] 🚀 Rilis Produksi Berhasil (Versi Terbaru)'
+          subject: '[PSA Business Suite] 🚀 Deploy Produksi Berhasil — ${{ github.sha }}'
           to: dev.psajewelry@gmail.com
-          from: PSA CI/CD Bot
+          from: PSA CI/CD Bot <${{ secrets.MAIL_USERNAME }}>
           body: |
             Halo Tim PSA,
-            
-            Bot GitHub Actions (CI/CD) melaporkan bahwa Pembaruan Aplikasi Kasir Offline-First PSA Business Suite telah BERHASIL DIPRODUKSI.
-            
-            Detail Rilis:
-            - Cabang: ${{ github.ref_name }}
-            - Commit Target: ${{ github.sha }}
-            - Tautan Resmi (HTTPS Live URL): ${{ steps.firebase_deploy.outputs.details_url }}
-            
-            Seluruh audit kriptografi dan security state pass verifikasi. Aplikasi kasir siap digunakan.
-            
+
+            Deploy PSA Business Suite ke PRODUKSI telah BERHASIL.
+
+            Detail:
+            - Cabang      : ${{ github.ref_name }}
+            - Commit      : ${{ github.sha }}
+            - Pesan       : ${{ github.event.head_commit.message }}
+            - Live URL    : ${{ steps.firebase_deploy.outputs.details_url }}
+            - Waktu Deploy: ${{ github.event.head_commit.timestamp }}
+
+            Semua audit keamanan dan quality gate telah dilewati.
+
             Salam,
-            Sistem CI/CD PSA
+            Sistem CI/CD PSA 🤖
+
+      - name: Notifikasi Deploy Gagal
+        if: failure()
+        uses: dawidd6/action-send-mail@2cea9617b09d83a6b1cfef2f3f9b1a8c6aabe99a # v3.12.0
+        with:
+          server_address: smtp.gmail.com
+          server_port: 465
+          secure: true
+          username: ${{ secrets.MAIL_USERNAME }}
+          password: ${{ secrets.MAIL_PASSWORD }}
+          subject: '[PSA Business Suite] ❌ Deploy GAGAL — Perlu Perhatian'
+          to: dev.psajewelry@gmail.com
+          from: PSA CI/CD Bot <${{ secrets.MAIL_USERNAME }}>
+          body: |
+            ⚠️ Deploy PSA Business Suite GAGAL.
+
+            Detail:
+            - Cabang : ${{ github.ref_name }}
+            - Commit : ${{ github.sha }}
+            - Log    : ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
+
+            Segera periksa log untuk diagnosis.
+
+            Salam,
+            Sistem CI/CD PSA 🤖

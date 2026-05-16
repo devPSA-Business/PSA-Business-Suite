@@ -82,12 +82,16 @@ const lockedRoute = createRoute({
 });
 
 const inventoryRoute = createRoute({ getParentRoute: () => rootRoute, path: '/inventory', beforeLoad: requireRole([UserRole.ADMIN, UserRole.MANAGER]), component: lazyRouteComponent(() => import('../features/inventory/ui/InventoryPage'), 'InventoryPage') });
-const dashboardRoute = createRoute({ getParentRoute: () => rootRoute, path: '/dashboard', beforeLoad: requireRole([UserRole.ADMIN, UserRole.MANAGER]), component: lazyRouteComponent(() => import('../pages/reports/DashboardPage'), 'DashboardPage') });
+const executiveRoute = createRoute({ getParentRoute: () => rootRoute, path: '/executive', beforeLoad: requireRole([UserRole.ADMIN, UserRole.MANAGER]), component: lazyRouteComponent(() => import('../pages/reports/ExecutivePage').then(m => ({ default: m.ExecutivePage }))) });
+
 const auditRoute = createRoute({ getParentRoute: () => rootRoute, path: '/audit', beforeLoad: requireRole([UserRole.ADMIN, UserRole.MANAGER]), component: lazyRouteComponent(() => import('../pages/reports/AuditPage'), 'AuditPage') });
-const financeRoute = createRoute({ getParentRoute: () => rootRoute, path: '/finance', beforeLoad: requireRole([UserRole.ADMIN, UserRole.MANAGER]), component: lazyRouteComponent(() => import('../pages/reports/FinanceReportPage'), 'FinanceReportPage') });
+const systemAuditRoute = createRoute({ getParentRoute: () => rootRoute, path: '/system-audit', beforeLoad: requireRole([UserRole.ADMIN, UserRole.MANAGER]), component: lazyRouteComponent(() => import('../pages/reports/SystemAuditReportPage'), 'SystemAuditReportPage') });
 const settingsRoute = createRoute({ getParentRoute: () => rootRoute, path: '/settings', beforeLoad: requireRole([UserRole.ADMIN, UserRole.MANAGER]), component: lazyRouteComponent(() => import('../features/settings/ui/SettingsPage'), 'SettingsPage') });
 
-const ownerDashboardRoute = createRoute({ getParentRoute: () => rootRoute, path: '/owner-dashboard', beforeLoad: requireRole([UserRole.ADMIN]), component: lazyRouteComponent(() => import('../features/admin/ui/OwnerDashboardPage'), 'OwnerDashboardPage') });
+// Adding these redirects to keep old links working
+const dashboardRoute = createRoute({ getParentRoute: () => rootRoute, path: '/dashboard', beforeLoad: () => { throw redirect({ to: '/executive' }); }, component: () => <></> });
+const financeRoute = createRoute({ getParentRoute: () => rootRoute, path: '/finance', beforeLoad: () => { throw redirect({ to: '/executive' }); }, component: () => <></> });
+const ownerDashboardRoute = createRoute({ getParentRoute: () => rootRoute, path: '/owner-dashboard', beforeLoad: () => { throw redirect({ to: '/executive' }); }, component: () => <></> });
 
 // --- BYPASS ROUTES ---
 const loginRoute = createRoute({ 
@@ -121,9 +125,9 @@ const syncDlqRoute = createRoute({ getParentRoute: () => rootRoute, path: '/sett
 
 const routeTree = rootRoute.addChildren([
   indexRoute, workspaceRoute, officeRoute, cashierRoute, dashboardRoute, 
-  auditRoute, syncStatusRoute, conflictResolutionRoute, financeRoute, servicePosRoute, buybackRoute,
+  auditRoute, systemAuditRoute, syncStatusRoute, conflictResolutionRoute, financeRoute, servicePosRoute, buybackRoute,
   goldBuybackSalesRoute, inventoryRoute, receiveStockRoute, barcodePrintRoute,
-  servicesRoute, shiftRoute, handoverRoute, settingsRoute,
+  servicesRoute, shiftRoute, handoverRoute, settingsRoute, executiveRoute,
   lockedRoute, loginRoute, onboardingRoute, employeesRoute, customersRoute, printerSettingsRoute, receiptSettingsRoute, syncDlqRoute, ownerDashboardRoute
 ]);
 

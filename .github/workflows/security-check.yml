@@ -1,0 +1,57 @@
+name: Security Check — Trivy
+
+# @ai_context: Vulnerability scan mingguan menggunakan Trivy.
+# Mencakup: filesystem scan untuk CVE HIGH/CRITICAL pada dependencies.
+# Berjalan setiap Senin 03:00 UTC dan bisa dipicu manual.
+
+on:
+  schedule:
+    - cron: '0 3 * * 1' # Senin 03:00 UTC (10:00 WIB)
+  workflow_dispatch:
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  trivy_scan:
+    name: Trivy Vulnerability Scan
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    permissions:
+      contents: read
+      security-events: write
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v4.2.2
+
+      # SHA dari release resmi aquasecurity/trivy-action (v0.28.0 — Jan 2025)
+      # JANGAN gunakan @master — dapat berubah kapan saja (supply chain risk)
+      - name: Run Trivy Vulnerability Scanner
+        uses: aquasecurity/trivy-action@915b19bbe73b92a6cf82a1bc12b087c9a19a5fe8 # v0.28.0
+        with:
+          scan-type: fs
+          scan-ref: '.'
+          severity: 'HIGH,CRITICAL'
+          ignore-unfixed: true
+          format: 'sarif'
+          output: 'trivy-results.sarif'
+          exit-code: '1'
+
+      - name: Upload Trivy results to Security tab
+        if: always()
+        uses: github/codeql-action/upload-sarif@v3
+        with:
+          sarif_file: 'trivy-results.sarif'
+          category: 'trivy-filesystem'
+
+      # Scan khusus untuk functions/
+      - name: Trivy Scan — Functions Directory
+        uses: aquasecurity/trivy-action@915b19bbe73b92a6cf82a1bc12b087c9a19a5fe8 # v0.28.0
+        with:
+          scan-type: fs
+          scan-ref: 'functions/'
+          severity: 'HIGH,CRITICAL'
+          ignore-unfixed: true
+          exit-code: '1'

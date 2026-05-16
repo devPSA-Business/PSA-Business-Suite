@@ -113,10 +113,14 @@ export class SyncServiceImpl implements ISyncService {
           return;
         }
 
-        const allPendingEvents = await db.sync_events
+        // G-07: Batasi jumlah event per siklus untuk RAM & performa         
+        const allEvents = await db.sync_events
           .where('status')
           .anyOf(['PENDING', 'FAILED'])
-          .sortBy('timestamp');
+          .toArray();
+          
+        allEvents.sort((a, b) => a.timestamp - b.timestamp);
+        const allPendingEvents = allEvents.slice(0, 100);
 
         const now = Date.now();
         // Check for blocked entity IDs
@@ -149,7 +153,7 @@ export class SyncServiceImpl implements ISyncService {
 
         if (executableEvents.length === 0) return;
 
-        const CHUNK_SIZE = 200;
+        const CHUNK_SIZE = 50; // Lebih aman untuk device berspek rendah dan batas Firestore
         const chunks = [];
         for (let i = 0; i < executableEvents.length; i += CHUNK_SIZE) {
           chunks.push(executableEvents.slice(i, i + CHUNK_SIZE));
@@ -412,9 +416,9 @@ export class SyncServiceImpl implements ISyncService {
     } else {
       // Accept server changes (F6: Expanded to all relevant tables)
       const ALL_CONFLICT_TABLES = [
-        'sync_events', 
-        'stock', 
-        'customers', 
+        'sync_events',
+        'stock',
+        'customers',
         'repair_services',
         'gold_buyback',
         'shifts',
@@ -423,7 +427,8 @@ export class SyncServiceImpl implements ISyncService {
         'gold_liquidations',
         'custom_orders',
         'appointments',
-        'audit_logs'
+        'financial_closures', // fix: sebelumnya tidak ada → conflict resolution gagal untuk penutupan harian
+        'audit_logs',
       ];
 
       await uow.execute(async () => {
@@ -463,6 +468,9 @@ export class SyncServiceImpl implements ISyncService {
               break;
             case 'appointments':
               await db.appointments.put(payload);
+              break;
+            case 'financial_closures':
+              await db.financial_closures.put(payload);
               break;
             default:
               logger.error(`[SyncService] resolveConflict: unhandled entity_type "${event.entity_type}"`);

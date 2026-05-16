@@ -1,6 +1,6 @@
 import { logger } from '@lib/logger';
 import { useState, useRef, useEffect } from 'react';
-import { Download, Upload, Trash2, AlertTriangle, Archive, Users, ShieldAlert, Target, Activity, Lock, Database } from 'lucide-react';
+import { Download, Upload, Trash2, AlertTriangle, Archive, Users, ShieldAlert, Target, Activity, Lock, Database, Printer } from 'lucide-react';
 import { DIContainer } from '@infrastructure/di/Container';
 import { useToastStore } from '../../../shared/store/toastStore';
 import { BackButton } from '../../../shared/components/BackButton';
@@ -206,8 +206,7 @@ export function SettingsPage() {
   };
 
   return (
-      <div className="max-w-4xl mx-auto p-6">
-        <BackButton />
+      <div className="max-w-4xl mx-auto p-6 pt-10">
         {isAuthorizedDev(firebaseUser?.email) && (
           <section className="bg-white rounded-2xl shadow-sm border-2 border-amber-500 overflow-hidden mb-8">
             <div className="p-6">
@@ -364,6 +363,23 @@ export function SettingsPage() {
                   className="w-full flex items-center justify-center gap-2 px-4 py-2.5 bg-white border border-stone-200 hover:bg-stone-100 text-stone-700 font-medium rounded-lg transition-colors"
                 >
                   Buka Manajemen Pegawai
+                </Link>
+              </div>
+
+              {/* Printer Config */}
+              <div className="p-5 border border-stone-100 bg-stone-50 rounded-xl">
+                <div className="w-10 h-10 bg-stone-200 text-stone-600 rounded-full flex items-center justify-center mb-4">
+                  <Printer size={20} />
+                </div>
+                <h3 className="font-bold text-stone-800 mb-2">Pengaturan Printer & Struk</h3>
+                <p className="text-sm text-stone-500 mb-6">
+                  Hubungkan printer kasir, sesuaikan ukuran kertas, dan format struk cetak.
+                </p>
+                <Link
+                  to="/settings/printer"
+                  className="w-full flex items-center justify-center gap-2 px-4 py-2.5 bg-white border border-stone-200 hover:bg-stone-100 text-stone-700 font-medium rounded-lg transition-colors"
+                >
+                  Buka Pengaturan Printer
                 </Link>
               </div>
 

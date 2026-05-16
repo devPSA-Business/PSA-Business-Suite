@@ -46,7 +46,7 @@ function CustomerSegmentationChart() {
   );
 }
 
-export function DashboardPage() {
+export function DashboardPage({ embedded = false }: { embedded?: boolean }) {
   const [startDate, setStartDate] = useState<string>(new Date(Date.now() - 7 * 24 * 60 * 60 * 1000).toISOString().split('T')[0]);
   const [endDate, setEndDate] = useState<string>(new Date().toISOString().split('T')[0]);
   const [isExportModalOpen, setIsExportModalOpen] = useState(false);
@@ -131,8 +131,8 @@ export function DashboardPage() {
   }
 
   return (
-    <div className="p-6 space-y-6 max-w-7xl mx-auto">
-      <BackButton />
+    <div className={`${embedded ? 'pt-2' : 'p-6'} space-y-6 max-w-7xl mx-auto`}>
+      {!embedded && <BackButton />}
       <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
         <h1 className="text-3xl font-serif font-bold text-brand-900">Executive Dashboard</h1>
         

@@ -239,6 +239,7 @@ export interface PettyCash {
   amount: number;
   description: string;
   user: string;
+  branchId?: string; // fix: diperlukan untuk branch isolation & Firestore rules
 }
 
 export interface Appointment {
@@ -248,6 +249,7 @@ export interface Appointment {
   description: string;
   status: 'PENDING' | 'DONE';
   user: string;
+  branchId?: string; // fix: diperlukan untuk branch isolation & Firestore rules
 }
 
 export interface CustomOrder {
@@ -258,6 +260,7 @@ export interface CustomOrder {
   estimatedPrice: number;
   status: 'PENDING' | 'IN_PROGRESS' | 'DONE';
   user: string;
+  branchId?: string; // fix: diperlukan untuk branch isolation & Firestore rules
 }
 
 export interface InternalNote {
@@ -266,6 +269,7 @@ export interface InternalNote {
   category: 'KELUHAN' | 'LAPORAN';
   message: string;
   user: string;
+  branchId?: string; // fix: konsistensi branch isolation
 }
 
 export interface Customer {
@@ -462,45 +466,8 @@ export class PsaDatabase extends Dexie {
   constructor() {
     super('PSA_POS_DB');
     
-    // Baseline Version 40: Performance Optimization (Index idempotency_key) & Schema Squashing
-    this.version(40).stores({
-      stock: 'id, name, category, barcode, quantity, branchId',
-      transactions: 'id, date, status, sessionId, customerId, branchId',
-      repair_services: 'id, date, customerName, status, paymentMethod, branchId',
-      audit_logs: 'id, timestamp, action, user, userId, branchId, entityId',
-      shifts: 'id, startTime, status, user, branchId',
-      sync_events: '++id, entity_type, status, timestamp, idempotency_key',
-      users: 'id, name, role, status, branchId',
-      customers: 'id, name, phoneNumber, loyaltyPoints, version, branchId, secureData',
-      notifications: 'id, recipient, timestamp, status',
-      gold_liquidations: 'id, date, status, paymentMethod, branchId',
-      gold_price: 'id',
-      daily_gold_price: 'date, branchId',
-      gold_buyback: 'id, date, customerName, paymentMethod, status, branchId',
-      stock_history: 'id, stockId, timestamp, action',
-      gold_asset_history: 'id, timestamp, action',
-      suspended_carts: 'id, timestamp, user, branchId',
-      handovers: 'id, timestamp, category, branchId',
-      petty_cash: 'id, date, category',
-      appointments: 'id, date, status',
-      custom_orders: 'id, date, status',
-      internal_notes: 'id, date, category',
-      keys_meta: 'id, keyId',
-      keyval: 'key',
-      sync_dlq: '++id, entity_type, status, timestamp, idempotency_key',
-      shift_totals: 'id, startTime',
-      analytics_cache: 'id, expiresAt',
-      fraud_anomalies: 'id, txId, cashierId, status, severity, timestamp',
-      telemetry_events: 'id, timestamp, eventType, userId',
-      ai_cache: 'queryHash, expiresAt',
-      ai_access_logs: 'id, timestamp, queryHash',
-      ai_feedback_tickets: 'id, timestamp, status, sync_status, category',
-      financial_closures: 'id, date, branchId',
-      store_profile: 'id, isSetupComplete'
-    });
-
-    // Version 41: Remove secureData from customers index
-    this.version(41).stores({
+    // Version 1: Squashed Schema
+    this.version(1).stores({
       stock: 'id, name, category, barcode, quantity, branchId',
       transactions: 'id, date, status, sessionId, customerId, branchId',
       repair_services: 'id, date, customerName, status, paymentMethod, branchId',
@@ -518,10 +485,10 @@ export class PsaDatabase extends Dexie {
       gold_asset_history: 'id, timestamp, action',
       suspended_carts: 'id, timestamp, user, branchId',
       handovers: 'id, timestamp, category, branchId',
-      petty_cash: 'id, date, category',
-      appointments: 'id, date, status',
-      custom_orders: 'id, date, status',
-      internal_notes: 'id, date, category',
+      petty_cash: 'id, date, category, branchId',
+      appointments: 'id, date, status, branchId',
+      custom_orders: 'id, date, status, branchId',
+      internal_notes: 'id, date, category, branchId',
       keys_meta: 'id, keyId',
       keyval: 'key',
       sync_dlq: '++id, entity_type, status, timestamp, idempotency_key',

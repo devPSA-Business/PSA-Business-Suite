@@ -1,0 +1,210 @@
+name: 🔧 Setup — Repository Settings (Run Once)
+
+# @ai_context: Workflow self-configuring untuk konfigurasi repo GitHub.
+# Dijalankan MANUAL sekali oleh owner untuk set:
+# - Branch protection rules (main)
+# - Labels standar PSA
+# - Repo settings (merge strategy, dll)
+# Prasyarat: GITHUB_TOKEN memiliki admin access ke repo ini.
+
+on:
+  workflow_dispatch:
+    inputs:
+      confirm:
+        description: 'Ketik "YES" untuk konfirmasi konfigurasi repo'
+        required: true
+        default: ''
+
+jobs:
+  configure_repo:
+    name: Configure Repository Settings
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    if: github.event.inputs.confirm == 'YES'
+    permissions:
+      contents: write
+      administration: write
+      issues: write   # untuk label management
+
+    steps:
+      - name: Validate Trigger
+        run: |
+          echo "🔧 PSA Repository Setup dimulai oleh: ${{ github.actor }}"
+          echo "   Repo  : ${{ github.repository }}"
+          echo "   Branch: ${{ github.ref_name }}"
+
+      # ── [1] REPO SETTINGS ─────────────────────────────────────────────────
+      - name: "[1/5] Repo Settings — Merge Strategy & Defaults"
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          gh api \
+            --method PATCH \
+            /repos/${{ github.repository }} \
+            --field has_issues=true \
+            --field has_projects=false \
+            --field has_wiki=false \
+            --field allow_squash_merge=true \
+            --field allow_merge_commit=false \
+            --field allow_rebase_merge=false \
+            --field delete_branch_on_merge=true \
+            --field allow_auto_merge=true \
+            --field allow_update_branch=true \
+            --field squash_merge_commit_title=PR_TITLE \
+            --field squash_merge_commit_message=COMMIT_MESSAGES
+          
+          echo "✅ Repo settings: squash-only | delete branch on merge | auto-merge enabled"
+
+      # ── [2] BRANCH PROTECTION — main ──────────────────────────────────────
+      - name: "[2/5] Branch Protection — main"
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          gh api \
+            --method PUT \
+            /repos/${{ github.repository }}/branches/main/protection \
+            --input - << 'JSON'
+          {
+            "required_status_checks": {
+              "strict": true,
+              "contexts": [
+                "Lint \u00b7 TypeCheck \u00b7 Test \u00b7 Coverage",
+                "TypeScript \u00b7 ESLint \u00b7 Architecture",
+                "Dependency Audit",
+                "NPM Audit Scan"
+              ]
+            },
+            "enforce_admins": false,
+            "required_pull_request_reviews": {
+              "dismiss_stale_reviews": true,
+              "require_code_owner_reviews": true,
+              "required_approving_review_count": 1,
+              "require_last_push_approval": false
+            },
+            "restrictions": null,
+            "required_linear_history": true,
+            "allow_force_pushes": false,
+            "allow_deletions": false,
+            "required_conversation_resolution": true,
+            "block_creations": false
+          }
+          JSON
+          
+          echo "✅ Branch protection main: status checks required | CODEOWNERS | linear history | no force push"
+
+      # ── [3] LABELS ────────────────────────────────────────────────────────
+      - name: "[3/5] Create/Update Labels"
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          create_or_update_label() {
+            local NAME="$1" COLOR="$2" DESC="$3"
+            # Coba create dulu; jika sudah ada (422), update
+            gh api --method POST /repos/${{ github.repository }}/labels \
+              --field name="$NAME" \
+              --field color="$COLOR" \
+              --field description="$DESC" 2>/dev/null \
+            || gh api --method PATCH "/repos/${{ github.repository }}/labels/${NAME// /%20}" \
+              --field color="$COLOR" \
+              --field description="$DESC" 2>/dev/null \
+            || true
+            echo "  ✅ $NAME"
+          }
+
+          echo "Creating labels..."
+
+          # Security & Compliance
+          create_or_update_label "security"          "d73a4a" "Isu keamanan kritis — prioritas tertinggi"
+          create_or_update_label "breaking-change"   "b60205" "Perubahan yang merusak kompatibilitas"
+          create_or_update_label "hotfix"            "ff6b6b" "Perbaikan kritis untuk produksi"
+
+          # Review & Merge
+          create_or_update_label "needs-human-review" "e4e669" "PR ditahan — wajib review manual sebelum merge"
+          create_or_update_label "auto-merge"         "0e8a16" "PR aman untuk auto-merge setelah CI hijau"
+          create_or_update_label "do-not-merge"       "cc0000" "JANGAN merge sampai ada keputusan eksplisit"
+
+          # Architecture & Technical
+          create_or_update_label "architecture"      "0075ca" "Perubahan arsitektur sistem — perlu ADR"
+          create_or_update_label "ci/cd"             "0052cc" "Perubahan pipeline CI/CD atau workflow"
+          create_or_update_label "offline-first"     "1d76db" "Terkait logika offline/IndexedDB/sync engine"
+          create_or_update_label "performance"       "ff7619" "Isu atau peningkatan performa"
+
+          # Feature Domains
+          create_or_update_label "gold-module"       "fbca04" "Terkait modul Gold Treasury (P1 priority)"
+          create_or_update_label "pos-core"          "c5def5" "Terkait modul POS kasir utama"
+          create_or_update_label "reporting"         "bfdadc" "Terkait laporan dan analitik"
+
+          # Process
+          create_or_update_label "wontfix"           "ffffff" "Tidak akan diperbaiki — keputusan deliberate"
+          create_or_update_label "duplicate"         "cfd3d7" "Duplikat dari issue/PR lain"
+          create_or_update_label "good first issue"  "7057ff" "Cocok untuk kontribusi pertama"
+
+          echo "✅ Semua label berhasil dikonfigurasi"
+
+      # ── [4] VULNERABILITY ALERTS ──────────────────────────────────────────
+      - name: "[4/5] Enable Security Features"
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          # Enable vulnerability alerts
+          gh api --method PUT \
+            /repos/${{ github.repository }}/vulnerability-alerts \
+            --silent 2>/dev/null || true
+          echo "✅ Vulnerability alerts: enabled"
+
+          # Enable automated security fixes (Dependabot)
+          gh api --method PUT \
+            /repos/${{ github.repository }}/automated-security-fixes \
+            --silent 2>/dev/null || true
+          echo "✅ Automated security fixes (Dependabot): enabled"
+
+          # Enable secret scanning (deteksi token/key yang ter-commit)
+          gh api --method PATCH \
+            /repos/${{ github.repository }} \
+            --field security_and_analysis='{"secret_scanning":{"status":"enabled"},"secret_scanning_push_protection":{"status":"enabled"}}' \
+            --silent 2>/dev/null || true
+          echo "✅ Secret scanning + push protection: enabled (jika plan mendukung)"
+
+      # ── [5] SUMMARY ───────────────────────────────────────────────────────
+      - name: "[5/5] Configuration Summary"
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          echo ""
+          echo "============================================================"
+          echo "  ✅ PSA Repository Setup SELESAI"
+          echo "============================================================"
+          echo ""
+          echo "  Repo Settings :"
+          echo "    - Merge strategy  : Squash only"
+          echo "    - Branch cleanup  : Auto-delete setelah merge"
+          echo "    - Auto-merge      : Enabled (untuk Dependabot approved)"
+          echo ""
+          echo "  Branch Protection (main) :"
+          echo "    - Status checks   : 4 required (CI + forensic-audit + security)"
+          echo "    - PR review       : 1 approval + CODEOWNERS"
+          echo "    - Linear history  : Required (no merge commits)"
+          echo "    - Force push      : Disabled"
+          echo "    - Deletion        : Disabled"
+          echo ""
+          echo "  Labels            : 15 labels dikonfigurasi"
+          echo "  Security          : Vulnerability alerts + Dependabot auto-fix"
+          echo ""
+          echo "  ⚠️  LANGKAH MANUAL yang masih perlu dilakukan:"
+          echo "  1. Set secrets di: github.com/${{ github.repository }}/settings/secrets"
+          echo "     Lihat: .github/secrets-checklist.md"
+          echo "  2. Jalankan: firebase login:ci → set FIREBASE_DEPLOY_TOKEN"
+          echo "  3. Hapus/rotate PAT lama yang pernah dibagikan"
+          echo "============================================================"
+
+          # Tampilkan status branch protection saat ini untuk verifikasi
+          echo ""
+          echo "=== Verifikasi Branch Protection ==="
+          gh api /repos/${{ github.repository }}/branches/main/protection \
+            --jq '{ 
+              required_checks: .required_status_checks.contexts,
+              require_pr_review: (.required_pull_request_reviews != null),
+              enforce_admins: .enforce_admins.enabled,
+              linear_history: .required_linear_history.enabled,
+              allow_force_push: .allow_force_pushes.enabled
+            }'

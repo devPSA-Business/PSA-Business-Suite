@@ -9,4 +9,9 @@ export class PettyCashRepositoryImpl implements IPettyCashRepository {
       throw new Error('Gagal menyimpan data petty cash ke penyimpanan lokal. Pastikan memori perangkat tidak penuh. Detail: ' + (error instanceof Error ? error.message : String(error)));
     }
   }
+
+  getTodayQuery(): Promise<PettyCash[]> {
+    const startOfDay = new Date().setHours(0, 0, 0, 0);
+    return db.petty_cash.where('date').aboveOrEqual(startOfDay).toArray();
+  }
 }

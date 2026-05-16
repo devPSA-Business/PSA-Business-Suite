@@ -1,0 +1,143 @@
+name: Forensic Audit
+
+# @ai_context: Workflow keamanan mendalam — dijalankan di setiap PR dan push ke main/develop.
+# Mencakup: TypeScript strict check, ESLint, CodeQL SAST, dependency audit,
+# dan deteksi pelanggaran arsitektur (direct DB access dari UI layer).
+
+on:
+  pull_request:
+    types: [opened, synchronize, reopened]
+  push:
+    branches: [main, develop]
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  # ── Job 1: Static Analysis & Architecture Guard ──────────────────────────
+  static_analysis:
+    name: TypeScript · ESLint · Architecture
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v4.2.2
+
+      - name: Setup Node.js 22
+        uses: actions/setup-node@39370e3970a6d050c480ffad4ff0ed4d3fdee5af # v4.1.0
+        with:
+          node-version: 22
+          cache: 'npm'
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: TypeScript — Strict Type Check
+        run: npx tsc --noEmit
+
+      - name: ESLint — Strict (0 warnings allowed)
+        run: npx eslint "src/**/*.{ts,tsx}" --max-warnings=0
+
+      # Guard: Pastikan tidak ada akses DB langsung dari UI layer
+      # Pattern yang BENAR: cari impor 'db' dari shared/api/db di dalam fitur UI
+      - name: Architecture Guard — No Direct DB in UI Layer
+        run: |
+          echo "Scanning for direct DB access in UI layer..."
+          
+          # Cari import { db } atau import db dari shared/api/db langsung di folder ui/
+          VIOLATIONS=$(grep -rn \
+            --include="*.ts" --include="*.tsx" \
+            "from.*['\"].*shared/api/db['\"]" \
+            src/features/*/ui/ src/features/*/components/ \
+            2>/dev/null || true)
+          
+          if [ -n "$VIOLATIONS" ]; then
+            echo "❌ PELANGGARAN ARSITEKTUR: UI layer mengakses DB langsung"
+            echo "   Semua akses DB WAJIB melalui UseCase → UnitOfWork"
+            echo ""
+            echo "$VIOLATIONS"
+            exit 1
+          else
+            echo "✅ Tidak ada pelanggaran direct DB access di UI layer"
+          fi
+
+      # Guard: Pastikan tidak ada 'any' di domain/usecases layer
+      - name: Architecture Guard — No 'any' in Domain/UseCases
+        run: |
+          echo "Scanning for 'any' type in domain and usecases layers..."
+          
+          VIOLATIONS=$(grep -rn \
+            --include="*.ts" \
+            ": any\b\|as any\b\|<any>\b" \
+            src/domain/ src/features/*/usecases/ src/application/ \
+            2>/dev/null || true)
+          
+          if [ -n "$VIOLATIONS" ]; then
+            echo "❌ PELANGGARAN: Tipe 'any' ditemukan di layer Domain/UseCase"
+            echo "$VIOLATIONS"
+            exit 1
+          else
+            echo "✅ Tidak ada 'any' di layer Domain/UseCase"
+          fi
+
+  # ── Job 2: Dependency Security Audit ─────────────────────────────────────
+  dependency_audit:
+    name: Dependency Audit
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v4.2.2
+
+      - name: Setup Node.js 22
+        uses: actions/setup-node@39370e3970a6d050c480ffad4ff0ed4d3fdee5af # v4.1.0
+        with:
+          node-version: 22
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: NPM Audit (high severity)
+        run: npm audit --audit-level=high
+
+      - name: Functions — NPM Audit
+        run: |
+          cd functions
+          npm ci
+          npm audit --audit-level=high
+
+  # ── Job 3: CodeQL SAST ────────────────────────────────────────────────────
+  codeql:
+    name: CodeQL SAST
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    permissions:
+      security-events: write
+      actions: read
+      contents: read
+
+    strategy:
+      fail-fast: false
+      matrix:
+        language: ['javascript-typescript']
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v4.2.2
+
+      - name: Initialize CodeQL
+        uses: github/codeql-action/init@v3
+        with:
+          languages: ${{ matrix.language }}
+          queries: security-extended
+
+      - name: Autobuild
+        uses: github/codeql-action/autobuild@v3
+
+      - name: Perform CodeQL Analysis
+        uses: github/codeql-action/analyze@v3
+        with:
+          category: '/language:${{ matrix.language }}'

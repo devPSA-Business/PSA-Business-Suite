@@ -25,15 +25,15 @@ export function QuickCatalogDrawer({ isOpen, onClose }: QuickCatalogDrawerProps)
     } else {
       collection = db.stock;
     }
-    const results: StockItemWithId[] = await collection.toArray();
-    
-    return results.filter((item: StockItemWithId) => {
+    const results: StockItemWithId[] = await collection.filter((item: StockItemWithId) => {
       if (tab === 'perhiasan') {
         return item.category === StockCategory.GOLD_JEWELLERY || item.category === StockCategory.IMITATION;
       } else {
         return item.category === StockCategory.GOLD_BAR || item.category === StockCategory.ACCESSORIES;
       }
-    }).slice(0, 30); // limit for quick viewing
+    }).limit(30).toArray();
+    
+    return results;
   }, [searchTerm, tab]);
 
   if (!isOpen) return null;

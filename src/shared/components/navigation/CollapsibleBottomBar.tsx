@@ -1,15 +1,17 @@
 import React from 'react';
 import { Link, useLocation } from '@tanstack/react-router';
 import { motion, AnimatePresence } from 'motion/react';
-import { LayoutDashboard, Building, Plus, ChevronDown, ChevronUp, Home } from 'lucide-react';
+import { LayoutDashboard, Building, Plus, ChevronDown, ChevronUp, Home, TrendingUp, Settings } from 'lucide-react';
 import { useUIStore } from '../../store/useUIStore';
 import { useLiveQuery } from 'dexie-react-hooks';
 import { DIContainer } from '../../../infrastructure/di/Container';
 
 const navItems = [
   { path: '/', icon: Home, label: 'Beranda' },
-  { path: '/workspace', icon: LayoutDashboard, label: 'Operasional' },
-  { path: '/office', icon: Building, label: 'Manajemen' },
+  { path: '/workspace', icon: LayoutDashboard, label: 'Front Line' },
+  { path: '/office', icon: Building, label: 'Back Office' },
+  { path: '/executive', icon: TrendingUp, label: 'Eksekutif' },
+  { path: '/settings', icon: Settings, label: 'Settings' },
 ];
 
 export function CollapsibleBottomBar() {

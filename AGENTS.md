@@ -24,8 +24,12 @@ Setiap AI Agent WAJIB menerapkan kebijakan berikut setiap kali melakukan task:
 - Perubahan area sensitif (db.ts, firestore.rules, auth) wajib didahului oleh ADR tertulis dan pengujian migrasi.
 - Semua keputusan bot dicatat ke `/AI_TRACK_RECORD.md` dan `/audit_logs/`.
 
-## 4. Struktur Folder (FSD - Locked)
-- Ikuti struktur FSD ketat: `features/`, `infrastructure/`, `shared/`. Jangan menaruh logika bisnis di `pages/` atau langsung di `components/`.
+## 4. Struktur Folder & Dokumen Konteks AI
+AI **WAJIB** membaca dan mematuhi Kerangka Dokumentasi Konteks AI berikut sebelum modifikasi arsitektur:
+- **`CONTEXT.md`**: Konteks bisnis, entitas inti, dan peta *source code*.
+- **`SCOPE.md`**: Batasan modifikasi (whitelist/blacklist direktori modifikasi). Jangan pernah mengubah file sensitif tanpa ADR!
+- **`INTERFACES.md`**: Kontrak API antar modul.
+- **FSD Strict:** Ikuti struktur *Feature-Sliced Design* ketat: `features/`, `infrastructure/`, `shared/`. Jangan menaruh logika bisnis di `pages/` atau `components/`.
 
 ## 5. Ringkasan Eksekutif & Panduan Darurat Founder (Wajib Dipahami)
 - [Lihat isi dokumen dasar sistem 1.4+...]

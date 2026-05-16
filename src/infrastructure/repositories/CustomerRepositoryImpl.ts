@@ -8,6 +8,14 @@ export class CustomerRepositoryImpl implements ICustomerRepository {
   private async mapToDomain(dbCust: DbCustomer): Promise<Customer> {
     let email = dbCust.email;
     let address = dbCust.address;
+    let phoneNumber = dbCust.phoneNumber;
+
+    // RBAC PII Masking: Hanya ADMIN dan MANAGER yang bisa melihat teks asli PII
+    // Untuk Cashier/Staff, PII akan di-mask di level Repository agar tidak bocor ke UI.
+    const { useAuthStore } = await import('../../shared/store/authStore');
+    const { UserRole } = await import('../../domain/models/User');
+    const currentUser = useAuthStore.getState().user;
+    const canViewPII = currentUser && (currentUser.role === UserRole.ADMIN || currentUser.role === UserRole.MANAGER);
 
     if (dbCust.secureData) {
       try {
@@ -19,9 +27,26 @@ export class CustomerRepositoryImpl implements ICustomerRepository {
       }
     }
 
+    if (!canViewPII) {
+      if (phoneNumber && phoneNumber.length > 4) {
+        phoneNumber = phoneNumber.slice(0, 4) + '*'.repeat(phoneNumber.length - 6) + phoneNumber.slice(-2);
+      }
+      if (email) {
+        const [userPart, domain] = email.split('@');
+        if (userPart && domain) {
+          email = userPart.charAt(0) + '*'.repeat(userPart.length - 1) + '@' + domain;
+        } else {
+          email = '***@***';
+        }
+      }
+      if (address) {
+        address = '<<PII_REMOVED>>';
+      }
+    }
+
     return Customer.reconstitute({
       name: dbCust.name,
-      phoneNumber: dbCust.phoneNumber,
+      phoneNumber: phoneNumber,
       email: email,
       address: address,
       loyaltyPoints: dbCust.loyaltyPoints || 0,

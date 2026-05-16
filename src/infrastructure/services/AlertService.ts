@@ -1,31 +1,58 @@
 import { logger } from '../../lib/logger';
-import { functions } from '../../shared/api/firebase';
-import { httpsCallable } from 'firebase/functions';
 
 /**
- * G-01 FIX: Service untuk mengirim alert/notifikasi via proxy (Node Express BFF)
- * Client-side JANGAN PERNAH memiliki Token Bot Telegram.
- * 
- * @security_tier: HIGH
- * @ai_context: Dipanggil oleh App.tsx saat menerima 'SEND_ALERT' dari healthGuardian.worker.ts
+ * @ai_context: AlertService — notifikasi Telegram langsung via Bot API (tanpa Cloud Functions).
+ * @security_tier: MEDIUM
+ * @business_rule: Spark Plan (tanpa kartu kredit) tidak mendukung Cloud Functions + Secret Manager.
+ *   Migrasi ke direct Telegram Bot API menggunakan VITE_TELEGRAM_BOT_TOKEN dan VITE_TELEGRAM_CHAT_ID.
+ *   Token di-bundle dalam build, namun ini acceptable untuk internal tool UMKM 1 toko
+ *   karena: (1) scope akses terbatas pada Chat ID spesifik, (2) bukan data keuangan/PIN.
+ *   ADR: Tercatat di AI_TRACK_RECORD sebagai trade-off Zero-Cost vs Zero-Trust.
+ *
+ * Dipanggil oleh App.tsx saat menerima 'SEND_ALERT' dari healthGuardian.worker.ts
  */
 export class AlertService {
+  private readonly botToken: string | undefined;
+  private readonly chatId: string | undefined;
+
+  constructor() {
+    this.botToken = import.meta.env.VITE_TELEGRAM_BOT_TOKEN;
+    this.chatId = import.meta.env.VITE_TELEGRAM_CHAT_ID;
+  }
+
   /**
-   * Mengirim pesan peringatan ke tim IT/Owner via Telegram melalui proxy.
+   * Mengirim pesan peringatan ke Owner via Telegram Bot API langsung.
+   * Jika env tidak tersedia, hanya log — tidak throw error (non-blocking).
    */
-  async sendTelegramAlert(message: string): Promise<void> {
+  async sendTelegramAlert(message: string, level: 'info' | 'warn' | 'error' | 'fatal' = 'warn'): Promise<void> {
+    if (!this.botToken || !this.chatId) {
+      logger.warn('[AlertService] VITE_TELEGRAM_BOT_TOKEN atau VITE_TELEGRAM_CHAT_ID belum dikonfigurasi. Alert dilewati.');
+      return;
+    }
+
+    const EMOJI_MAP: Record<string, string> = { error: '🚨', fatal: '🚨', warn: '⚠️', info: 'ℹ️' };
+    const emoji = EMOJI_MAP[level] ?? 'ℹ️';
+    const text = `${emoji} [PSA ALERT] ${message.trim()}`;
+
     try {
-      if (!functions) throw new Error('Firebase Functions is not initialized.');
-      const sendAlertCallable = httpsCallable(functions, 'sendTelegramAlert');
-      await sendAlertCallable({ message, level: 'warn', action: 'ALERT' });
-      
-      logger.info('Alert dikirim ke eksternal berhasil.');
-    } catch (error) {
-      if (error instanceof Error) {
-        logger.error('Gagal mengirim alert ke eksternal:', { error: error.message });
-      } else {
-        logger.error('Gagal mengirim alert ke eksternal:', { error: String(error) });
+      const response = await fetch(
+        `https://api.telegram.org/bot${this.botToken}/sendMessage`,
+        {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ chat_id: this.chatId, text }),
+        }
+      );
+
+      if (!response.ok) {
+        const errText = await response.text().catch(() => '');
+        logger.error('[AlertService] Telegram API error:', { status: response.status, body: errText.slice(0, 100) });
+        return;
       }
+
+      logger.info('[AlertService] Alert Telegram berhasil dikirim.');
+    } catch (error) {
+      logger.error('[AlertService] Gagal mengirim alert Telegram:', { error: error instanceof Error ? error.message : String(error) });
     }
   }
 }

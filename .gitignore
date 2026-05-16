@@ -11,3 +11,8 @@ coverage/
 .env.*.local
 !.env.example
 firebase-applet-config.json
+
+# Cloud Functions diarsipkan — tidak lagi digunakan (Spark plan, tanpa kartu kredit)
+# Arsip tersimpan di functions/ untuk referensi. Hapus manual jika tidak diperlukan.
+functions/lib/
+functions/node_modules/

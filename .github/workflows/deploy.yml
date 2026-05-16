@@ -80,26 +80,10 @@ jobs:
           channelId: live
           projectId: '${{ secrets.FIREBASE_PROJECT_ID }}'
 
-      # ── Deploy Cloud Functions ────────────────────────────────────────────
-      - name: Install Functions dependencies & TypeCheck
-        run: |
-          cd functions
-          npm ci
-          npx tsc --noEmit
-
-      - name: Build & Deploy Cloud Functions
-        run: |
-          cd functions
-          npm run build
-          # Gunakan service account via environment variable (tidak perlu temp file)
-          npx firebase-tools deploy --only functions \
-            --project "${{ secrets.FIREBASE_PROJECT_ID }}" \
-            --force
-        env:
-          FIREBASE_DEPLOY_TOKEN: ${{ secrets.FIREBASE_DEPLOY_TOKEN }}
-          GOOGLE_APPLICATION_CREDENTIALS_JSON: ${{ secrets.FIREBASE_SERVICE_ACCOUNT }}
-
       # ── Deploy Firestore Rules ─────────────────────────────────────────────
+      # @ai_context: Cloud Functions DIHAPUS — Spark plan tidak mendukung Secret Manager.
+      # Semua logika (Gemini, hashPin, Telegram) telah dimigrasikan ke client-side.
+      # Hosting-only deploy cukup untuk PSA Business Suite v1.4+ (UMKM 1 toko).
       - name: Deploy Firestore Security Rules
         run: |
           npx firebase-tools deploy --only firestore:rules \

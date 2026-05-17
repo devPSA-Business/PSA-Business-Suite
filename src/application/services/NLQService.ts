@@ -93,7 +93,8 @@ export class NLQService {
     const sanitizedAggregates = this.sanitize(aggregates);
 
     try {
-      const url = `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent?key=${this.apiKey}`;
+      // gemini-2.5-flash: lebih akurat dari 2.0-flash, tetap gratis (1500 req/hari free tier)
+      const url = `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key=${this.apiKey}`;
       const prompt = `${SYSTEM_PROMPT}\n\n---\nPertanyaan: ${question.trim()}\n\nData Agregat:\n${JSON.stringify(sanitizedAggregates)}`;
 
       const response = await fetch(url, {

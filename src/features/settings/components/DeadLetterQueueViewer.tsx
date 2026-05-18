@@ -2,10 +2,12 @@ import { logger } from '@lib/logger';
 import React from 'react';
 import { useLiveQuery } from 'dexie-react-hooks';
 import { db, SyncEvent } from '../../../shared/api/db';
+import { DIContainer } from '../../../infrastructure/di/Container';
 import { RefreshCw, Trash2, AlertTriangle } from 'lucide-react';
 
 export function DeadLetterQueueViewer() {
-  const dlqEvents = useLiveQuery(() => db.sync_dlq.orderBy('timestamp').reverse().toArray());
+  // READ: lewat ILiveQueries (clean layer)
+  const dlqEvents = useLiveQuery(() => DIContainer.liveQueries.observeDeadLetterQueue());
 
   const handleRetry = async (event: SyncEvent) => {
     if (!event.id) return;

@@ -10,7 +10,6 @@ import { StockCategory, StockCategoryLabels } from '../../../domain/models/Stock
 import { BackButton } from '../../../shared/components/BackButton';
 import { BulkImportModal } from '../components/BulkImportModal';
 import { SkuGenerator } from '../components/SkuGenerator';
-import { db } from '../../../shared/api/db';
 import { useCameraWithExplainer, PermissionExplainer } from '../../../shared/components/PermissionExplainer';
 import { BarcodeScanner } from '../../../shared/components/BarcodeScanner';
 
@@ -74,7 +73,7 @@ export function ReceiveStockPage() {
 
     const timer = setTimeout(async () => {
       try {
-        const existingItem = await db.stock.where('barcode').equals(barcode).first();
+        const existingItem = await DIContainer.liveQueries.findStockByBarcode(barcode, user?.branchId);
         if (existingItem) {
           setName(existingItem.name);
           setCategory(existingItem.category);
@@ -95,7 +94,7 @@ export function ReceiveStockPage() {
     }, 500);
 
     return () => clearTimeout(timer);
-  }, [barcode, addToast]);
+  }, [barcode, addToast, user?.branchId]);
 
   const generateBarcode = () => {
     const timestamp = Date.now().toString().slice(-6);
@@ -176,7 +175,11 @@ export function ReceiveStockPage() {
   };
 
   return (
-    <div className="p-4 md:p-6 lg:p-8 animate-in fade-in duration-500 max-w-5xl mx-auto space-y-6">
+    <div
+      data-component-id="receive-stock-page"
+      data-error-domain="inventory"
+      className="p-4 md:p-6 lg:p-8 animate-in fade-in duration-500 max-w-5xl mx-auto space-y-6"
+    >
       <BackButton />
       <div className="flex items-center justify-between gap-6">
         <div>

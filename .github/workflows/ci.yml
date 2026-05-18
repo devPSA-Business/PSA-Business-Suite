@@ -26,7 +26,7 @@ jobs:
 
       # SHA diverifikasi dari repo resmi actions/setup-node
       - name: Setup Node.js 22
-        uses: actions/setup-node@39370e3970a6d050c480ffad4ff0ed4d3fdee5af # v4.1.0
+        uses: actions/setup-node@48b55a011bda9f5d6aeb4c2d9c7362e8dae4041e # v6.4.0
         with:
           node-version: 22
           cache: 'npm'
@@ -92,6 +92,6 @@ jobs:
       # SHA diverifikasi dari repo resmi davelosert/vitest-coverage-report-action
       - name: Coverage Summary Comment (PR only)
         if: github.event_name == 'pull_request'
-        uses: davelosert/vitest-coverage-report-action@5a78cb16e761204097ad8a39369ea5d0ff7c8a5d # v2.8.0
+        uses: davelosert/vitest-coverage-report-action@02f3c2e641286b7fa308cd3e430783103ce6103b # v2.12.0
         with:
           json-summary-path: coverage/coverage-summary.json

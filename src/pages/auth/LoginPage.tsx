@@ -75,7 +75,7 @@ export function LoginPage() {
     <div 
       data-component-id="LoginPage" 
       data-error-domain="auth"
-      className="flex min-h-screen items-center justify-center bg-stone-100 p-4 font-sans"
+      className="flex min-h-screen items-center justify-center bg-stone-100 p-4 pt-10 font-sans"
     >
       <div className="w-full max-w-md bg-white rounded-3xl shadow-xl overflow-hidden animate-in fade-in zoom-in duration-500">
         <div className="bg-brand-900 p-8 text-center relativer flex flex-col items-center">

@@ -1,39 +1,25 @@
+/**
+ * @ai_context Widget workspace: pencarian cepat harga & stok produk.
+ * @business_rule Query produk via DIContainer.liveQueries.searchProducts — DILARANG direct import db.
+ */
 import React, { useState } from 'react';
 import { useLiveQuery } from 'dexie-react-hooks';
-import { db } from '../../../shared/api/db';
+import { DIContainer } from '../../../infrastructure/di/Container';
 import { Search, Package } from 'lucide-react';
 
 export function QuickCatalogWidget() {
   const [searchQuery, setSearchQuery] = useState('');
 
   const searchResults = useLiveQuery(
-    async () => {
-      if (!searchQuery.trim()) return [];
-      
-      // Gunakan indeks 'name' dan 'barcode' untuk pencarian O(1)
-      const resultsByName = await db.stock
-        .where('name')
-        .startsWithIgnoreCase(searchQuery)
-        .limit(5)
-        .toArray();
-
-      const resultsByBarcode = await db.stock
-        .where('barcode')
-        .startsWithIgnoreCase(searchQuery)
-        .limit(5)
-        .toArray();
-
-      // Gabungkan dan hilangkan duplikat, lalu potong maksimal 5
-      const combined = [...resultsByName, ...resultsByBarcode];
-      const unique = Array.from(new Map(combined.map(item => [item.id, item])).values());
-      
-      return unique.slice(0, 5);
+    () => {
+      if (!searchQuery.trim()) return Promise.resolve([]);
+      return DIContainer.liveQueries.searchProducts(searchQuery, 'All');
     },
     [searchQuery]
   );
 
   return (
-    <div className="bg-white rounded-3xl shadow-sm border border-stone-200 overflow-hidden flex flex-col h-full min-h-[300px]">
+    <div data-component-id="QuickCatalogWidget" data-error-domain="workspace" className="bg-white rounded-3xl shadow-sm border border-stone-200 overflow-hidden flex flex-col h-full min-h-[300px]">
       <div className="p-5 border-b border-stone-100 bg-stone-50 flex items-center gap-2">
         <Search size={20} className="text-stone-500" />
         <h2 className="font-bold text-brand-900">Cek Harga & Stok</h2>
@@ -69,10 +55,12 @@ export function QuickCatalogWidget() {
             ))}
           </div>
         ) : searchResults.length === 0 ? (
-          <div className="absolute inset-0 flex items-center justify-center text-stone-500 text-sm">Produk tidak ditemukan.</div>
+          <div className="absolute inset-0 flex items-center justify-center text-stone-500 text-sm">
+            Produk tidak ditemukan.
+          </div>
         ) : (
           <div className="space-y-2">
-            {searchResults.map(item => (
+            {searchResults.slice(0, 5).map(item => (
               <div key={item.id} className="p-3 bg-stone-50 rounded-xl flex justify-between items-center">
                 <div>
                   <p className="font-bold text-stone-800 text-sm line-clamp-1">{item.name}</p>

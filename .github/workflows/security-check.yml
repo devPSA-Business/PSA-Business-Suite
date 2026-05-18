@@ -45,13 +45,5 @@ jobs:
         with:
           sarif_file: 'trivy-results.sarif'
           category: 'trivy-filesystem'
-
-      # Scan khusus untuk functions/
-      - name: Trivy Scan — Functions Directory
-        uses: aquasecurity/trivy-action@915b19bbe73b92a6cf82a1bc12b087c9a19a5fe8 # v0.28.0
-        with:
-          scan-type: fs
-          scan-ref: 'functions/'
-          severity: 'HIGH,CRITICAL'
-          ignore-unfixed: true
-          exit-code: '1'
+          # @ai_context: functions/ sudah dihapus dari repo (Spark Plan, tanpa kartu kredit)
+          # Scan hanya pada src/ dan root dependencies

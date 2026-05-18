@@ -1,30 +1,32 @@
+/**
+ * @ai_context Widget workspace: menampilkan dan membuat order kustom aktif.
+ * @business_rule Query order via DIContainer.liveQueries — DILARANG direct import db.
+ *               Mutasi tetap melalui DIContainer.manageCustomOrderUseCase.
+ */
 import React, { useState } from 'react';
 import { useLiveQuery } from 'dexie-react-hooks';
-import { db } from '../../../shared/api/db';
 import { useAuthStore } from '../../../shared/store/authStore';
 import { useToastStore } from '../../../shared/store/toastStore';
-import { ClipboardEdit, Plus, X, CheckCircle, Clock } from 'lucide-react';
 import { DIContainer } from '../../../infrastructure/di/Container';
+import { ClipboardEdit, Plus, X, CheckCircle, Clock } from 'lucide-react';
 
 export function CustomOrderWidget() {
   const [isOpen, setIsOpen] = useState(false);
   const [customerName, setCustomerName] = useState('');
   const [description, setDescription] = useState('');
   const [estimatedPrice, setEstimatedPrice] = useState('');
-  
+
   const { user } = useAuthStore();
   const addToast = useToastStore((state) => state.addToast);
 
   const activeOrders = useLiveQuery(
-    () => db.custom_orders.where('status').notEqual('DONE').reverse().sortBy('date'),
+    () => DIContainer.liveQueries.observeActiveCustomOrders(),
     []
   );
 
   React.useEffect(() => {
     const handleKeyDown = (event: KeyboardEvent) => {
-      if (event.key === 'Escape' && isOpen) {
-        setIsOpen(false);
-      }
+      if (event.key === 'Escape' && isOpen) setIsOpen(false);
     };
     window.addEventListener('keydown', handleKeyDown);
     return () => window.removeEventListener('keydown', handleKeyDown);
@@ -33,9 +35,7 @@ export function CustomOrderWidget() {
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!user) return;
-    
     const numPrice = parseInt(estimatedPrice.replace(/\D/g, ''), 10) || 0;
-
     try {
       await DIContainer.manageCustomOrderUseCase.createOrder({
         id: crypto.randomUUID(),
@@ -44,7 +44,7 @@ export function CustomOrderWidget() {
         description,
         estimatedPrice: numPrice,
         status: 'PENDING',
-        user: user.name
+        user: user.name,
       });
       addToast('Order kustom berhasil dicatat', 'success');
       setIsOpen(false);
@@ -67,20 +67,20 @@ export function CustomOrderWidget() {
   };
 
   return (
-    <div className="bg-white rounded-3xl shadow-sm border border-stone-200 overflow-hidden flex flex-col h-full min-h-[300px]">
+    <div data-component-id="CustomOrderWidget" data-error-domain="workspace" className="bg-white rounded-3xl shadow-sm border border-stone-200 overflow-hidden flex flex-col h-full min-h-[300px]">
       <div className="p-5 border-b border-stone-100 bg-emerald-50/30 flex items-center justify-between">
         <h2 className="font-bold text-brand-900 flex items-center gap-2">
           <ClipboardEdit size={20} className="text-emerald-600" />
           Order Kustom Aktif
         </h2>
-        <button 
+        <button
           onClick={() => setIsOpen(true)}
           className="bg-emerald-100 text-emerald-700 hover:bg-emerald-200 p-1.5 rounded-lg transition-colors"
         >
           <Plus size={18} />
         </button>
       </div>
-      
+
       <div className="flex-1 overflow-y-auto p-4 bg-stone-50/30 relative">
         {activeOrders === undefined ? (
           <div className="space-y-3 animate-pulse">
@@ -94,10 +94,6 @@ export function CustomOrderWidget() {
                   <div className="h-5 bg-stone-200 rounded w-16"></div>
                 </div>
                 <div className="h-3 bg-stone-200 rounded w-full mt-2"></div>
-                <div className="flex justify-between items-center mt-2 pt-2 border-t border-stone-50">
-                  <div className="h-4 bg-stone-200 rounded w-24"></div>
-                  <div className="h-4 bg-stone-200 rounded w-16"></div>
-                </div>
               </div>
             ))}
           </div>
@@ -136,7 +132,7 @@ export function CustomOrderWidget() {
                   <span className="text-sm font-bold text-emerald-700">
                     Est: Rp {order.estimatedPrice.toLocaleString('id-ID')}
                   </span>
-                  <button 
+                  <button
                     onClick={() => markAsDone(order.id)}
                     className="text-xs font-bold text-stone-500 hover:text-emerald-600 flex items-center gap-1 transition-colors"
                   >
@@ -159,11 +155,11 @@ export function CustomOrderWidget() {
                 <X size={24} />
               </button>
             </div>
-            <form onSubmit={handleSubmit} className="p-6 space-y-4">
+            <div className="p-6 space-y-4">
               <div>
                 <label className="block text-sm font-bold text-stone-700 mb-1">Nama Pelanggan</label>
-                <input 
-                  type="text" 
+                <input
+                  type="text"
                   value={customerName}
                   onChange={(e) => setCustomerName(e.target.value)}
                   className="w-full p-3 border border-stone-200 rounded-xl focus:ring-2 focus:ring-brand-500 outline-none"
@@ -172,7 +168,7 @@ export function CustomOrderWidget() {
               </div>
               <div>
                 <label className="block text-sm font-bold text-stone-700 mb-1">Detail Pesanan</label>
-                <textarea 
+                <textarea
                   value={description}
                   onChange={(e) => setDescription(e.target.value)}
                   className="w-full p-3 border border-stone-200 rounded-xl focus:ring-2 focus:ring-brand-500 outline-none resize-none h-24"
@@ -182,8 +178,8 @@ export function CustomOrderWidget() {
               </div>
               <div>
                 <label className="block text-sm font-bold text-stone-700 mb-1">Estimasi Harga (Rp)</label>
-                <input 
-                  type="text" 
+                <input
+                  type="text"
                   value={estimatedPrice}
                   onChange={(e) => {
                     const val = e.target.value.replace(/\D/g, '');
@@ -193,13 +189,13 @@ export function CustomOrderWidget() {
                   placeholder="0"
                 />
               </div>
-              <button 
-                type="submit" 
+              <button
+                onClick={handleSubmit}
                 className="w-full py-3.5 bg-brand-900 text-gold-500 font-bold rounded-xl hover:bg-brand-800 transition-colors active:scale-95"
               >
                 Simpan Order
               </button>
-            </form>
+            </div>
           </div>
         </div>
       )}

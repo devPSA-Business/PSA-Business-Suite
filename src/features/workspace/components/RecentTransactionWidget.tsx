@@ -1,6 +1,9 @@
+/**
+ * @ai_context Widget workspace: menampilkan 5 transaksi terakhir di shift aktif.
+ * @business_rule Query dilakukan via DIContainer.liveQueries — DILARANG direct import db.
+ */
 import React from 'react';
 import { useLiveQuery } from 'dexie-react-hooks';
-import { db } from '../../../shared/api/db';
 import { DIContainer } from '../../../infrastructure/di/Container';
 import { ReceiptText, ArrowRight } from 'lucide-react';
 import { Link } from '@tanstack/react-router';
@@ -9,27 +12,22 @@ export function RecentTransactionWidget() {
   const openShift = useLiveQuery(() => DIContainer.liveQueries.observeOpenShift(), []);
 
   const recentTransactions = useLiveQuery(
-    async () => {
-      if (!openShift) return [];
-      return await db.transactions
-        .where('date')
-        .aboveOrEqual(openShift.startTime)
-        .reverse()
-        .limit(5)
-        .toArray();
+    () => {
+      if (!openShift) return Promise.resolve([]);
+      return DIContainer.liveQueries.observeRecentTransactions(openShift.startTime, 5);
     },
     [openShift?.startTime]
   );
 
   return (
-    <div className="bg-white rounded-3xl shadow-sm border border-stone-200 overflow-hidden flex flex-col h-full min-h-[300px]">
+    <div data-component-id="RecentTransactionWidget" data-error-domain="workspace" className="bg-white rounded-3xl shadow-sm border border-stone-200 overflow-hidden flex flex-col h-full min-h-[300px]">
       <div className="p-5 border-b border-stone-100 bg-stone-50 flex items-center justify-between">
         <h2 className="font-bold text-brand-900 flex items-center gap-2">
           <ReceiptText size={20} className="text-stone-500" />
           Riwayat Transaksi
         </h2>
       </div>
-      
+
       <div className="flex-1 overflow-y-auto p-4 relative">
         {recentTransactions === undefined ? (
           <div className="animate-pulse space-y-3">
@@ -41,7 +39,7 @@ export function RecentTransactionWidget() {
           <div className="absolute inset-0 flex flex-col items-center justify-center text-stone-400 text-center p-4">
             <ReceiptText size={32} className="mb-2 opacity-50" />
             <p className="text-sm">Belum ada transaksi di shift ini.</p>
-            <Link 
+            <Link
               to="/cashier"
               className="mt-4 px-4 py-2 bg-brand-900 text-gold-500 rounded-xl font-bold text-sm hover:bg-brand-800 transition-colors"
             >
@@ -73,10 +71,10 @@ export function RecentTransactionWidget() {
           </div>
         )}
       </div>
-      
+
       <div className="p-3 border-t border-stone-100 bg-white">
-        <Link 
-          to="/finance" 
+        <Link
+          to="/finance"
           className="w-full py-2.5 bg-stone-100 hover:bg-stone-200 text-stone-700 font-bold rounded-xl flex items-center justify-center gap-2 transition-colors text-sm"
         >
           Lihat Laporan Penuh

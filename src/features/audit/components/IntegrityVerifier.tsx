@@ -5,7 +5,7 @@
  */
 
 import { useState } from 'react';
-import { db } from '../../../shared/api/db';
+import { DIContainer } from '../../../infrastructure/di/Container';
 import { useAuthStore } from '../../../shared/store/authStore';
 
 type VerificationStatus = 'idle' | 'verifying' | 'valid' | 'tampered' | 'error';
@@ -23,10 +23,7 @@ export function IntegrityVerifier() {
     setTamperedEntry(null);
 
     try {
-      const logs = await db.audit_logs
-        .orderBy('timestamp')
-        .limit(1000)
-        .toArray();
+      const logs = await DIContainer.liveQueries.observeAuditLogChain(1000);
 
       for (let i = 0; i < logs.length; i++) {
         const entry = logs[i];

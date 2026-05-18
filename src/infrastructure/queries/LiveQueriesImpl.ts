@@ -1,5 +1,5 @@
-import { db, StockItem, RepairService, Handover, AuditLog, SuspendedCart, StockHistory, Shift, GoldBuyback, GoldLiquidation, Transaction, CustomOrder } from '../../shared/api/db';
-import { ILiveQueries } from '../../application/queries/ILiveQueries';
+import { db, StockItem, RepairService, Handover, AuditLog, SuspendedCart, StockHistory, Shift, GoldBuyback, GoldLiquidation, Transaction, CustomOrder, SyncEvent } from '../../shared/api/db';
+import { ILiveQueries, InventoryListFilter, InventoryListResult } from '../../application/queries/ILiveQueries';
 import { PromiseExtended, liveQuery } from 'dexie';
 import { cryptoDB } from '../../lib/cryptoIndexedDB';
 
@@ -254,5 +254,103 @@ export class LiveQueriesImpl implements ILiveQueries {
       return query.filter((n) => n.branchId === branchId).toArray() as any;
     }
     return query.toArray();
+  }
+
+  /**
+   * @ai_context: Query inventaris dengan search teks, filter, dan pagination.
+   * @business_rule: Limit 50 item/halaman untuk mencegah DOM freeze pada stok besar.
+   * @security_tier: MEDIUM
+   */
+  observeInventoryList(
+    searchTerm: string,
+    filters: InventoryListFilter,
+    page: number,
+    pageSize: number,
+    branchId?: string
+  ): PromiseExtended<InventoryListResult> {
+    return db.transaction('r', db.stock, async () => {
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      let collection: any;
+
+      if (searchTerm) {
+        collection = db.stock
+          .where('name').startsWithIgnoreCase(searchTerm)
+          .or('barcode').startsWithIgnoreCase(searchTerm);
+      } else {
+        collection = db.stock.toCollection();
+      }
+
+      const filteredCollection = collection.filter((item: StockItem) => {
+        if (branchId && branchId !== 'HQ' && item.branchId !== branchId) return false;
+        if (filters.category !== 'all' && item.category !== filters.category) return false;
+        if (filters.aging === 'slow' && item.quantity < 2) return false;
+        if (filters.aging === 'dead' && item.quantity === 0) return false;
+        return true;
+      });
+
+      const count = await filteredCollection.count();
+      const items = await filteredCollection
+        .offset((page - 1) * pageSize)
+        .limit(pageSize)
+        .toArray();
+
+      return { count, items };
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    }) as any;
+  }
+
+  /**
+   * @ai_context: Lookup barcode tunggal untuk auto-fill form penerimaan barang.
+   * @business_rule: Exact match — bukan prefix search.
+   * @security_tier: LOW
+   */
+  async findStockByBarcode(barcode: string, branchId?: string): Promise<StockItem | undefined> {
+    if (!barcode || barcode.length < 2) return undefined;
+    const item = await db.stock.where('barcode').equals(barcode).first();
+    if (!item) return undefined;
+    if (branchId && branchId !== 'HQ' && item.branchId !== branchId) return undefined;
+    return item;
+  }
+
+  /**
+   * @ai_context: Menghitung nomor sequence berikutnya dari prefix SKU yang ada.
+   * @business_rule: SKU format [BRAND]-[KAT]-[WARNA]-[UKURAN]-[BATU]-[SEQ].
+   *   Fungsi ini mencari seq tertinggi dan mengembalikan seq + 1.
+   * @security_tier: LOW
+   */
+  async countSkuSequence(skuPrefix: string): Promise<number> {
+    const items = await db.stock.where('barcode').startsWith(skuPrefix).toArray();
+    if (items.length === 0) return 1;
+
+    let maxSeq = 0;
+    for (const item of items) {
+      const parts = item.barcode.split('-');
+      if (parts.length === 6) {
+        const seq = parseInt(parts[5], 10);
+        if (!isNaN(seq) && seq > maxSeq) maxSeq = seq;
+      }
+    }
+    return maxSeq + 1;
+  }
+
+  /**
+   * @ai_context: Mengambil audit log terurut ASC untuk verifikasi hash chain.
+   * @business_rule: Batas 1000 untuk mencegah OOM. Chain dimulai dari record terlama.
+   * @security_tier: HIGH
+   */
+  async observeAuditLogChain(limit = 1000): Promise<AuditLog[]> {
+    return db.audit_logs
+      .orderBy('timestamp')
+      .limit(limit)
+      .toArray();
+  }
+
+  /**
+   * @ai_context: Reactive query Dead Letter Queue untuk tampilan admin.
+   * @business_rule: Mutasi DLQ (retry/discard) WAJIB lewat SyncQueueManager, bukan sini.
+   * @security_tier: MEDIUM
+   */
+  observeDeadLetterQueue(): PromiseExtended<SyncEvent[]> {
+    return db.sync_dlq.orderBy('timestamp').reverse().toArray();
   }
 }

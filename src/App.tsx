@@ -14,12 +14,13 @@ import { Loader2, ShieldAlert } from 'lucide-react';
 import { db } from './shared/api/db';
 import { syncTimeOffset } from './shared/utils/timeUtils';
 import { ShiftTotalsReconciler } from './infrastructure/migrations/ShiftTotalsReconciler';
-import { collection, query, where, getDocs } from 'firebase/firestore';
+import { doc, getDoc } from 'firebase/firestore';
 import { firestoreDb, auth } from './shared/api/firebase';
 import { useSecurityStore } from './shared/store/useSecurityStore';
 import { useAuthStore } from './shared/store/authStore';
 import { backupManager } from './shared/utils/backupManager';
-import { useEventListener } from './shared/hooks/useEventListener';
+import { DevPreviewBanner } from './shared/components/DevPreviewBanner';
+
 
 export default function App() {
   const [isBootstrapping, setIsBootstrapping] = useState(true);
@@ -169,10 +170,10 @@ export default function App() {
       import('./shared/api/firebase').then(async ({ isConfigValid }) => {
         if (!isConfigValid) return;
         try {
-          const q = query(collection(firestoreDb, 'device_controls'), where('id', '==', 'system_lock'));
-          const snapshot = await getDocs(q);
-          if (!snapshot.empty) {
-            const lockData = snapshot.docs[0].data();
+          const lockRef = doc(firestoreDb, 'device_controls', 'system_lock');
+          const lockSnap = await getDoc(lockRef);
+          if (lockSnap.exists()) {
+            const lockData = lockSnap.data();
             if (lockData.isLocked === true) {
               setIsKilled(true);
               import('./shared/store/useSecurityStore').then(m => m.useSecurityStore.getState().lock());
@@ -375,6 +376,7 @@ export default function App() {
 
   return (
     <ErrorBoundary>
+      <DevPreviewBanner />
       <SystemHealthBot />
       <RouterProvider router={router} />
     </ErrorBoundary>

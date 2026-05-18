@@ -1,0 +1,100 @@
+name: Auto-Merge Dependabot
+
+on:
+  pull_request:
+    types: [opened, synchronize, reopened, ready_for_review]
+
+permissions:
+  contents: write
+  pull-requests: write
+
+jobs:
+  auto_merge:
+    name: Evaluate & Auto-Merge Dependabot PR
+    runs-on: ubuntu-latest
+    if: github.actor == 'dependabot[bot]'
+    timeout-minutes: 5
+
+    steps:
+      - name: Fetch Dependabot Metadata
+        id: meta
+        uses: dependabot/fetch-metadata@d7267f607e9d3fb96fc2fbe7e91a35d6b3ff57c8 # v2.3.0
+        with:
+          github-token: ${{ secrets.GITHUB_TOKEN }}
+
+      # ── Evaluasi: apakah PR ini aman untuk auto-merge? ─────────────────────
+      - name: Evaluate Safety
+        id: eval
+        env:
+          UPDATE_TYPE: ${{ steps.meta.outputs.update-type }}
+          DEPENDENCY_NAMES: ${{ steps.meta.outputs.dependency-names }}
+          PACKAGE_ECOSYSTEM: ${{ steps.meta.outputs.package-ecosystem }}
+        run: |
+          echo "Update type  : $UPDATE_TYPE"
+          echo "Dependencies : $DEPENDENCY_NAMES"
+          echo "Ecosystem    : $PACKAGE_ECOSYSTEM"
+
+          SAFE="true"
+          REASON=""
+
+          # ── Blokir 1: Major version update ────────────────────────────────
+          if [[ "$UPDATE_TYPE" == "version-update:semver-major" ]]; then
+            SAFE="false"
+            REASON="Major version update — perlu review manual agar tidak ada breaking change."
+          fi
+
+          # ── Blokir 2: Dependensi kritis keamanan/DB ───────────────────────
+          CRITICAL_DEPS=("firebase" "dexie" "@firebase/app" "firebase-admin" "@firebase/auth")
+          for dep in "${CRITICAL_DEPS[@]}"; do
+            if echo "$DEPENDENCY_NAMES" | grep -qi "$dep"; then
+              # PERBAIKAN: Langsung blokir jika dependensi kritis (baik patch, minor, maupun major)
+              SAFE="false"
+              REASON="Update dependensi kritis '$dep' — menyentuh auth/DB. Wajib review manual."
+              break
+            fi
+          done
+
+          echo "safe=$SAFE" >> "$GITHUB_OUTPUT"
+          echo "reason=$REASON" >> "$GITHUB_OUTPUT"
+
+          if [[ "$SAFE" == "true" ]]; then
+            echo "✅ PR AMAN untuk auto-merge (type: $UPDATE_TYPE)"
+          else
+            echo "🔴 PR DITAHAN — $REASON"
+          fi
+
+      # ── Approve: hanya jika aman ───────────────────────────────────────────
+      - name: Approve PR (jika aman)
+        if: steps.eval.outputs.safe == 'true'
+        run: gh pr review --approve "$PR_URL" --body "🤖 Auto-approved: $UPDATE_TYPE update, CI required to merge."
+        env:
+          PR_URL: ${{ github.event.pull_request.html_url }}
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+      # ── Enable auto-merge: merge setelah semua status checks lulus ────────
+      - name: Enable Auto-Merge (squash, setelah CI lulus)
+        if: steps.eval.outputs.safe == 'true'
+        run: gh pr merge --auto --squash "$PR_URL"
+        env:
+          PR_URL: ${{ github.event.pull_request.html_url }}
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+      # ── Tambah label 'blocked: needs-human-review' jika tidak aman ────────
+      - name: Label PR (jika ditahan)
+        if: steps.eval.outputs.safe == 'false'
+        run: |
+          gh pr comment "$PR_URL" --body "🔴 **Auto-merge DITAHAN**
+
+          **Alasan:** ${{ steps.eval.outputs.reason }}
+
+          **Tindakan yang diperlukan (@devPSA-Business):**
+          1. Buka PR ini: $PR_URL
+          2. Cek perubahan (terutama \`CHANGELOG\` atau \`BREAKING CHANGES\`)
+          3. Jika aman → klik **Merge pull request**
+          4. Jika tidak → klik **Close pull request**
+
+          > 🤖 Pesan ini otomatis dari PSA CI Bot."
+          gh pr edit "$PR_URL" --add-label "needs-human-review" 2>/dev/null || true
+        env:
+          PR_URL: ${{ github.event.pull_request.html_url }}
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}

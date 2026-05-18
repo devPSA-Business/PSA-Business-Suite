@@ -2,9 +2,10 @@ import { useState, useEffect } from 'react';
 import { useLiveQuery } from 'dexie-react-hooks';
 import { Edit2, Trash2, Plus, X, Filter, Search, Scan } from 'lucide-react';
 import { motion, AnimatePresence } from 'motion/react';
-import { db, StockItem } from '../../../shared/api/db';
+import { StockItem } from '../../../shared/api/db';
 import { DIContainer } from '@infrastructure/di/Container';
-import { InventoryFilterDrawer, InventoryFilterState } from '../components/InventoryFilterDrawer';
+import { InventoryListFilter } from '../../../application/queries/ILiveQueries';
+import { InventoryFilterDrawer } from '../components/InventoryFilterDrawer';
 import { useToastStore } from '../../../shared/store/toastStore';
 import { useAuthStore } from '../../../shared/store/authStore';
 import { StockCategory, StockCategoryLabels } from '../../../domain/models/StockCategory';
@@ -27,7 +28,7 @@ export function InventoryPage() {
   };
   const [isFilterOpen, setIsFilterOpen] = useState(false);
   const [searchTerm, setSearchTerm] = useState('');
-  const [filters, setFilters] = useState<InventoryFilterState>({
+  const [filters, setFilters] = useState<InventoryListFilter>({
     category: 'all',
     aging: 'all'
   });
@@ -35,50 +36,16 @@ export function InventoryPage() {
   const [currentPage, setCurrentPage] = useState(1);
   const itemsPerPage = 50;
 
-  const queryResult = useLiveQuery(async () => {
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    let collection: any;
-    
-    if (searchTerm) {
-      // Optimasi Pencarian Skala Besar: Gunakan B-Tree Index untuk text prefix search
-      collection = db.stock
-        .where('name')
-        .startsWithIgnoreCase(searchTerm)
-        .or('barcode')
-        .startsWithIgnoreCase(searchTerm);
-    } else {
-      // Jika tidak ada pencarian, gunakan default db.stock collection
-      collection = db.stock.toCollection();
-    }
-
-    // Filter lanjutan di level Dexie C++ Backend (sebelum ditarik ke RAM JavaScript)
-    const filteredCollection = collection.filter((item: StockItem) => {
-      // Filter Branch
-      if (user?.branchId && user.branchId !== 'HQ' && item.branchId !== user.branchId) {
-        return false;
-      }
-      
-      // Filter Kategori
-      if (filters.category !== 'all' && item.category !== filters.category) return false;
-      
-      // Filter Kelancaran Stok (Aging)
-      if (filters.aging === 'slow' && item.quantity < 2) return false;
-      if (filters.aging === 'dead' && item.quantity === 0) return false;
-
-      return true;
-    });
-
-    // Menghitung total untuk pagination (sangat cepat di IndexedDB)
-    const count = await filteredCollection.count();
-    
-    // Hanya tarik ke RAM sesuai offset dan halaman saat ini
-    const items = await filteredCollection
-      .offset((currentPage - 1) * itemsPerPage)
-      .limit(itemsPerPage)
-      .toArray();
-      
-    return { count, items };
-  }, [filters, searchTerm, user?.branchId, currentPage]);
+  const queryResult = useLiveQuery(
+    () => DIContainer.liveQueries.observeInventoryList(
+      searchTerm,
+      filters,
+      currentPage,
+      itemsPerPage,
+      user?.branchId
+    ),
+    [filters, searchTerm, user?.branchId, currentPage]
+  );
 
   // Pagination logic
   const totalItems = queryResult?.count || 0;
@@ -232,7 +199,11 @@ export function InventoryPage() {
   };
 
   return (
-    <div className="max-w-7xl mx-auto p-4 md:p-6 lg:p-8 animate-in fade-in duration-500 pb-24">
+    <div
+      data-component-id="inventory-page"
+      data-error-domain="inventory"
+      className="max-w-7xl mx-auto p-4 md:p-6 lg:p-8 animate-in fade-in duration-500 pb-24"
+    >
       <BackButton />
       
       {/* Header Section: Bento Style */}

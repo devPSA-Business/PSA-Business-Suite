@@ -1,0 +1,48 @@
+name: AI Context Guardian
+
+on:
+  pull_request:
+    paths:
+      - 'AGENTS.md'
+      - 'CONTEXT.md'
+      - 'SCOPE.md'
+      - 'INTERFACES.md'
+
+jobs:
+  verify-docs:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Verify Line Constraints
+        run: |
+          echo "Verifying document constraints..."
+          
+          check_lines() {
+            FILE=$1
+            MAX_LINES=$2
+            if [ -f "$FILE" ]; then
+              LINES=$(wc -l < "$FILE")
+              if [ "$LINES" -gt "$MAX_LINES" ]; then
+                echo "::error file=$FILE::File $FILE has $LINES lines, exceeding the maximum allowed ($MAX_LINES lines)."
+                exit 1
+              else
+                echo "✅ $FILE is within limits ($LINES/$MAX_LINES lines)."
+              fi
+            fi
+          }
+
+          check_lines "AGENTS.md" 150
+          check_lines "CONTEXT.md" 200
+          check_lines "SCOPE.md" 100
+          check_lines "INTERFACES.md" 150
+
+      - name: Require Human Review for SCOPE.md
+        run: |
+          # If SCOPE.md is changed, we log this so that PR checks can enforce reviews.
+          CHANGED_FILES=$(git diff --name-only origin/${{ github.base_ref }} HEAD)
+          if echo "$CHANGED_FILES" | grep -q "SCOPE.md"; then
+            echo "::warning file=SCOPE.md::Perubahan pada SCOPE.md terdeteksi. Sesuai proposal, perubahan pada file ini WAJIB ditinjau secara manual oleh Tech Lead."
+            # The branch protection rules will actually enforce the review on PR.
+          fi
+          echo "All AI Context checks passed."

@@ -54,7 +54,7 @@ const receiveStockRoute = createRoute({ getParentRoute: () => rootRoute, path: '
 const barcodePrintRoute = createRoute({ getParentRoute: () => rootRoute, path: '/barcode-print', beforeLoad: requireRole([UserRole.ADMIN, UserRole.MANAGER]), component: lazyRouteComponent(() => import('../features/inventory/ui/BarcodePrintPage'), 'BarcodePrintPage') });
 const servicesRoute = createRoute({ getParentRoute: () => rootRoute, path: '/services', beforeLoad: requireAuth, component: lazyRouteComponent(() => import('../features/services/ui/RepairPage'), 'RepairPage') });
 const shiftRoute = createRoute({ getParentRoute: () => rootRoute, path: '/shift', beforeLoad: requireRole([UserRole.ADMIN, UserRole.MANAGER]), component: lazyRouteComponent(() => import('../features/shift/ui/ShiftPage'), 'ShiftPage') });
-const handoverRoute = createRoute({ getParentRoute: () => rootRoute, path: '/handover', component: lazyRouteComponent(() => import('../features/shift/ui/HandoverPage'), 'HandoverPage') });
+const handoverRoute = createRoute({ getParentRoute: () => rootRoute, path: '/handover', beforeLoad: requireAuth, component: lazyRouteComponent(() => import('../features/shift/ui/HandoverPage'), 'HandoverPage') });
 const syncStatusRoute = createRoute({ getParentRoute: () => rootRoute, path: '/office/sync-status', component: lazyRouteComponent(() => import('../pages/reports/SyncStatusPage'), 'SyncStatusPage') });
 const conflictResolutionRoute = createRoute({ getParentRoute: () => rootRoute, path: '/office/conflict-resolution', beforeLoad: requireAuth, component: lazyRouteComponent(() => import('../pages/reports/ConflictResolutionPage'), 'ConflictResolutionPage') });
 

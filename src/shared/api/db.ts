@@ -239,6 +239,7 @@ export interface PettyCash {
   amount: number;
   description: string;
   user: string;
+  branchId?: string; // fix: diperlukan untuk branch isolation & Firestore rules
 }
 
 export interface Appointment {
@@ -248,6 +249,7 @@ export interface Appointment {
   description: string;
   status: 'PENDING' | 'DONE';
   user: string;
+  branchId?: string; // fix: diperlukan untuk branch isolation & Firestore rules
 }
 
 export interface CustomOrder {
@@ -258,6 +260,7 @@ export interface CustomOrder {
   estimatedPrice: number;
   status: 'PENDING' | 'IN_PROGRESS' | 'DONE';
   user: string;
+  branchId?: string; // fix: diperlukan untuk branch isolation & Firestore rules
 }
 
 export interface InternalNote {
@@ -266,6 +269,7 @@ export interface InternalNote {
   category: 'KELUHAN' | 'LAPORAN';
   message: string;
   user: string;
+  branchId?: string; // fix: konsistensi branch isolation
 }
 
 export interface Customer {
@@ -481,10 +485,10 @@ export class PsaDatabase extends Dexie {
       gold_asset_history: 'id, timestamp, action',
       suspended_carts: 'id, timestamp, user, branchId',
       handovers: 'id, timestamp, category, branchId',
-      petty_cash: 'id, date, category',
-      appointments: 'id, date, status',
-      custom_orders: 'id, date, status',
-      internal_notes: 'id, date, category',
+      petty_cash: 'id, date, category, branchId',
+      appointments: 'id, date, status, branchId',
+      custom_orders: 'id, date, status, branchId',
+      internal_notes: 'id, date, category, branchId',
       keys_meta: 'id, keyId',
       keyval: 'key',
       sync_dlq: '++id, entity_type, status, timestamp, idempotency_key',

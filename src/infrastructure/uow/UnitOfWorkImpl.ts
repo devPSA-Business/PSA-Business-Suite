@@ -14,7 +14,8 @@ export class UnitOfWorkImpl implements IUnitOfWork {
     'transactions', 'stock', 'stock_history', 'gold_asset_history', 'repair_services',
     'customers', 'users', 'suspended_carts', 'handovers', 'petty_cash',
     'appointments', 'custom_orders', 'internal_notes', 'notifications',
-    'shift_totals', 'store_profile', 'keys_meta', 'keyval', 'sync_dlq', 'ai_feedback_tickets'
+    'shift_totals', 'store_profile', 'keys_meta', 'keyval', 'sync_dlq',
+    'ai_feedback_tickets', 'financial_closures', // fix: sebelumnya tidak ada → UoW transaksi finansial gagal silently
   ];
 
   async execute<T>(work: () => Promise<T>, tables: string[] | 'FULL_SCOPE'): Promise<T> {

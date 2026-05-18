@@ -1,6 +1,6 @@
 import { logger } from '@lib/logger';
 import React, { useState, useEffect } from 'react';
-import { db } from '../../../shared/api/db';
+import { DIContainer } from '../../../infrastructure/di/Container';
 
 const BRANDS = [
   { code: 'XUP', label: 'Xuping' },
@@ -55,25 +55,11 @@ export function SkuGenerator({ onBarcodeGenerated, onNameSuggested }: SkuGenerat
   const [sequence, setSequence] = useState('001');
 
   useEffect(() => {
-    // Attempt to calculate next sequence automatically
+    // Hitung sequence otomatis via ILiveQueries — tidak ada direct db access
     const baseSku = `${brand}-${category}-${color}-${size}-${stone}`;
-    db.stock.where('barcode').startsWith(baseSku).toArray().then(items => {
-      if (items.length > 0) {
-        let maxSeq = 0;
-        for (const item of items) {
-          const parts = item.barcode.split('-');
-          if (parts.length === 6) {
-            const seqInfo = parseInt(parts[5], 10);
-            if (!isNaN(seqInfo) && seqInfo > maxSeq) {
-              maxSeq = seqInfo;
-            }
-          }
-        }
-        setSequence((maxSeq + 1).toString().padStart(3, '0'));
-      } else {
-        setSequence('001');
-      }
-    }).catch(e => logger.error(e));
+    DIContainer.liveQueries.countSkuSequence(baseSku).then(nextSeq => {
+      setSequence(nextSeq.toString().padStart(3, '0'));
+    }).catch(e => logger.error('Gagal menghitung sequence SKU:', e));
 
     // Suggest Name
     const brandLabel = BRANDS.find(b => b.code === brand)?.label;
@@ -92,7 +78,11 @@ export function SkuGenerator({ onBarcodeGenerated, onNameSuggested }: SkuGenerat
   }, [brand, category, color, size, stone, sequence, onBarcodeGenerated]);
 
   return (
-    <div className="bg-stone-50 border border-stone-200 rounded-xl p-4 mt-2 space-y-4">
+    <div
+      data-component-id="sku-generator"
+      data-error-domain="inventory"
+      className="bg-stone-50 border border-stone-200 rounded-xl p-4 mt-2 space-y-4"
+    >
       <div className="grid grid-cols-2 md:grid-cols-6 gap-2">
         <div>
           <label className="block text-[10px] font-bold text-stone-500 uppercase">Brand</label>

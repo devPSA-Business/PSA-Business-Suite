@@ -34,36 +34,66 @@ export default defineConfig(({mode}) => {
           ]
         },
         workbox: {
-          globPatterns: ['**/*.{js,css,html,ico,png,svg,webp}'],
+          globPatterns: ['**/*.{js,css,html,ico,png,svg,webp,woff2}'],
           navigateFallback: 'index.html',
           cleanupOutdatedCaches: true,
+          // 8MB maks per file — cukup untuk chunk JS besar
           maximumFileSizeToCacheInBytes: 8 * 1024 * 1024,
           navigateFallbackDenylist: [/^\/api\//, /^\/auth\//],
+          // @ai_context: Strategi cache untuk offline 3 hari minimum.
+          // App shell + assets → CacheFirst (tidak pernah expire selama toko butuh)
+          // Firebase Auth → NetworkOnly (tidak di-cache, auth butuh validasi cloud)
+          // Gemini Proxy → NetworkOnly (AI tidak tersedia offline, acceptable)
           runtimeCaching: [
             {
+              // Chunk JS/CSS dengan hash → immutable, cache selamanya
               urlPattern: /\/assets\/.*\.[a-f0-9]{8,}\.(js|css)$/,
               handler: 'CacheFirst',
-              options: { cacheName: 'immutable-assets', expiration: { maxAgeSeconds: 31536000 } }
+              options: {
+                cacheName: 'immutable-assets',
+                expiration: { maxAgeSeconds: 365 * 24 * 60 * 60 }, // 1 tahun
+              },
             },
             {
-              urlPattern: /\.(?:png|svg|webp|ico)$/,
+              // Gambar & icon → StaleWhileRevalidate (tampilkan cache, update background)
+              urlPattern: /\.(?:png|svg|webp|ico|woff2)$/,
               handler: 'StaleWhileRevalidate',
-              options: { cacheName: 'static-assets-cache' }
+              options: {
+                cacheName: 'static-assets',
+                expiration: { maxAgeSeconds: 30 * 24 * 60 * 60, maxEntries: 60 },
+              },
             },
             {
+              // HTML → NetworkFirst timeout 3 detik, fallback ke cache
               urlPattern: /\/index\.html$/,
               handler: 'NetworkFirst',
-              options: { cacheName: 'html-cache', networkTimeoutSeconds: 3 }
+              options: {
+                cacheName: 'html-cache',
+                networkTimeoutSeconds: 3,
+                expiration: { maxAgeSeconds: 7 * 24 * 60 * 60 },
+              },
             },
             {
-              urlPattern: /^https:\/\/(identitytoolkit|securetoken|firestore)\.googleapis\.com\/.*/i,
+              // Firebase Auth & token → TIDAK di-cache (keamanan)
+              urlPattern: /^https:\/\/(identitytoolkit|securetoken)\.googleapis\.com\/.*/i,
               handler: 'NetworkOnly',
             },
             {
-              urlPattern: /cloudfunctions\.net/i,
+              // Firestore → NetworkOnly (data realtime, sync via IndexedDB)
+              urlPattern: /^https:\/\/firestore\.googleapis\.com\/.*/i,
               handler: 'NetworkOnly',
-            }
-          ]
+            },
+            {
+              // Gemini Proxy (Cloudflare Worker) → NetworkOnly (AI tidak tersedia offline)
+              urlPattern: /workers\.dev\/.*/i,
+              handler: 'NetworkOnly',
+            },
+            {
+              // Telegram Alert → NetworkOnly
+              urlPattern: /api\.telegram\.org\/.*/i,
+              handler: 'NetworkOnly',
+            },
+          ],
         }
       })
     ],

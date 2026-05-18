@@ -11,21 +11,8 @@ coverage/
 .env.*.local
 !.env.example
 firebase-applet-config.json
-# Build artifacts
-*.tsbuildinfo
-temp_sa.json
 
-# IDE
-.vscode/
-.idea/
-*.swp
-*.swo
-
-# OS
-Thumbs.db
-
-# Test artifacts
-*.snap
-
-# Husky (if added)
-.husky/_/
+# Cloud Functions diarsipkan — tidak lagi digunakan (Spark plan, tanpa kartu kredit)
+# Arsip tersimpan di functions/ untuk referensi. Hapus manual jika tidak diperlukan.
+functions/lib/
+functions/node_modules/

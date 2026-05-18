@@ -1,5 +1,5 @@
 import { PromiseExtended } from 'dexie';
-import { StockItem, RepairService, Handover, AuditLog, SuspendedCart, StockHistory, Shift, GoldBuyback, GoldLiquidation } from '../../shared/api/db';
+import { StockItem, RepairService, Handover, AuditLog, SuspendedCart, StockHistory, Shift, GoldBuyback, GoldLiquidation, Transaction, CustomOrder } from '../../shared/api/db';
 
 export interface ILiveQueries {
   observeOpenShift(branchId?: string): PromiseExtended<Shift | undefined>;
@@ -15,4 +15,12 @@ export interface ILiveQueries {
   observeGoldBuybacks(branchId?: string): PromiseExtended<GoldBuyback[]>;
   observeGoldSales(branchId?: string): PromiseExtended<GoldLiquidation[]>;
   observeTodayCashSummary(startTime: number): PromiseExtended<{ cashIn: number; cashOut: number }>;
+  /** Mengambil N transaksi terbaru dari sebuah shift (untuk workspace widget). */
+  observeRecentTransactions(shiftStartTime: number, limit?: number, branchId?: string): PromiseExtended<Transaction[]>;
+  /** Mengambil semua order kustom yang belum selesai (status != 'DONE'). */
+  observeActiveCustomOrders(branchId?: string): PromiseExtended<CustomOrder[]>;
+  /** Mengambil janji temu mulai dari tanggal tertentu (untuk communication board). */
+  observeAppointments(fromDate: number, branchId?: string): PromiseExtended<import('../../shared/api/db').Appointment[]>;
+  /** Mengambil catatan internal mulai dari tanggal tertentu. */
+  observeInternalNotes(fromDate: number, branchId?: string): PromiseExtended<import('../../shared/api/db').InternalNote[]>;
 }

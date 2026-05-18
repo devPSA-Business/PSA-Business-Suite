@@ -36,9 +36,9 @@ export function CommunicationBoard() {
 
   const startOfDay = new Date().setHours(0, 0, 0, 0);
 
-  const appointments = useLiveQuery(() => db.appointments.where('date').aboveOrEqual(startOfDay).toArray(), []);
-  const handovers = useLiveQuery(() => db.handovers.orderBy('timestamp').reverse().limit(10).toArray(), []);
-  const internalNotes = useLiveQuery(() => db.internal_notes.where('date').aboveOrEqual(startOfDay).toArray(), []);
+  const appointments = useLiveQuery(() => DIContainer.liveQueries.observeAppointments(startOfDay), [startOfDay]);
+  const handovers = useLiveQuery(() => DIContainer.liveQueries.observeHandovers(), []);
+  const internalNotes = useLiveQuery(() => DIContainer.liveQueries.observeInternalNotes(startOfDay), [startOfDay]);
 
   // Update last read when tab changes
   const handleTabChange = (tab: 'JANJI' | 'HANDOVER' | 'KELUHAN') => {

@@ -1,4 +1,4 @@
-import { db, StockItem, RepairService, Handover, AuditLog, SuspendedCart, StockHistory, Shift, GoldBuyback, GoldLiquidation } from '../../shared/api/db';
+import { db, StockItem, RepairService, Handover, AuditLog, SuspendedCart, StockHistory, Shift, GoldBuyback, GoldLiquidation, Transaction, CustomOrder } from '../../shared/api/db';
 import { ILiveQueries } from '../../application/queries/ILiveQueries';
 import { PromiseExtended, liveQuery } from 'dexie';
 import { cryptoDB } from '../../lib/cryptoIndexedDB';
@@ -211,5 +211,48 @@ export class LiveQueriesImpl implements ILiveQueries {
       return { cashIn, cashOut };
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     }) as any;
+  }
+
+  observeRecentTransactions(shiftStartTime: number, limit = 5, branchId?: string): PromiseExtended<Transaction[]> {
+    let query = db.transactions
+      .where('date')
+      .aboveOrEqual(shiftStartTime)
+      .reverse();
+    if (branchId && branchId !== 'HQ') {
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      return query.filter((t) => t.branchId === branchId).limit(limit).toArray() as any;
+    }
+    return query.limit(limit).toArray();
+  }
+
+  observeActiveCustomOrders(branchId?: string): PromiseExtended<CustomOrder[]> {
+    const query = db.custom_orders.where('status').notEqual('DONE').reverse().sortBy('date');
+    if (branchId && branchId !== 'HQ') {
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      return (query as unknown as PromiseExtended<CustomOrder[]>).then((orders: CustomOrder[]) =>
+        orders.filter((o) => o.branchId === branchId)
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      ) as any;
+    }
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    return query as any;
+  }
+
+  observeAppointments(fromDate: number, branchId?: string): PromiseExtended<import('../../shared/api/db').Appointment[]> {
+    const query = db.appointments.where('date').aboveOrEqual(fromDate);
+    if (branchId && branchId !== 'HQ') {
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      return query.filter((a) => a.branchId === branchId).toArray() as any;
+    }
+    return query.toArray();
+  }
+
+  observeInternalNotes(fromDate: number, branchId?: string): PromiseExtended<import('../../shared/api/db').InternalNote[]> {
+    const query = db.internal_notes.where('date').aboveOrEqual(fromDate);
+    if (branchId && branchId !== 'HQ') {
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      return query.filter((n) => n.branchId === branchId).toArray() as any;
+    }
+    return query.toArray();
   }
 }

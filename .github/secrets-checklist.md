@@ -44,3 +44,33 @@ Secrets ini TIDAK PERLU lagi — Cloud Functions sudah diarsipkan:
 4. Klik **Add secret**
 
 **Urutkan dari yang WAJIB dulu** — tanpa 9 secrets wajib di atas, deploy akan gagal.
+
+---
+
+## 📱 Secrets untuk APK Build (Opsional — diperlukan jika ingin build APK)
+
+| Secret | Deskripsi | Cara Mendapatkan |
+|---|---|---|
+| `KEYSTORE_BASE64` | Android signing keystore di-encode base64 | `keytool -genkey -v -keystore psa.keystore -alias psa-signing-key -keyalg RSA -keysize 2048 -validity 10000` lalu `base64 psa.keystore` |
+| `KEYSTORE_PASSWORD` | Password keystore | Nilai yang diset saat `keytool -genkey` |
+| `KEYSTORE_KEY_ALIAS` | Alias key di keystore | `psa-signing-key` (default) |
+| `KEYSTORE_KEY_PASSWORD` | Password key (bisa sama dengan KEYSTORE_PASSWORD) | Nilai yang diset saat `keytool -genkey` |
+| `APK_TESTER_EMAILS` | Email penerima APK (koma-pisah) | Contoh: `owner@gmail.com,pasangan@gmail.com` |
+| `PAT_SECRETS_WRITE` | Fine-grained PAT untuk Bootstrap workflow | github.com/settings/tokens → Secrets: Read & Write |
+
+## 📋 Langkah Generate Keystore Android (Sekali Seumur Hidup)
+
+```bash
+# Jalankan di terminal — simpan psa.keystore di tempat AMAN (bukan di repo!)
+keytool -genkey -v \
+  -keystore psa.keystore \
+  -alias psa-signing-key \
+  -keyalg RSA -keysize 2048 -validity 10000 \
+  -dname "CN=PSA Jewellery, OU=Mobile, O=PSA, L=Sampit, ST=Kalteng, C=ID"
+
+# Encode ke base64 untuk disimpan sebagai secret
+base64 psa.keystore | tr -d '\n'
+# Copy output → set sebagai secret KEYSTORE_BASE64
+```
+
+⚠️ **JANGAN commit file psa.keystore ke git.** Simpan di tempat aman (Google Drive terkunci, USB khusus).

@@ -1,0 +1,184 @@
+name: APK Build & Distribute — Firebase App Distribution
+
+# @ai_context: Build APK dari PWA (Trusted Web Activity) tanpa Play Store.
+# TWA = wrapper tipis APK yang menjalankan PWA di dalam Chrome tab khusus.
+# Tidak perlu rewrite kode — semua fitur PWA (offline, IndexedDB, SW) tetap berjalan.
+#
+# ARSITEKTUR:
+#   PWA (psa-business-suite.web.app) → Bubblewrap → APK → Firebase App Distribution
+#   Owner & Pasangan mendapat email undangan → install langsung ke HP Android
+#
+# DISTRIBUSI PRIVAT (bukan Play Store):
+#   - Firebase App Distribution: gratis, tanpa kartu kredit
+#   - Tester list: email owner + pasangan (max 100 tester free tier)
+#   - Auto-notifikasi email saat APK baru tersedia
+#
+# KAPAN BERJALAN:
+#   1. Manual: Actions → APK Build → Run workflow
+#   2. Otomatis: setiap release tag (v*.*.*)
+#
+# PRASYARAT SECRETS (set via setup-github-secrets.sh):
+#   - FIREBASE_SERVICE_ACCOUNT (sudah ada)
+#   - FIREBASE_PROJECT_ID (sudah ada)
+#   - KEYSTORE_BASE64: keystore Android di-encode base64
+#   - KEYSTORE_PASSWORD: password keystore
+#   - KEYSTORE_KEY_ALIAS: alias key (default: psa-signing-key)
+#   - KEYSTORE_KEY_PASSWORD: password key
+#   - APK_TESTER_EMAILS: email penerima, koma-pisah (contoh: owner@gmail.com,pasangan@gmail.com)
+
+on:
+  workflow_dispatch:
+    inputs:
+      release_notes:
+        description: 'Catatan update APK (tampil di notifikasi email tester)'
+        required: false
+        default: 'Update terbaru PSA Business Suite'
+  push:
+    tags:
+      - 'v*.*.*'
+
+concurrency:
+  group: apk-build-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  build_apk:
+    name: Build TWA APK
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v4.2.2
+
+      # ── Java (dibutuhkan oleh Gradle / Android build) ─────────────────────
+      - name: Setup Java 17
+        uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '17'
+
+      # ── Node.js untuk Bubblewrap CLI ───────────────────────────────────────
+      - name: Setup Node.js 22
+        uses: actions/setup-node@39370e3970a6d050c480ffad4ff0ed4d3fdee5af # v4.1.0
+        with:
+          node-version: 22
+
+      # ── Android SDK (CLI only, tanpa Android Studio) ───────────────────────
+      - name: Setup Android SDK
+        uses: android-actions/setup-android@v3
+
+      # ── Bubblewrap CLI — konverter PWA ke TWA APK ─────────────────────────
+      - name: Install Bubblewrap CLI
+        run: npm install -g @bubblewrap/cli
+
+      # ── Decode keystore dari secret ────────────────────────────────────────
+      - name: Decode Android Keystore
+        run: |
+          if [ -n "${{ secrets.KEYSTORE_BASE64 }}" ]; then
+            echo "${{ secrets.KEYSTORE_BASE64 }}" | base64 --decode > android-signing.keystore
+            echo "KEYSTORE_FOUND=true" >> $GITHUB_ENV
+          else
+            echo "⚠️ KEYSTORE_BASE64 belum diset — APK akan di-sign dengan debug key"
+            echo "KEYSTORE_FOUND=false" >> $GITHUB_ENV
+          fi
+
+      # ── Init Bubblewrap dari twa-manifest.json ─────────────────────────────
+      - name: Init Bubblewrap Project
+        run: |
+          bubblewrap init \
+            --manifest https://psa-business-suite.web.app/manifest.webmanifest \
+            --directory ./twa-build \
+            2>&1 | tail -20
+
+      # ── Override config Bubblewrap dengan twa-manifest.json kita ──────────
+      - name: Apply PSA TWA Config
+        run: |
+          # Bubblewrap generate twa.config.json — kita override packageId dan signing
+          cat twa-manifest.json
+          cp twa-manifest.json ./twa-build/twa-manifest.json
+
+      # ── Build APK ──────────────────────────────────────────────────────────
+      - name: Build APK (Release)
+        working-directory: ./twa-build
+        run: |
+          if [ "$KEYSTORE_FOUND" = "true" ]; then
+            bubblewrap build \
+              --skipPwaValidation \
+              2>&1 | tail -30
+          else
+            # Debug build jika tidak ada keystore
+            bubblewrap build \
+              --skipPwaValidation \
+              2>&1 | tail -30
+          fi
+
+      # ── Sign APK jika keystore tersedia ───────────────────────────────────
+      - name: Sign APK
+        if: env.KEYSTORE_FOUND == 'true'
+        run: |
+          APK_PATH=$(find ./twa-build -name "*.apk" | head -1)
+          echo "APK ditemukan: $APK_PATH"
+
+          # Align
+          ${ANDROID_HOME}/build-tools/*/zipalign -v -p 4 "$APK_PATH" app-aligned.apk
+
+          # Sign
+          ${ANDROID_HOME}/build-tools/*/apksigner sign \
+            --ks android-signing.keystore \
+            --ks-pass "pass:${{ secrets.KEYSTORE_PASSWORD }}" \
+            --key-pass "pass:${{ secrets.KEYSTORE_KEY_PASSWORD }}" \
+            --ks-key-alias "${{ secrets.KEYSTORE_KEY_ALIAS || 'psa-signing-key' }}" \
+            --out psa-business-suite-signed.apk \
+            app-aligned.apk
+
+          echo "APK_FILE=psa-business-suite-signed.apk" >> $GITHUB_ENV
+
+      - name: Set APK path (debug key)
+        if: env.KEYSTORE_FOUND != 'true'
+        run: |
+          APK_PATH=$(find ./twa-build -name "*.apk" | head -1)
+          cp "$APK_PATH" psa-business-suite-debug.apk
+          echo "APK_FILE=psa-business-suite-debug.apk" >> $GITHUB_ENV
+
+      # ── Upload artifact (backup) ───────────────────────────────────────────
+      - name: Upload APK artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: psa-apk-${{ github.sha }}
+          path: ${{ env.APK_FILE }}
+          retention-days: 30
+
+      # ── Distribute via Firebase App Distribution ───────────────────────────
+      - name: Distribute APK ke Tester
+        if: ${{ secrets.APK_TESTER_EMAILS != '' }}
+        uses: wzieba/Firebase-Distribution-Github-Action@v1
+        with:
+          appId: ${{ secrets.VITE_FIREBASE_APP_ID }}
+          serviceCredentialsFileContent: ${{ secrets.FIREBASE_SERVICE_ACCOUNT }}
+          groups: psa-owners
+          file: ${{ env.APK_FILE }}
+          releaseNotes: |
+            ${{ github.event.inputs.release_notes || format('Release {0} — {1}', github.ref_name, github.sha) }}
+
+            Perubahan: ${{ github.event.head_commit.message || 'Update manual via workflow' }}
+
+      # ── Jika tidak ada tester email, cukup upload artifact saja ──────────
+      - name: Summary APK Build
+        run: |
+          echo "## 📱 APK Build Selesai" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "| | |" >> $GITHUB_STEP_SUMMARY
+          echo "|---|---|" >> $GITHUB_STEP_SUMMARY
+          echo "| **File** | \`${{ env.APK_FILE }}\` |" >> $GITHUB_STEP_SUMMARY
+          echo "| **Signed** | ${{ env.KEYSTORE_FOUND == 'true' && '✅ Release key' || '⚠️ Debug key (tidak untuk produksi)' }} |" >> $GITHUB_STEP_SUMMARY
+          echo "| **Distribusi** | ${{ secrets.APK_TESTER_EMAILS != '' && '✅ Firebase App Distribution' || '⚠️ Tidak ada — set secret APK_TESTER_EMAILS' }} |" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "### Cara Install Manual" >> $GITHUB_STEP_SUMMARY
+          echo "1. Download APK dari tab **Artifacts** di atas" >> $GITHUB_STEP_SUMMARY
+          echo "2. Di HP Android: Settings → Security → Install from unknown sources → ON" >> $GITHUB_STEP_SUMMARY
+          echo "3. Buka file APK → Install" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "### Catatan Keamanan Keystore" >> $GITHUB_STEP_SUMMARY
+          echo "Untuk APK produksi, set secrets: KEYSTORE_BASE64, KEYSTORE_PASSWORD, KEYSTORE_KEY_ALIAS, KEYSTORE_KEY_PASSWORD" >> $GITHUB_STEP_SUMMARY
+          echo "Panduan generate keystore: \`keytool -genkey -v -keystore psa.keystore -alias psa-signing-key -keyalg RSA -keysize 2048 -validity 10000\`" >> $GITHUB_STEP_SUMMARY

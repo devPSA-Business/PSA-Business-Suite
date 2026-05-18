@@ -19,7 +19,8 @@ import { firestoreDb, auth } from './shared/api/firebase';
 import { useSecurityStore } from './shared/store/useSecurityStore';
 import { useAuthStore } from './shared/store/authStore';
 import { backupManager } from './shared/utils/backupManager';
-import { useEventListener } from './shared/hooks/useEventListener';
+import { DevPreviewBanner } from './shared/components/DevPreviewBanner';
+
 
 export default function App() {
   const [isBootstrapping, setIsBootstrapping] = useState(true);
@@ -375,6 +376,7 @@ export default function App() {
 
   return (
     <ErrorBoundary>
+      <DevPreviewBanner />
       <SystemHealthBot />
       <RouterProvider router={router} />
     </ErrorBoundary>

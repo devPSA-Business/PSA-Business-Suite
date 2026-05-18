@@ -1,0 +1,33 @@
+{
+  "packageId": "com.psajewellery.businesssuite",
+  "host": "psa-business-suite.web.app",
+  "name": "PSA Business Suite",
+  "launcherName": "PSA Suite",
+  "display": "standalone",
+  "orientation": "any",
+  "themeColor": "#1e3a8a",
+  "backgroundColor": "#ffffff",
+  "startUrl": "/",
+  "iconUrl": "https://psa-business-suite.web.app/icon-512.png",
+  "maskableIconUrl": "https://psa-business-suite.web.app/icon-512.png",
+  "splashScreenFadeOutDuration": 300,
+  "signingKey": {
+    "path": "./android-signing.keystore",
+    "alias": "psa-signing-key"
+  },
+  "appVersionCode": 1,
+  "appVersionName": "1.4.0",
+  "shortcuts": [],
+  "enableNotifications": false,
+  "features": {
+    "locationDelegation": { "enabled": false },
+    "playBilling": { "enabled": false }
+  },
+  "alphaDependencies": { "enabled": false },
+  "additionalTrustedOrigins": [
+    "https://psa-business-suite.firebaseapp.com"
+  ],
+  "retainedBundles": [],
+  "minSdkVersion": 24,
+  "targetSdkVersion": 34
+}

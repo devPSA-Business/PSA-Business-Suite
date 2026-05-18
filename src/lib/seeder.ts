@@ -1,127 +1,129 @@
+/**
+ * @ai_context: Database seeder untuk lingkungan DEV / Preview.
+ * @business_rule: Data seed WAJIB mencerminkan fakta lapangan PSA Jewellery Sampit:
+ *   - Produk IMITASI: Xuping, Yaxiya, Titanium, Stainless Steel
+ *   - 3 revenue stream: (1) Jual imitasi, (2) Jasa perawatan/reparasi/sepuh, (3) Buyback emas
+ *   - Buyback: BELI dari pelanggan, JUAL ke pengepul — PSA TIDAK stok emas
+ *   - SKU format: [Kategori][Warna][Motif][Kode]
+ * @security_tier: LOW — hanya berjalan di dev, tidak pernah ke produksi
+ */
+
 import { db } from '../shared/api/db';
-import { StockCategory } from '../domain/models/StockCategory';
 import { isDevEnvironment } from '../shared/utils/devUtils';
+
+const BRANCH = 'HQ';
+const NOW = Date.now();
+const DAY = 86_400_000;
 
 export const seedDatabase = async () => {
   if (!isDevEnvironment()) return;
   const stockCount = await db.stock.count();
-  if (stockCount > 0) return; // Already seeded
+  if (stockCount > 0) return;
 
-  console.log('Seeding database with sample operational data...');
+  console.info('[Seeder] Menyemai data contoh PSA Jewellery...');
 
-  // 1. Seed Stock
   const dummyStock = [
-    {
-      id: 'STK-001-',
-      name: 'Cincin Emas Kuning 70% Polos (2g)',
-      category: StockCategory.GOLD_JEWELLERY,
-      price: 2100000,
-      cost: 1850000,
-      quantity: 12,
-      barcode: 'PSA-100001',
-      specificCost: 1850000,
-      version: 1,
-      branchId: 'HQ'
-    },
-    {
-      id: 'STK-002-',
-      name: 'Gelang Rantai Emas Putih 75% (5g)',
-      category: StockCategory.GOLD_JEWELLERY,
-      price: 5250000,
-      cost: 4800000,
-      quantity: 5,
-      barcode: 'PSA-100002',
-      specificCost: 4800000,
-      version: 1,
-      branchId: 'HQ'
-    },
-    {
-      id: 'STK-003-',
-      name: 'Kalung Xuping Permata Zirconia',
-      category: StockCategory.IMITATION,
-      price: 150000,
-      cost: 85000,
-      quantity: 50,
-      barcode: 'PSA-100003',
-      version: 1,
-      branchId: 'HQ'
-    },
-    {
-      id: 'STK-004-',
-      name: 'LM Antam 1 Gram CertiEye',
-      category: StockCategory.GOLD_BAR,
-      price: 1450000,
-      cost: 1390000,
-      quantity: 8,
-      barcode: 'PSA-100004',
-      specificCost: 1390000,
-      version: 1,
-      branchId: 'HQ'
-    },
-    {
-      id: 'STK-005-',
-      name: 'Kotak Cincin Beludru Merah',
-      category: StockCategory.ACCESSORIES,
-      price: 35000,
-      cost: 15000,
-      quantity: 100,
-      barcode: 'PSA-100005',
-      version: 1,
-      branchId: 'HQ'
-    }
-  ].map(item => ({...item, id: item.id + crypto.randomUUID().substring(0, 8)}));
+    // Xuping
+    { sku: 'XP-KN-BUL-001', name: 'Kalung Xuping Bulir Padi Emas', category: 'IMITATION', price: 85_000, cost: 42_000, quantity: 35, barcode: 'PSA-XP-001' },
+    { sku: 'XP-GT-ZRK-002', name: 'Gelang Tangan Xuping Zirkonia Full', category: 'IMITATION', price: 120_000, cost: 58_000, quantity: 28, barcode: 'PSA-XP-002' },
+    { sku: 'XP-AN-POL-003', name: 'Anting Xuping Polos Bulat Silver', category: 'IMITATION', price: 45_000, cost: 22_000, quantity: 60, barcode: 'PSA-XP-003' },
+    { sku: 'XP-CN-HT-004', name: 'Cincin Xuping Hati Zirkonia Merah', category: 'IMITATION', price: 65_000, cost: 30_000, quantity: 42, barcode: 'PSA-XP-004' },
+    { sku: 'XP-SET-PND-005', name: 'Set Xuping Pengantin Kalung+Anting+Gelang', category: 'IMITATION', price: 350_000, cost: 165_000, quantity: 12, barcode: 'PSA-XP-005' },
+    // Yaxiya
+    { sku: 'YX-KN-RNT-006', name: 'Kalung Yaxiya Rantai Singapur Emas', category: 'IMITATION', price: 150_000, cost: 72_000, quantity: 20, barcode: 'PSA-YX-006' },
+    { sku: 'YX-CN-PKR-007', name: 'Cincin Yaxiya Paku Rivoli', category: 'IMITATION', price: 95_000, cost: 45_000, quantity: 30, barcode: 'PSA-YX-007' },
+    { sku: 'YX-PND-SLB-008', name: 'Liontin Yaxiya Salib Ukir Silver', category: 'IMITATION', price: 75_000, cost: 35_000, quantity: 25, barcode: 'PSA-YX-008' },
+    // Titanium
+    { sku: 'TI-CN-POL-009', name: 'Cincin Titanium Polos Hitam Pria', category: 'IMITATION', price: 180_000, cost: 90_000, quantity: 18, barcode: 'PSA-TI-009' },
+    { sku: 'TI-GL-RNT-010', name: 'Gelang Titanium Rantai Kotak Pria', category: 'IMITATION', price: 220_000, cost: 108_000, quantity: 15, barcode: 'PSA-TI-010' },
+    { sku: 'TI-SET-CPL-011', name: 'Set Couple Titanium Ukir Nama', category: 'IMITATION', price: 380_000, cost: 185_000, quantity: 10, barcode: 'PSA-TI-011' },
+    // Stainless Steel
+    { sku: 'SS-KN-BXB-012', name: 'Kalung Stainless Box Chain Silver 50cm', category: 'IMITATION', price: 95_000, cost: 45_000, quantity: 40, barcode: 'PSA-SS-012' },
+    { sku: 'SS-AN-HUP-013', name: 'Anting Stainless Hoop Besar Gold', category: 'IMITATION', price: 55_000, cost: 25_000, quantity: 55, barcode: 'PSA-SS-013' },
+    { sku: 'SS-GL-KRP-014', name: 'Gelang Stainless Kulit Rempel Hitam', category: 'IMITATION', price: 130_000, cost: 62_000, quantity: 22, barcode: 'PSA-SS-014' },
+    { sku: 'SS-FSET-PKN-015', name: 'Full Set Stainless Pernikahan 5pcs', category: 'IMITATION', price: 485_000, cost: 230_000, quantity: 8, barcode: 'PSA-SS-015' },
+  ].map(item => ({
+    ...item,
+    id: item.sku + '-' + crypto.randomUUID().slice(0, 6),
+    version: 1,
+    branchId: BRANCH,
+  }));
 
   await db.stock.bulkAdd(dummyStock);
 
-  // 2. Seed Gold Price
-  await db.gold_price.put({
-    id: 'CURRENT',
-    pricePerGram: 1350000, // Harga patokan
-    lastUpdated: Date.now()
+  await db.gold_price.put({ id: 'CURRENT', pricePerGram: 1_620_000, lastUpdated: NOW });
+
+  await db.transactions.add({
+    id: 'TXN-DEMO-A',
+    date: NOW - 3_600_000,
+    items: [{ stockId: dummyStock[0].id, name: dummyStock[0].name, quantity: 2, price: dummyStock[0].price, subtotal: dummyStock[0].price * 2 }],
+    total: dummyStock[0].price * 2,
+    paymentMethod: 'CASH',
+    status: 'SUCCESS',
+    user: 'Owner',
+    branchId: BRANCH,
+    client_txn_id: 'CLI-DEMO-A',
   });
 
-  // 3. Seed A Custom Order & Repair Service to make dashboard look alive
+  await db.transactions.add({
+    id: 'TXN-DEMO-B',
+    date: NOW - 7_200_000,
+    items: [{ stockId: dummyStock[4].id, name: dummyStock[4].name, quantity: 1, price: dummyStock[4].price, subtotal: dummyStock[4].price }],
+    total: dummyStock[4].price,
+    paymentMethod: 'QRIS',
+    status: 'SUCCESS',
+    user: 'Owner',
+    branchId: BRANCH,
+    client_txn_id: 'CLI-DEMO-B',
+  });
+
   await db.repair_services.add({
-    id: 'REP-DEMO-1',
-    date: Date.now() - 86400000, // 1 day ago
-    customerName: 'Ibu Ratna',
-    phoneNumber: '081234567890',
-    itemDescription: 'Cincin putus perlu disambung dan disepuh',
-    serviceType: 'REPARASI',
-    initialWeight: 2.5,
-    price: 150000,
+    id: 'REP-DEMO-A',
+    date: NOW - DAY,
+    customerName: 'Ibu Sari',
+    phoneNumber: '082112345678',
+    itemDescription: 'Kalung Xuping kusam, minta disepuh ulang warna gold',
+    serviceType: 'SEPUH',
+    initialWeight: 0,
+    price: 75_000,
     status: 'IN_PROGRESS',
     paymentMethod: 'CASH',
-    user: 'Administrator',
-    branchId: 'HQ'
+    user: 'Owner',
+    branchId: BRANCH,
+  });
+
+  await db.repair_services.add({
+    id: 'REP-DEMO-B',
+    date: NOW - 2 * DAY,
+    customerName: 'Pak Hendra',
+    phoneNumber: '081398765432',
+    itemDescription: 'Cincin stainless bengkok, minta dibentuk ulang dan dipoles',
+    serviceType: 'REPARASI',
+    initialWeight: 0,
+    price: 50_000,
+    status: 'DONE',
+    paymentMethod: 'TRANSFER',
+    user: 'Owner',
+    branchId: BRANCH,
   });
 
   await db.petty_cash.add({
-    id: 'PC-DEMO-1',
-    date: Date.now() - 3600000,
+    id: 'PC-DEMO-A',
+    date: NOW - 3 * DAY,
     category: 'OPERASIONAL',
-    amount: 50000,
-    description: 'Beli air galon dan tissue',
-    user: 'Administrator'
+    amount: 120_000,
+    description: 'Beli larutan pembersih perhiasan + kain poles',
+    user: 'Owner',
   });
 
-  // 4. Seed Retail Transaction
-  await db.transactions.add({
-    id: 'TXN-DEMO-1',
-    date: Date.now() - 7200000,
-    items: [{ 
-      stockId: dummyStock[0].id, 
-      name: dummyStock[0].name, 
-      quantity: 1, 
-      price: dummyStock[0].price, 
-      subtotal: dummyStock[0].price 
-    }],
-    total: dummyStock[0].price,
-    paymentMethod: 'CASH',
-    status: 'SUCCESS',
-    user: 'Administrator',
-    branchId: 'HQ'
+  await db.petty_cash.add({
+    id: 'PC-DEMO-B',
+    date: NOW - DAY,
+    category: 'OPERASIONAL',
+    amount: 35_000,
+    description: 'Print struk + tinta printer kasir',
+    user: 'Owner',
   });
 
-  console.log('Database seeded successfully.');
+  console.info('[Seeder] Selesai: 15 SKU imitasi, 2 jasa, 2 transaksi, 2 petty cash.');
 };

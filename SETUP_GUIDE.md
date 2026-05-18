@@ -143,3 +143,42 @@ https://psa-business-suite.web.app (LIVE ✅)
 ---
 
 *Auto-generated oleh PSA AI Architect — 2026-05-17*
+
+---
+
+## LANGKAH 5 — Deploy Cloudflare Worker (Fix Keamanan P0)
+
+> Worker ini menyembunyikan Gemini API Key dari bundle JS — wajib untuk produksi.  
+> Gratis tanpa kartu kredit: 100.000 req/hari (PSA pakai max ~720 req/hari).
+
+```bash
+# Di terminal kamu
+cd workers/gemini-proxy
+npm install
+npx wrangler login          # Login ke Cloudflare (gratis, buat akun di cloudflare.com)
+npx wrangler secret set GEMINI_API_KEY   # Masukkan API key Gemini — tidak masuk log
+npx wrangler deploy
+# Output: https://psa-gemini-proxy.{nama-akun}.workers.dev
+```
+
+Setelah deploy, copy URL worker → set sebagai GitHub Secret:
+- **Name**: `VITE_GEMINI_PROXY_URL`
+- **Value**: `https://psa-gemini-proxy.{nama-akun}.workers.dev`
+
+---
+
+## Alur Dev/Prod yang Berlaku Sekarang
+
+```
+AI Studio Google (dev)          main branch
+  ↓ commit ke branch             ↓ auto trigger
+  develop / ui/* / fix/*     GitHub Actions CI
+  ↓                              ↓ build + test
+  GitHub PR                   Firebase Hosting Deploy
+  ↓ preview URL otomatis         ↓
+  https://psa-business-suite    https://psa-business-suite.web.app
+  --{pr-id}-hash.web.app         (PRODUKSI — HTTPS)
+  (PREVIEW — 7 hari)
+```
+
+**AI Studio Google** → buat branch → push → PR otomatis dibuat → Firebase Preview URL muncul di komentar PR → kamu review → merge ke `main` → deploy produksi otomatis.

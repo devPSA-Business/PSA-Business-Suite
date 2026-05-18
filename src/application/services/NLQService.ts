@@ -1,25 +1,26 @@
 // src/application/services/NLQService.ts
 /**
- * @ai_context: Natural Language Query Service — query Gemini langsung dari client.
- * @security_tier: MEDIUM
- * @business_rule: Spark Plan (tanpa kartu kredit) tidak mendukung Cloud Functions + Secret Manager.
- *   Migrasi ke direct Gemini REST API menggunakan VITE_GEMINI_API_KEY.
- *   API Key di-bundle dalam build — acceptable untuk internal tool UMKM 1 toko karena:
- *   (1) App Check (reCAPTCHA) membatasi abuse eksternal,
- *   (2) Gemini free tier: 1500 req/hari, 60 req/menit — aman untuk <30 req/jam PSA,
- *   (3) Data yang dikirim hanya agregat anonim (PII di-sanitize sebelum dikirim).
- *   ADR: Tercatat di AI_TRACK_RECORD sebagai trade-off Zero-Cost.
+ * @ai_context: Natural Language Query Service — Gemini via BFF proxy.
+ * @security_tier: HIGH (P0 Compliant setelah migrasi ke Cloudflare Worker proxy)
+ * @business_rule:
+ *   PRODUKSI: VITE_GEMINI_PROXY_URL → Cloudflare Worker → Gemini API
+ *     - API key tersimpan di Cloudflare Secrets, TIDAK di bundle JS
+ *     - Free tier Cloudflare Workers: 100.000 req/hari (margin aman 138x dari kebutuhan PSA)
+ *     - ADR: Fix P0 violation "NO SECRETS IN CLIENT" dari AGENTS.md
+ *
+ *   DEV LOKAL: VITE_GEMINI_API_KEY (fallback) → direct Gemini API
+ *     - Hanya untuk development lokal tanpa proxy
+ *     - TIDAK boleh di-commit ke .env atau di-set di GitHub Secrets produksi
+ *     - Gunakan .env.local (di-gitignore) untuk dev lokal
+ *
+ * @worker: workers/gemini-proxy/ — deploy sekali via `wrangler deploy`
  */
 
 import { logger } from '../../lib/logger';
 import { DIContainer } from '../../infrastructure/di/Container';
 
 interface AggregateData {
-  customer?: {
-    name?: string;
-    phone?: string;
-    email?: string;
-  };
+  customer?: { name?: string; phone?: string; email?: string };
   text?: string;
   [key: string]: unknown;
 }
@@ -30,74 +31,118 @@ interface GeminiResponse {
   }>;
 }
 
-const SYSTEM_PROMPT = `Kamu adalah asisten analitik bisnis untuk toko perhiasan PSA di Sampit, Kalimantan Tengah.
-Tugasmu: menganalisis data agregat transaksi, inventaris, dan layanan untuk menjawab pertanyaan owner/manajer.
-- Gunakan Bahasa Indonesia yang ringkas dan profesional.
-- Jangan pernah menyebut nama pelanggan atau data pribadi.
+// System prompt khusus PSA — Bahasa Indonesia, fokus bisnis perhiasan
+const SYSTEM_PROMPT = `Kamu adalah asisten analitik bisnis untuk PSA Jewellery di Sampit, Kalimantan Tengah.
+Toko bergerak di 3 bidang: (1) perhiasan imitasi (Xuping/Titanium/Stainless), (2) jasa perawatan & reparasi, (3) buyback emas.
+Tugasmu: analisis data agregat transaksi & inventaris untuk menjawab pertanyaan Owner/Manajer.
+- Gunakan Bahasa Indonesia ringkas dan profesional.
+- JANGAN sebut nama pelanggan atau data pribadi apapun.
 - Fokus pada insight bisnis yang actionable.
-- Format angka dalam Rupiah (Rp) bila relevan.`;
+- Format angka dalam Rupiah (Rp) dengan titik sebagai pemisah ribuan.
+- Jika data tidak cukup untuk menjawab, katakan dengan jelas.`;
+
+const GEMINI_BASE = 'https://generativelanguage.googleapis.com';
+const DEFAULT_MODEL = 'gemini-2.5-flash';
 
 export class NLQService {
   private requestCount = 0;
   private lastResetTime = Date.now();
   private readonly MAX_REQUESTS_PER_HOUR = 30;
-  private readonly apiKey: string | undefined;
+
+  // PRODUKSI: pakai proxy (API key di server)
+  private readonly proxyUrl: string | undefined;
+  // DEV LOKAL: fallback direct (hanya .env.local, tidak di GitHub Secrets)
+  private readonly devApiKey: string | undefined;
 
   constructor() {
-    this.apiKey = import.meta.env.VITE_GEMINI_API_KEY;
+    this.proxyUrl  = import.meta.env.VITE_GEMINI_PROXY_URL || undefined;
+    this.devApiKey = (!this.proxyUrl && import.meta.env.DEV)
+      ? import.meta.env.VITE_GEMINI_API_KEY || undefined
+      : undefined;
   }
 
+  /** Apakah fitur AI tersedia? */
+  get isAvailable(): boolean {
+    return Boolean(this.proxyUrl || this.devApiKey);
+  }
+
+  /** Bangun URL endpoint Gemini sesuai lingkungan */
+  private buildUrl(model: string): string {
+    const path = `/v1beta/models/${model}:generateContent`;
+    if (this.proxyUrl) {
+      return `${this.proxyUrl.replace(/\/$/, '')}${path}`;
+    }
+    if (this.devApiKey) {
+      logger.warn('[NLQService] DEV MODE: Menggunakan direct Gemini API. Jangan gunakan di produksi.');
+      return `${GEMINI_BASE}${path}?key=${this.devApiKey}`;
+    }
+    return '';
+  }
+
+  /** Sanitasi PII wajib sebelum data dikirim ke AI (P0 AGENTS.md) */
   private sanitize(input: AggregateData): AggregateData {
     const payload = JSON.parse(JSON.stringify(input)) as AggregateData;
     if (payload.customer) {
-      payload.customer.name = '<<PII_REMOVED>>';
+      payload.customer.name  = '<<PII_REMOVED>>';
       payload.customer.phone = '<<PII_REMOVED>>';
       payload.customer.email = '<<PII_REMOVED>>';
     }
     if (typeof payload.text === 'string') {
-      payload.text = payload.text.replace(/\b[A-Za-z0-9._%+-]+@?[A-Za-z0-9.-]+\.[A-Z|a-z]{2,}\b/g, '<<PII_REMOVED>>');
+      // Email
+      payload.text = payload.text.replace(/\b[A-Za-z0-9._%+-]+@[A-Za-z0-9.-]+\.[A-Za-z]{2,}\b/g, '<<PII_REMOVED>>');
+      // Nomor kartu / NIK / rekening (12-19 digit)
       payload.text = payload.text.replace(/\b\d{12,19}\b/g, '<<PII_REMOVED>>');
-      payload.text = payload.text.replace(/\+?\d{7,15}/g, '<<PII_REMOVED>>');
+      // Nomor telepon (7-15 digit, opsional +)
+      payload.text = payload.text.replace(/\+?\d[\d\s-]{6,14}\d/g, '<<PII_REMOVED>>');
     }
     return payload;
   }
 
-  async query(question: string, aggregates: AggregateData, userId: string): Promise<{ answer: string }> {
+  async query(
+    question: string,
+    aggregates: AggregateData,
+    userId: string
+  ): Promise<{ answer: string }> {
+    // ── Rate limit ────────────────────────────────────────────────────────
     const now = Date.now();
-    if (now - this.lastResetTime > 3600000) {
+    if (now - this.lastResetTime > 3_600_000) {
       this.requestCount = 0;
       this.lastResetTime = now;
     }
-
     if (this.requestCount >= this.MAX_REQUESTS_PER_HOUR) {
-      return { answer: 'Limit permintaan AI per jam telah tercapai. Silakan coba lagi nanti.' };
+      return { answer: 'Limit 30 permintaan AI per jam tercapai. Coba lagi setelah 1 jam.' };
     }
 
-    if (!this.apiKey) {
-      logger.warn('[NLQService] VITE_GEMINI_API_KEY belum dikonfigurasi. Fitur AI tidak tersedia.');
+    // ── Ketersediaan ──────────────────────────────────────────────────────
+    if (!this.isAvailable) {
+      logger.warn('[NLQService] Tidak ada konfigurasi Gemini (proxy/key). Fitur AI dinonaktifkan.');
       return { answer: 'Fitur AI belum dikonfigurasi. Hubungi administrator.' };
     }
 
     this.requestCount++;
 
-    // P0: Audit trail
+    // ── Audit trail P0 ────────────────────────────────────────────────────
     await DIContainer.unitOfWork.registerAudit(
       'NLQ_QUERY_EXECUTED',
       userId,
-      'User initiated NLQ query',
-      { userId, payloadDiff: JSON.stringify({ question }) }
-    ).catch((err) => {
-      logger.error('[NLQService] Failed to log NLQ request to audit_log', err);
-    });
+      'NLQ query dikirim ke AI',
+      { userId, question: question.slice(0, 200) }
+    ).catch((err) => logger.error('[NLQService] Audit log gagal', err));
 
-    const sanitizedAggregates = this.sanitize(aggregates);
+    const sanitized = this.sanitize(aggregates);
+    const url = this.buildUrl(DEFAULT_MODEL);
+    if (!url) return { answer: 'Konfigurasi AI tidak valid.' };
+
+    const prompt = [
+      SYSTEM_PROMPT,
+      '---',
+      `Pertanyaan: ${question.trim()}`,
+      '',
+      `Data Agregat:\n${JSON.stringify(sanitized, null, 2)}`,
+    ].join('\n');
 
     try {
-      // gemini-2.5-flash: lebih akurat dari 2.0-flash, tetap gratis (1500 req/hari free tier)
-      const url = `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key=${this.apiKey}`;
-      const prompt = `${SYSTEM_PROMPT}\n\n---\nPertanyaan: ${question.trim()}\n\nData Agregat:\n${JSON.stringify(sanitizedAggregates)}`;
-
-      const response = await fetch(url, {
+      const res = await fetch(url, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
@@ -106,18 +151,23 @@ export class NLQService {
         }),
       });
 
-      if (!response.ok) {
-        const errText = await response.text().catch(() => '');
-        logger.error('[NLQService] Gemini API error', { status: response.status, body: errText.slice(0, 200) });
-        return { answer: 'Terjadi kesalahan pada layanan AI. Silakan coba lagi.' };
+      if (res.status === 429) {
+        return { answer: 'Layanan AI sedang sibuk. Coba lagi dalam beberapa menit.' };
       }
 
-      const result = (await response.json()) as GeminiResponse;
-      const answer = result.candidates?.[0]?.content?.parts?.[0]?.text;
-      return { answer: answer?.trim() || 'AI tidak dapat memberikan respons untuk pertanyaan ini.' };
-    } catch (e) {
-      logger.error('[NLQService] NLQ Query Error', e instanceof Error ? e : new Error(String(e)));
-      return { answer: 'Terjadi kesalahan sistem saat menghubungi layar analitik.' };
+      if (!res.ok) {
+        const errBody = await res.text().catch(() => '');
+        logger.error('[NLQService] Gemini error', { status: res.status, body: errBody.slice(0, 200) });
+        return { answer: 'Layanan AI mengalami gangguan. Coba lagi nanti.' };
+      }
+
+      const data = (await res.json()) as GeminiResponse;
+      const text = data.candidates?.[0]?.content?.parts?.[0]?.text?.trim();
+      return { answer: text || 'AI tidak dapat memberikan respons untuk pertanyaan ini.' };
+
+    } catch (err) {
+      logger.error('[NLQService] Fetch error', err instanceof Error ? err : new Error(String(err)));
+      return { answer: 'Koneksi ke layanan AI gagal. Periksa jaringan dan coba lagi.' };
     }
   }
 }

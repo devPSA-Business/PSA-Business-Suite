@@ -1,0 +1,17 @@
+# Cloudflare Workers — PSA Gemini Proxy
+# Dokumentasi: https://developers.cloudflare.com/workers/configuration/
+
+name = "psa-gemini-proxy"
+main = "src/index.ts"
+compatibility_date = "2024-11-01"
+compatibility_flags = ["nodejs_compat"]
+
+# Free tier: 100.000 req/hari, CPU 10ms/req — lebih dari cukup untuk PSA
+# Tidak perlu workers_paid = true
+
+[observability]
+enabled = true   # Logging gratis di Cloudflare Dashboard
+
+# GEMINI_API_KEY disimpan sebagai Cloudflare Secret (tidak ada di file ini)
+# Set via: wrangler secret set GEMINI_API_KEY
+# Perintah di atas akan meminta input interaktif — nilai TIDAK tersimpan di terminal history

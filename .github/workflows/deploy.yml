@@ -1,4 +1,157 @@
-name: Deploy — Firebase Hosting & Functions
+name: Deploy — Firebase Hosting (Produksi)
+
+# @ai_context: Pipeline deploy otomatis ke Firebase Hosting saat push ke main.
+# Arsitektur: Vite build → Firebase CDN global (HTTPS)
+# Cloud Functions: DIHAPUS (Spark Plan, tanpa kartu kredit)
+# AI Proxy: Cloudflare Worker terpisah (workers/gemini-proxy/)
+# Notifikasi: Email ke dev.psajewelry@gmail.com saat sukses/gagal
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - 'src/**'
+      - 'public/**'
+      - 'index.html'
+      - 'firebase.json'
+      - 'firestore.rules'
+      - 'vite.config.*'
+      - 'package.json'
+      - 'package-lock.json'
+  workflow_dispatch:
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  build_and_deploy:
+    name: Build → Deploy Firebase Hosting
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v4.2.2
+        with:
+          fetch-depth: 0
+
+      - name: Setup Node.js 22
+        uses: actions/setup-node@39370e3970a6d050c480ffad4ff0ed4d3fdee5af # v4.1.0
+        with:
+          node-version: 22
+          cache: 'npm'
+
+      - name: Cache npm
+        uses: actions/cache@d4323d4df104b026c6a166049fb557cb5d0bedfc # v4.2.0
+        with:
+          path: ~/.npm
+          key: ${{ runner.os }}-node-${{ hashFiles('**/package-lock.json') }}
+          restore-keys: |
+            ${{ runner.os }}-node-
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: TypeScript — Type Check & Lint
+        run: npm run lint
+
+      - name: Build Produksi
+        run: npm run build
+        env:
+          # ── Firebase Core ─────────────────────────────────────────────────
+          VITE_FIREBASE_API_KEY: ${{ secrets.VITE_FIREBASE_API_KEY }}
+          VITE_FIREBASE_AUTH_DOMAIN: ${{ secrets.VITE_FIREBASE_AUTH_DOMAIN }}
+          VITE_FIREBASE_PROJECT_ID: ${{ secrets.VITE_FIREBASE_PROJECT_ID }}
+          VITE_FIREBASE_STORAGE_BUCKET: ${{ secrets.VITE_FIREBASE_STORAGE_BUCKET }}
+          VITE_FIREBASE_MESSAGING_SENDER_ID: ${{ secrets.VITE_FIREBASE_MESSAGING_SENDER_ID }}
+          VITE_FIREBASE_APP_ID: ${{ secrets.VITE_FIREBASE_APP_ID }}
+          # ── Security ──────────────────────────────────────────────────────
+          VITE_CRYPTO_PEPPER: ${{ secrets.VITE_CRYPTO_PEPPER }}
+          VITE_RECAPTCHA_SITE_KEY: ${{ secrets.VITE_RECAPTCHA_SITE_KEY }}
+          # ── AI Proxy (P0 Compliant — API key di Cloudflare, bukan di bundle) ─
+          VITE_GEMINI_PROXY_URL: ${{ secrets.VITE_GEMINI_PROXY_URL }}
+          # ── Monitoring ────────────────────────────────────────────────────
+          VITE_SENTRY_DSN: ${{ secrets.VITE_SENTRY_DSN }}
+
+      # ── Deploy Hosting ──────────────────────────────────────────────────
+      - name: Deploy ke Firebase Hosting (Live)
+        id: firebase_deploy
+        uses: FirebaseExtended/action-hosting-deploy@0cbcac4740c2bfb00d632f0b863b57713124eb5a # v0
+        with:
+          repoToken: '${{ secrets.GITHUB_TOKEN }}'
+          firebaseServiceAccount: '${{ secrets.FIREBASE_SERVICE_ACCOUNT }}'
+          channelId: live
+          projectId: '${{ secrets.FIREBASE_PROJECT_ID }}'
+
+      # ── Deploy Firestore Rules ───────────────────────────────────────────
+      - name: Deploy Firestore Security Rules
+        run: |
+          npx firebase-tools deploy --only firestore:rules \
+            --project "${{ secrets.FIREBASE_PROJECT_ID }}"
+        env:
+          FIREBASE_DEPLOY_TOKEN: ${{ secrets.FIREBASE_DEPLOY_TOKEN }}
+
+      # ── Summary ─────────────────────────────────────────────────────────
+      - name: Deploy Summary
+        if: success()
+        run: |
+          echo "## 🚀 Deploy Produksi Berhasil" >> $GITHUB_STEP_SUMMARY
+          echo "| | |" >> $GITHUB_STEP_SUMMARY
+          echo "|---|---|" >> $GITHUB_STEP_SUMMARY
+          echo "| **Live URL** | https://psa-business-suite.web.app |" >> $GITHUB_STEP_SUMMARY
+          echo "| **Commit** | \`${{ github.sha }}\` |" >> $GITHUB_STEP_SUMMARY
+          echo "| **Branch** | \`${{ github.ref_name }}\` |" >> $GITHUB_STEP_SUMMARY
+
+      # ── Notifikasi Email Sukses ──────────────────────────────────────────
+      - name: Email — Deploy Berhasil
+        if: success() && secrets.MAIL_USERNAME != ''
+        uses: dawidd6/action-send-mail@2cea9617b09d83a6b1cfef2f3f9b1a8c6aabe99a # v3.12.0
+        with:
+          server_address: smtp.gmail.com
+          server_port: 465
+          secure: true
+          username: ${{ secrets.MAIL_USERNAME }}
+          password: ${{ secrets.MAIL_PASSWORD }}
+          subject: '[PSA] 🚀 Deploy Produksi Berhasil — ${{ github.sha }}'
+          to: dev.psajewelry@gmail.com
+          from: PSA CI/CD Bot <${{ secrets.MAIL_USERNAME }}>
+          body: |
+            Halo,
+
+            PSA Business Suite berhasil di-deploy ke produksi.
+
+            ▸ Live URL : https://psa-business-suite.web.app
+            ▸ Commit   : ${{ github.sha }}
+            ▸ Pesan    : ${{ github.event.head_commit.message }}
+            ▸ Waktu    : ${{ github.event.head_commit.timestamp }}
+
+            Salam,
+            Sistem CI/CD PSA 🤖
+
+      # ── Notifikasi Email Gagal ───────────────────────────────────────────
+      - name: Email — Deploy Gagal
+        if: failure() && secrets.MAIL_USERNAME != ''
+        uses: dawidd6/action-send-mail@2cea9617b09d83a6b1cfef2f3f9b1a8c6aabe99a # v3.12.0
+        with:
+          server_address: smtp.gmail.com
+          server_port: 465
+          secure: true
+          username: ${{ secrets.MAIL_USERNAME }}
+          password: ${{ secrets.MAIL_PASSWORD }}
+          subject: '[PSA] ❌ Deploy GAGAL — Perlu Perhatian'
+          to: dev.psajewelry@gmail.com
+          from: PSA CI/CD Bot <${{ secrets.MAIL_USERNAME }}>
+          body: |
+            ⚠️ Deploy PSA Business Suite GAGAL.
+
+            ▸ Commit : ${{ github.sha }}
+            ▸ Log    : ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
+
+            Periksa log untuk diagnosis.
+
+            Salam,
+            Sistem CI/CD PSA 🤖
 
 # @ai_context: Pipeline deploy otomatis ke Firebase saat push ke main.
 # Hosting: Vite build → Firebase CDN global
@@ -11,7 +164,6 @@ on:
     paths:
       - 'src/**'
       - 'public/**'
-      - 'functions/**'
       - 'index.html'
       - 'firebase.json'
       - 'firestore.rules'

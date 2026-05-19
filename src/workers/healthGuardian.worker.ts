@@ -106,7 +106,7 @@ async function spotCheckHashChain(count: number): Promise<boolean> {
 
 /**
  * G-01 FIX: Kirim alert via postMessage ke main thread.
- * Main thread memanggil AlertService -> Cloud Function -> Telegram.
+ * Main thread memanggil AlertService -> Telegram Bot API (langsung, tanpa Cloud Function).
  * Worker TIDAK pernah menyentuh token apapun.
  * @security_tier: CRITICAL — JANGAN kembalikan logika token ke sini.
  */
@@ -115,7 +115,7 @@ function sendAlert(message: string): void {
   if ('Notification' in self && Notification.permission === 'granted') {
     new Notification('PSA Health Guardian', { body: message.substring(0, 200) });
   }
-  // Delegasi ke main thread -> AlertService -> Cloud Function proxy
+  // Delegasi ke main thread -> AlertService -> Telegram Bot API langsung
   self.postMessage({ type: 'SEND_ALERT', message });
 }
 

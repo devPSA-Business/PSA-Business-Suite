@@ -60,7 +60,7 @@ export function SystemAuditReportPage() {
               <ul className="space-y-3 text-sm">
                 <li className="flex items-start gap-2"><span className="bg-green-100 text-green-800 text-[10px] font-bold px-2 py-0.5 rounded-full mt-0.5 whitespace-nowrap">DONE</span> <span className="text-stone-600 leading-relaxed">Clean Architecture + FSD konsisten di 318+ file</span></li>
                 <li className="flex items-start gap-2"><span className="bg-green-100 text-green-800 text-[10px] font-bold px-2 py-0.5 rounded-full mt-0.5 whitespace-nowrap">DONE</span> <span className="text-stone-600 leading-relaxed">Offline-first nyata — Dexie.js + sync queue berfungsi</span></li>
-                <li className="flex items-start gap-2"><span className="bg-green-100 text-green-800 text-[10px] font-bold px-2 py-0.5 rounded-full mt-0.5 whitespace-nowrap">DONE</span> <span className="text-stone-600 leading-relaxed">BFF Migration selesai: hashPin + queryGemini → Cloud Functions</span></li>
+                <li className="flex items-start gap-2"><span className="bg-green-100 text-green-800 text-[10px] font-bold px-2 py-0.5 rounded-full mt-0.5 whitespace-nowrap">DONE</span> <span className="text-stone-600 leading-relaxed">Migrasi selesai: hashPin → Web Crypto API | Gemini → Cloudflare Worker Proxy</span></li>
                 <li className="flex items-start gap-2"><span className="bg-green-100 text-green-800 text-[10px] font-bold px-2 py-0.5 rounded-full mt-0.5 whitespace-nowrap">DONE</span> <span className="text-stone-600 leading-relaxed">Blokir transaksi Rp 0 di CheckoutUseCase.ts</span></li>
                 <li className="flex items-start gap-2"><span className="bg-green-100 text-green-800 text-[10px] font-bold px-2 py-0.5 rounded-full mt-0.5 whitespace-nowrap">DONE</span> <span className="text-stone-600 leading-relaxed">Nuclear Lockout pindah ke Dexie (keyval)</span></li>
                 <li className="flex items-start gap-2"><span className="bg-green-100 text-green-800 text-[10px] font-bold px-2 py-0.5 rounded-full mt-0.5 whitespace-nowrap">DONE</span> <span className="text-stone-600 leading-relaxed">Per-user UUID salt PBKDF2 via ensureUserSalt()</span></li>
@@ -74,7 +74,7 @@ export function SystemAuditReportPage() {
               <ul className="space-y-3 text-sm">
                 <li className="flex items-start gap-2"><span className="bg-red-100 text-red-800 text-[10px] font-bold px-2 py-0.5 rounded-full mt-0.5 whitespace-nowrap">P1</span> <span className="text-stone-600 leading-relaxed">Dexie schema v40–41 belum di-squash (Sudah diatasi)</span></li>
                 <li className="flex items-start gap-2"><span className="bg-red-100 text-red-800 text-[10px] font-bold px-2 py-0.5 rounded-full mt-0.5 whitespace-nowrap">P1</span> <span className="text-stone-600 leading-relaxed">api/index.ts masih ada di repo (Sudah dihapus)</span></li>
-                <li className="flex items-start gap-2"><span className="bg-red-100 text-red-800 text-[10px] font-bold px-2 py-0.5 rounded-full mt-0.5 whitespace-nowrap">P1</span> <span className="text-stone-600 leading-relaxed">Cloud Functions Gen2 butuh Blaze Plan</span></li>
+                <li className="flex items-start gap-2"><span className="bg-red-100 text-red-800 text-[10px] font-bold px-2 py-0.5 rounded-full mt-0.5 whitespace-nowrap">P1</span> <span className="text-stone-600 leading-relaxed">Cloud Functions dihapus — diganti Cloudflare Worker (gratis, tanpa kartu kredit)</span></li>
                 <li className="flex items-start gap-2"><span className="bg-amber-100 text-amber-800 text-[10px] font-bold px-2 py-0.5 rounded-full mt-0.5 whitespace-nowrap">P2</span> <span className="text-stone-600 leading-relaxed">Workspace/Petty Cash UI belum terhubung (Sudah terhubung)</span></li>
                 <li className="flex items-start gap-2"><span className="bg-amber-100 text-amber-800 text-[10px] font-bold px-2 py-0.5 rounded-full mt-0.5 whitespace-nowrap">P2</span> <span className="text-stone-600 leading-relaxed">Navigasi 22+ rute flat — belum ada hierarki 5 halaman</span></li>
                 <li className="flex items-start gap-2"><span className="bg-amber-100 text-amber-800 text-[10px] font-bold px-2 py-0.5 rounded-full mt-0.5 whitespace-nowrap">P2</span> <span className="text-stone-600 leading-relaxed">PrintServiceImpl ada tapi tidak ada UI printer di Settings</span></li>
@@ -140,11 +140,11 @@ export function SystemAuditReportPage() {
           <div className="space-y-4">
              <div className="mb-4">
               <h2 className="text-xl font-bold font-serif mb-1">Arsitektur Sistem & Status Migrasi</h2>
-              <p className="text-stone-500 text-sm">Stack teknologi, keputusan arsitektur kritis, dan status migrasi BFF → Cloud Functions.</p>
+              <p className="text-stone-500 text-sm">Stack teknologi, keputusan arsitektur kritis, dan status sistem saat ini.</p>
             </div>
             <div className="bg-green-50 border border-green-200 rounded-xl p-4 mb-4">
-              <h4 className="text-green-800 font-bold text-sm">✅ MIGRASI BFF SELESAI (Keputusan Strategis)</h4>
-              <p className="text-green-700 text-xs mt-1">Semua endpoint sensitif (hash-pin, ask-gemini) telah dipindahkan dari Express BFF ke Firebase Cloud Functions Gen1.</p>
+              <h4 className="text-green-800 font-bold text-sm">✅ ARSITEKTUR ZERO-COST AKTIF (Spark Plan — Rp 0/bulan)</h4>
+              <p className="text-green-700 text-xs mt-1">hashPin menggunakan Web Crypto API (browser). Gemini AI melewati Cloudflare Worker Proxy. Tidak ada Cloud Functions.</p>
             </div>
             <div className="bg-white border text-sm border-stone-200 rounded-xl p-4 shadow-sm font-mono overflow-x-auto text-xs whitespace-pre">
 {`┌──────────────────────────────────────────────────────────┐

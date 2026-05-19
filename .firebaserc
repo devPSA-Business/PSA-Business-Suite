@@ -1,0 +1,8 @@
+{
+  "projects": {
+    "default": "psa-business-suite",
+    "production": "psa-business-suite"
+  },
+  "targets": {},
+  "etags": {}
+}

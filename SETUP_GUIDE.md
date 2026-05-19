@@ -1,184 +1,196 @@
-# 🚀 PSA Business Suite — Setup Guide (Owner)
+# PSA Business Suite — Panduan Setup (Owner)
 
-> Panduan ini untuk menghidupkan proyek dari nol hingga live HTTPS.  
-> Baca urut dari atas ke bawah.
+> Dokumen ini adalah **satu-satunya sumber kebenaran** untuk setup infrastruktur.  
+> Baca urut. Jangan lewati fase.
 
 ---
 
-## ✅ Status Arsitektur
+## Status Sistem Saat Ini
 
-| Komponen | Status | Biaya |
+| Komponen | Status | URL / Catatan |
 |---|---|---|
-| Firebase Hosting (CDN + HTTPS) | ✅ Aktif | Rp 0 |
-| Firestore (Database offline-sync) | ✅ Aktif | Rp 0 |
-| Firebase Auth (Login) | ✅ Aktif | Rp 0 |
-| Firebase Storage (Foto) | ✅ Aktif | Rp 0 |
-| Gemini AI (NLQ/Tanya AI) | ✅ Client-side | Rp 0 (1500 req/hari gratis) |
-| Telegram Alert (Notifikasi) | ✅ Client-side | Rp 0 |
-| Cloud Functions | ❌ Dihapus | Butuh kartu kredit |
-| Vercel | ❌ Dihapus | Butuh kartu kredit |
-
-**Live URL:** `https://psa-business-suite.web.app`
+| Firebase Hosting (HTTPS) | ✅ Terkonfigurasi | https://psa-business-suite.web.app |
+| Firebase Auth | ✅ Terkonfigurasi | Login email + PIN kasir |
+| Firestore (database offline-sync) | ✅ Terkonfigurasi | Spark Plan — Rp 0/bulan |
+| CI/CD GitHub Actions | ✅ Aktif | Auto-deploy saat push ke `main` |
+| Preview Channel (lingkungan dev) | ✅ Aktif | URL otomatis per-PR, 7 hari |
+| Gemini AI (tanya analitik) | 🟡 Perlu Cloudflare Worker | Lihat Fase 5 |
+| Notifikasi Telegram | 🟡 Opsional | Lihat Fase 4 |
+| APK Android | 🟡 Perlu Keystore | Lihat Fase 6 |
+| **Total biaya** | **Rp 0/bulan** | Firebase Spark Plan |
 
 ---
 
-## LANGKAH 1 — Set GitHub Secrets (Wajib)
+## FASE 1 — Buat PAT (Token GitHub) yang Aman
 
-### Cara Otomatis (Direkomendasikan)
+> PAT dibutuhkan untuk workflow `bootstrap-secrets.yml` agar bisa auto-generate CRYPTO_PEPPER.
 
-1. Install GitHub CLI: https://cli.github.com/
-2. Buka terminal, jalankan:
-   ```bash
-   cd PSA-Business-Suite
-   bash scripts/setup-github-secrets.sh
-   ```
-3. Ikuti instruksi di layar — script akan tanya satu per satu
+1. Buka: https://github.com/settings/personal-access-tokens/new
+2. Isi form:
+   - **Token name**: `PSA-Secrets-Write`
+   - **Expiration**: 90 days
+   - **Repository access**: `devPSA-Business/PSA-Business-Suite` (only this repo)
+   - **Permissions**: `Secrets → Read & Write`, `Actions → Read & Write`
+3. Klik **Generate token** → **copy nilainya sekarang** (hanya tampil sekali)
+4. Simpan di password manager (bukan di chat atau notepad)
 
-### Cara Manual (via Browser)
+---
 
-Buka: **https://github.com/devPSA-Business/PSA-Business-Suite/settings/secrets/actions**
+## FASE 2 — Set 10 Secrets Wajib di GitHub
 
-#### 🔴 WAJIB ADA (deploy gagal tanpa ini)
+Buka: https://github.com/devPSA-Business/PSA-Business-Suite/settings/secrets/actions  
+Klik **New repository secret** untuk setiap baris.
 
-| Secret | Sumber | Contoh Nilai |
+### 2A. Firebase Core (6 secrets)
+
+> Sumber: https://console.firebase.google.com → Project PSA → ⚙️ Project Settings → General → Your apps → tab Config
+
+| Nama Secret | Contoh Nilai |
+|---|---|
+| `VITE_FIREBASE_API_KEY` | `AIzaSyXXXXXXXXXXXXXXXXXXXXXXXX` |
+| `VITE_FIREBASE_AUTH_DOMAIN` | `psa-business-suite.firebaseapp.com` |
+| `VITE_FIREBASE_PROJECT_ID` | `psa-business-suite` |
+| `VITE_FIREBASE_STORAGE_BUCKET` | `psa-business-suite.firebasestorage.app` |
+| `VITE_FIREBASE_MESSAGING_SENDER_ID` | `123456789012` |
+| `VITE_FIREBASE_APP_ID` | `1:123456:web:abc123def456` |
+
+### 2B. Firebase Service Account (2 secrets)
+
+> Sumber: Firebase Console → ⚙️ Project Settings → Service accounts → **Generate new private key** → download file JSON
+
+| Nama Secret | Nilai |
+|---|---|
+| `FIREBASE_SERVICE_ACCOUNT` | Seluruh isi file JSON yang didownload (copy-paste semua teks dari `{` sampai `}`) |
+| `FIREBASE_PROJECT_ID` | Sama persis dengan `VITE_FIREBASE_PROJECT_ID` |
+
+### 2C. Firebase Deploy Token (1 secret)
+
+> Jalankan perintah ini di terminal HP/komputer kamu:
+
+```bash
+npx firebase-tools login:ci
+```
+
+Browser terbuka → Login Google → copy token yang muncul di terminal.
+
+| Nama Secret | Nilai |
+|---|---|
+| `FIREBASE_DEPLOY_TOKEN` | Token panjang yang dimulai dengan `1//0a...` |
+
+### 2D. PAT untuk Bootstrap (1 secret)
+
+| Nama Secret | Nilai |
+|---|---|
+| `PAT_SECRETS_WRITE` | Token yang dibuat di Fase 1 |
+
+---
+
+## FASE 3 — Generate CRYPTO_PEPPER (Otomatis)
+
+> CRYPTO_PEPPER adalah kunci keamanan untuk hash PIN kasir.  
+> **Wajib di-generate via workflow** — nilainya tidak boleh dibuat manual.
+
+1. Pastikan `PAT_SECRETS_WRITE` sudah diset (Fase 2D)
+2. Buka: https://github.com/devPSA-Business/PSA-Business-Suite/actions/workflows/bootstrap-secrets.yml
+3. Klik **Run workflow** → pilih `all-generated` → klik **Run workflow**
+4. Tunggu ~30 detik → `VITE_CRYPTO_PEPPER` ter-set otomatis
+
+> ⚠️ Jangan regenerate pepper setelah ada pengguna aktif. Semua PIN yang sudah dibuat akan tidak valid.
+
+---
+
+## FASE 4 — Setup Repository (Sekali)
+
+> Mengatur branch protection, merge strategy, labels, dan Dependabot otomatis.
+
+1. Buka: https://github.com/devPSA-Business/PSA-Business-Suite/actions/workflows/setup-repo-settings.yml
+2. Klik **Run workflow** → ketik `YES` → klik **Run workflow**
+
+Selesai. Tidak perlu diulangi kecuali ada reset repo.
+
+---
+
+## FASE 5 — Secrets Opsional (Tambahkan Bertahap)
+
+Tambahkan setelah Fase 2–4 selesai. App tetap berjalan tanpa ini.
+
+| Nama Secret | Untuk Apa | Cara Mendapat |
 |---|---|---|
-| `VITE_FIREBASE_API_KEY` | Firebase Console → Project Settings → Your apps → Config | `AIzaSyXXXXX` |
-| `VITE_FIREBASE_AUTH_DOMAIN` | (sama) | `psa-business-suite.firebaseapp.com` |
-| `VITE_FIREBASE_PROJECT_ID` | (sama) | `psa-business-suite` |
-| `VITE_FIREBASE_STORAGE_BUCKET` | (sama) | `psa-business-suite.firebasestorage.app` |
-| `VITE_FIREBASE_MESSAGING_SENDER_ID` | (sama) | `123456789012` |
-| `VITE_FIREBASE_APP_ID` | (sama) | `1:123:web:abc` |
-| `FIREBASE_PROJECT_ID` | Sama dengan `VITE_FIREBASE_PROJECT_ID` | `psa-business-suite` |
-| `FIREBASE_SERVICE_ACCOUNT` | Firebase Console → Project Settings → Service Accounts → Generate new private key → isi seluruh isi file JSON | `{"type":"service_account",...}` |
-| `FIREBASE_DEPLOY_TOKEN` | Jalankan `npx firebase-tools login:ci` di terminal | `1//0aXXXXX` |
-
-#### 🟡 OPSIONAL (app jalan tanpa ini, fitur tertentu disabled)
-
-| Secret | Sumber | Dampak jika kosong |
-|---|---|---|
-| `VITE_CRYPTO_PEPPER` | **Di-generate otomatis** via Langkah 2 | PIN hash tanpa pepper |
-| `VITE_GEMINI_API_KEY` | https://aistudio.google.com/app/apikey | Fitur AI/NLQ tidak tersedia |
-| `VITE_TELEGRAM_BOT_TOKEN` | BotFather Telegram → /newbot | Alert sistem tidak kirim |
-| `VITE_TELEGRAM_CHAT_ID` | `api.telegram.org/bot<TOKEN>/getUpdates` | Alert sistem tidak kirim |
-| `VITE_RECAPTCHA_SITE_KEY` | Google Cloud → reCAPTCHA Enterprise | App Check disabled |
-| `VITE_SENTRY_DSN` | https://sentry.io | Error monitoring disabled |
-| `MAIL_USERNAME` | Email Gmail CI/CD | Notifikasi deploy by email disabled |
-| `MAIL_PASSWORD` | Gmail → Google Account → Security → App Passwords | (sama atas) |
+| `VITE_GEMINI_PROXY_URL` | Fitur tanya AI (NLQ) | Deploy Cloudflare Worker dulu (lihat `workers/gemini-proxy/README.md`) |
+| `VITE_TELEGRAM_BOT_TOKEN` | Alert otomatis sistem | BotFather di Telegram → `/newbot` |
+| `VITE_TELEGRAM_CHAT_ID` | Tujuan alert Telegram | `api.telegram.org/bot<TOKEN>/getUpdates` setelah kirim pesan ke bot |
+| `VITE_RECAPTCHA_SITE_KEY` | Proteksi anti-bot | Google Cloud Console → reCAPTCHA Enterprise |
+| `VITE_SENTRY_DSN` | Laporan error otomatis | sentry.io → New Project → DSN |
+| `MAIL_USERNAME` | Email notifikasi CI/CD | Gmail yang ingin dipakai untuk kirim notif |
+| `MAIL_PASSWORD` | Password Gmail App | Gmail → Akun Google → Keamanan → Sandi Aplikasi |
 
 ---
 
-## LANGKAH 2 — Generate VITE_CRYPTO_PEPPER (Otomatis)
+## FASE 6 — Deploy Pertama (Live URL)
 
-> Crypto Pepper adalah kunci keamanan untuk hash PIN kasir.  
-> **JANGAN buat manual** — gunakan workflow otomatis agar nilai benar-benar random.
-
-1. Buka: https://github.com/devPSA-Business/PSA-Business-Suite/settings/secrets/actions
-2. Buat secret baru: `PAT_SECRETS_WRITE` → isi dengan Fine-grained PAT kamu
-   - Buat PAT di: https://github.com/settings/tokens?type=beta
-   - Permission yang dibutuhkan: **Secrets → Read & Write**
-3. Buka: https://github.com/devPSA-Business/PSA-Business-Suite/actions/workflows/bootstrap-secrets.yml
-4. Klik **Run workflow** → Input: `all-generated` → **Run workflow**
-5. Tunggu ±30 detik → ✅ VITE_CRYPTO_PEPPER ter-set otomatis
-
-> ⚠️ **PENTING**: Jika pepper di-generate ulang, semua user yang punya PIN lama  
-> harus **reset PIN** karena hash lama tidak akan cocok.
-
----
-
-## LANGKAH 3 — Trigger Deploy
-
-Setelah semua secrets di-set:
+Setelah Fase 2–3 selesai:
 
 1. Buka: https://github.com/devPSA-Business/PSA-Business-Suite/actions/workflows/deploy.yml
 2. Klik **Run workflow** → **Run workflow**
 3. Tunggu ±5 menit
 4. ✅ Live di: **https://psa-business-suite.web.app**
 
-Atau: lakukan push kecil ke `main` — deploy otomatis berjalan.
+Atau push commit kecil ke `main` — deploy berjalan otomatis.
 
 ---
 
-## LANGKAH 4 — Konfigurasi Repo (Sekali)
+## FASE 7 — APK Android (Opsional)
 
-Untuk set branch protection, merge strategy, dll:
+> APK dibuat dari PWA yang sudah ada — tidak perlu rewrite kode.  
+> Didistribusikan ke HP kamu dan pasangan via email (Firebase App Distribution).
 
-1. Buka: https://github.com/devPSA-Business/PSA-Business-Suite/actions/workflows/setup-repo-settings.yml
-2. Klik **Run workflow** → Ketik `YES` → **Run workflow**
-
----
-
-## 🔄 Cara Regenerate Secret dengan Aman
-
-| Kondisi | Cara |
-|---|---|
-| Lupa nilai secret | Cukup set ulang di GitHub Settings → nilai lama otomatis terganti |
-| Regenerate CRYPTO_PEPPER | Jalankan Bootstrap workflow → **user yang punya PIN perlu reset** |
-| Token GitHub kadaluarsa | Buat token baru di settings, update secret `PAT_SECRETS_WRITE` |
-| FIREBASE_SERVICE_ACCOUNT expired | Firebase Console → Generate key baru → update secret |
-
----
-
-## 📋 Struktur CI/CD Pipeline
-
-```
-Push ke main
-    │
-    ▼
-CI Quality Gate (ci.yml)
-    ├── TypeScript check
-    ├── ESLint lint
-    └── Vitest tests + coverage
-    │
-    ▼ (jika CI pass)
-Deploy (deploy.yml)
-    ├── npm run build (Vite + env secrets)
-    ├── Firebase Hosting deploy
-    ├── Firestore Rules deploy
-    └── Email notifikasi sukses/gagal
-    │
-    ▼
-https://psa-business-suite.web.app (LIVE ✅)
-```
-
----
-
-*Auto-generated oleh PSA AI Architect — 2026-05-17*
-
----
-
-## LANGKAH 5 — Deploy Cloudflare Worker (Fix Keamanan P0)
-
-> Worker ini menyembunyikan Gemini API Key dari bundle JS — wajib untuk produksi.  
-> Gratis tanpa kartu kredit: 100.000 req/hari (PSA pakai max ~720 req/hari).
+### Generate Keystore (sekali seumur hidup)
 
 ```bash
-# Di terminal kamu
-cd workers/gemini-proxy
-npm install
-npx wrangler login          # Login ke Cloudflare (gratis, buat akun di cloudflare.com)
-npx wrangler secret set GEMINI_API_KEY   # Masukkan API key Gemini — tidak masuk log
-npx wrangler deploy
-# Output: https://psa-gemini-proxy.{nama-akun}.workers.dev
+keytool -genkey -v \
+  -keystore psa.keystore \
+  -alias psa-signing-key \
+  -keyalg RSA -keysize 2048 -validity 10000 \
+  -dname "CN=PSA Jewellery,O=PSA,L=Sampit,ST=Kalteng,C=ID"
+
+# Encode ke base64
+base64 psa.keystore | tr -d '\n'
 ```
 
-Setelah deploy, copy URL worker → set sebagai GitHub Secret:
-- **Name**: `VITE_GEMINI_PROXY_URL`
-- **Value**: `https://psa-gemini-proxy.{nama-akun}.workers.dev`
+Simpan file `psa.keystore` di tempat aman (Google Drive terkunci, bukan di repo).
+
+### Set 5 Secrets APK
+
+| Nama Secret | Nilai |
+|---|---|
+| `KEYSTORE_BASE64` | Output perintah `base64 psa.keystore` |
+| `KEYSTORE_PASSWORD` | Password yang dimasukkan saat `keytool -genkey` |
+| `KEYSTORE_KEY_ALIAS` | `psa-signing-key` |
+| `KEYSTORE_KEY_PASSWORD` | Sama dengan `KEYSTORE_PASSWORD` |
+| `APK_TESTER_EMAILS` | Email kamu dan pasangan, pisah koma |
+
+### Build APK
+
+1. Buka: https://github.com/devPSA-Business/PSA-Business-Suite/actions/workflows/twa-build.yml
+2. Klik **Run workflow** → isi catatan update → **Run workflow**
+3. APK dikirim ke email yang ada di `APK_TESTER_EMAILS`
 
 ---
 
-## Alur Dev/Prod yang Berlaku Sekarang
+## Checklist Status Setup
 
 ```
-AI Studio Google (dev)          main branch
-  ↓ commit ke branch             ↓ auto trigger
-  develop / ui/* / fix/*     GitHub Actions CI
-  ↓                              ↓ build + test
-  GitHub PR                   Firebase Hosting Deploy
-  ↓ preview URL otomatis         ↓
-  https://psa-business-suite    https://psa-business-suite.web.app
-  --{pr-id}-hash.web.app         (PRODUKSI — HTTPS)
-  (PREVIEW — 7 hari)
+[ ] FASE 1  — PAT baru dibuat & disimpan di password manager
+[ ] FASE 2A — 6 secrets VITE_FIREBASE_* diset
+[ ] FASE 2B — FIREBASE_SERVICE_ACCOUNT + FIREBASE_PROJECT_ID diset
+[ ] FASE 2C — FIREBASE_DEPLOY_TOKEN diset
+[ ] FASE 2D — PAT_SECRETS_WRITE diset
+[ ] FASE 3  — Bootstrap workflow dijalankan (VITE_CRYPTO_PEPPER)
+[ ] FASE 4  — setup-repo-settings.yml dijalankan
+[ ] FASE 6  — Deploy pertama berhasil → https://psa-business-suite.web.app
+[ ] FASE 7  — APK dibuat dan dikirim ke HP (opsional)
 ```
 
-**AI Studio Google** → buat branch → push → PR otomatis dibuat → Firebase Preview URL muncul di komentar PR → kamu review → merge ke `main` → deploy produksi otomatis.
+---
+
+*Terakhir diupdate: 2026-05-19 | Dibuat oleh PSA AI Architect*

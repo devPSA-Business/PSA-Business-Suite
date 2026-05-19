@@ -20,7 +20,6 @@ import { useSecurityStore } from './shared/store/useSecurityStore';
 import { useAuthStore } from './shared/store/authStore';
 import { backupManager } from './shared/utils/backupManager';
 import { DevPreviewBanner } from './shared/components/DevPreviewBanner';
-import { Analytics } from '@vercel/analytics/react';
 import { useEventListener } from './shared/hooks/useEventListener';
 
 
@@ -381,7 +380,6 @@ export default function App() {
       <DevPreviewBanner />
       <SystemHealthBot />
       <RouterProvider router={router} />
-      <Analytics />
     </ErrorBoundary>
   );
 }

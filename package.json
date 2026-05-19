@@ -25,7 +25,6 @@
   "dependencies": {
     "@tanstack/react-router": "^1.168.8",
     "@tanstack/react-virtual": "^3.13.24",
-    "@vercel/analytics": "^2.0.1",
     "clsx": "^2.1.1",
     "date-fns": "^4.1.0",
     "decimal.js": "^10.6.0",

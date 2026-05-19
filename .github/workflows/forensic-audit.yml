@@ -106,11 +106,6 @@ jobs:
       - name: NPM Audit (high severity)
         run: npm audit --audit-level=high
 
-      - name: Functions — NPM Audit
-        run: |
-          cd functions
-          npm ci
-          npm audit --audit-level=high
 
   # ── Job 3: CodeQL SAST ────────────────────────────────────────────────────
   codeql:

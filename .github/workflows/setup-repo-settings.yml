@@ -71,7 +71,7 @@ jobs:
                 "Lint \u00b7 TypeCheck \u00b7 Test \u00b7 Coverage",
                 "TypeScript \u00b7 ESLint \u00b7 Architecture",
                 "Dependency Audit",
-                "NPM Audit Scan"
+                "CodeQL SAST"
               ]
             },
             "enforce_admins": false,

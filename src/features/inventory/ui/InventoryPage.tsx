@@ -4,8 +4,7 @@ import { Edit2, Trash2, Plus, X, Filter, Search, Scan } from 'lucide-react';
 import { motion, AnimatePresence } from 'motion/react';
 import { StockItem } from '../../../shared/api/db';
 import { DIContainer } from '@infrastructure/di/Container';
-import { InventoryListFilter } from '../../../application/queries/ILiveQueries';
-import { InventoryFilterDrawer } from '../components/InventoryFilterDrawer';
+import { InventoryFilterDrawer, InventoryFilterState } from '../components/InventoryFilterDrawer';
 import { useToastStore } from '../../../shared/store/toastStore';
 import { useAuthStore } from '../../../shared/store/authStore';
 import { StockCategory, StockCategoryLabels } from '../../../domain/models/StockCategory';
@@ -28,7 +27,7 @@ export function InventoryPage() {
   };
   const [isFilterOpen, setIsFilterOpen] = useState(false);
   const [searchTerm, setSearchTerm] = useState('');
-  const [filters, setFilters] = useState<InventoryListFilter>({
+  const [filters, setFilters] = useState<InventoryFilterState>({
     category: 'all',
     aging: 'all'
   });

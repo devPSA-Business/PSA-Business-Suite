@@ -125,8 +125,8 @@ export class NLQService {
     await DIContainer.unitOfWork.registerAudit(
       'NLQ_QUERY_EXECUTED',
       userId,
-      'NLQ query dikirim ke AI',
-      { userId, question: question.slice(0, 200) }
+      `NLQ query dikirim ke AI: ${question.slice(0, 200)}`,
+      { userId }
     ).catch((err) => logger.error('[NLQService] Audit log gagal', err));
 
     const sanitized = this.sanitize(aggregates);

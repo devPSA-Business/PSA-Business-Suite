@@ -7,11 +7,12 @@ import { useLiveQuery } from 'dexie-react-hooks';
 import { DIContainer } from '../../../infrastructure/di/Container';
 import { ReceiptText, ArrowRight } from 'lucide-react';
 import { Link } from '@tanstack/react-router';
+import type { Transaction } from '../../../shared/api/db';
 
 export function RecentTransactionWidget() {
   const openShift = useLiveQuery(() => DIContainer.liveQueries.observeOpenShift(), []);
 
-  const recentTransactions = useLiveQuery(
+  const recentTransactions = useLiveQuery<Transaction[]>(
     () => {
       if (!openShift) return Promise.resolve([]);
       return DIContainer.liveQueries.observeRecentTransactions(openShift.startTime, 5);

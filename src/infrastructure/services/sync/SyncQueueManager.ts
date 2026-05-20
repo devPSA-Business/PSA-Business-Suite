@@ -133,7 +133,7 @@ export class SyncQueueManager {
   async markConflict(conflicts: { eventId: number; serverPayload: unknown }[]): Promise<void> {
     await db.transaction('rw', db.sync_events, async () => {
       for (const { eventId, serverPayload } of conflicts) {
-        await db.sync_events.update(eventId, { status: 'CONFLICT', server_payload: serverPayload });
+        await db.sync_events.update(eventId, { status: 'CONFLICT', server_payload: serverPayload as Record<string, unknown> });
       }
     });
   }

@@ -1,10 +1,24 @@
+/**
+ * @ai_context: Halaman kunci layar dengan autentikasi PIN dan pemulihan via Recovery Key.
+ * @security_tier: HIGH
+ * @business_rule: Recovery Key flow memungkinkan owner mereset PIN tanpa kehilangan data.
+ *                 Recovery Key TIDAK disimpan di server — hanya disimpan fisik oleh owner.
+ * @data-component-id: locked-page
+ * @data-error-domain: auth
+ * @changelog:
+ *   2026-05-20 — Tambah "Lupa PIN? Gunakan Recovery Key" flow (P1 Remediation)
+ */
 import React, { useState, useEffect, useCallback } from 'react';
 import { useNavigate, useSearch } from '@tanstack/react-router';
-import { Lock, ArrowLeft, User as UserIcon, ChevronRight, AlertTriangle, Beaker, RotateCcw } from 'lucide-react';
+import { Lock, ArrowLeft, User as UserIcon, ChevronRight, AlertTriangle, Beaker, RotateCcw, KeyRound, Eye, EyeOff } from 'lucide-react';
 import { useSecurityStore, hashPin } from '../shared/store/useSecurityStore';
 import { CustomNumpad } from '../features/pos/components/CustomNumpad';
 import { db, User } from '../shared/api/db';
 import { useToastStore } from '../shared/store/toastStore';
+import { cryptoDB } from '../lib/cryptoIndexedDB';
+
+/** Sub-view yang sedang aktif di LockedPage */
+type ActiveView = 'select_user' | 'enter_pin' | 'force_pin_change' | 'recovery_key' | 'reset_confirm';
 
 export function LockedPage() {
   const { isPinVerified, verifyUserPin } = useSecurityStore();
@@ -14,15 +28,21 @@ export function LockedPage() {
   const [pinInput, setPinInput] = useState('');
   const [error, setError] = useState(false);
   const [isLoading, setIsLoading] = useState(true);
-  
+  const [activeView, setActiveView] = useState<ActiveView>('select_user');
+
   // Force PIN Change State
-  const [requirePinChange, setRequirePinChange] = useState(false);
   const [newPin, setNewPin] = useState('');
   const [confirmNewPin, setConfirmNewPin] = useState('');
   const [pinChangeError, setPinChangeError] = useState('');
 
-  // Reset Confirmation State
-  const [showResetConfirm, setShowResetConfirm] = useState(false);
+  // Recovery Key State
+  const [recoveryKeyInput, setRecoveryKeyInput] = useState('');
+  const [showRecoveryKey, setShowRecoveryKey] = useState(false);
+  const [recoveryNewPin, setRecoveryNewPin] = useState('');
+  const [recoveryConfirmPin, setRecoveryConfirmPin] = useState('');
+  const [recoveryError, setRecoveryError] = useState('');
+  const [recoveryStep, setRecoveryStep] = useState<'enter_key' | 'set_new_pin'>('enter_key');
+  const [isRecovering, setIsRecovering] = useState(false);
 
   const navigate = useNavigate();
   const search = useSearch({ from: '/locked' });
@@ -41,13 +61,12 @@ export function LockedPage() {
     fetchUsers();
   }, []);
 
-  // Jika sudah terverifikasi, kembalikan ke halaman sebelumnya
   useEffect(() => {
-    if (isPinVerified && !requirePinChange) {
+    if (isPinVerified && activeView === 'enter_pin') {
       // eslint-disable-next-line @typescript-eslint/no-explicit-any
       navigate({ to: (search.redirect as any) || '/' });
     }
-  }, [isPinVerified, navigate, search.redirect, requirePinChange]);
+  }, [isPinVerified, navigate, search.redirect, activeView]);
 
   const handlePress = useCallback((value: string) => {
     if (pinInput.length < 6 && value !== '.') {
@@ -63,7 +82,7 @@ export function LockedPage() {
 
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
-      if (!selectedUser || showResetConfirm) return;
+      if (activeView !== 'enter_pin') return;
       if (/^[0-9]$/.test(e.key)) {
         e.preventDefault();
         handlePress(e.key);
@@ -72,23 +91,18 @@ export function LockedPage() {
         handleDelete();
       }
     };
-
     window.addEventListener('keydown', handleKeyDown);
     return () => window.removeEventListener('keydown', handleKeyDown);
-  }, [pinInput, selectedUser, showResetConfirm, handlePress, handleDelete]);
+  }, [activeView, handlePress, handleDelete]);
 
   useEffect(() => {
-    if (pinInput.length === 6 && selectedUser && !requirePinChange) {
+    if (pinInput.length === 6 && selectedUser && activeView === 'enter_pin') {
       const checkPin = async () => {
-        // CEGAT DI SINI: Jika Admin Default dan PIN Default, JANGAN login dulu.
         const needsChange = await useSecurityStore.getState().checkRequiresPinChange(selectedUser.id, pinInput);
-        
         if (needsChange) {
-           setRequirePinChange(true);
-           return; 
+          setActiveView('force_pin_change');
+          return;
         }
-
-        // Jika bukan kondisi di atas, lakukan verifikasi normal
         const isValid = await verifyUserPin(selectedUser.id, pinInput);
         if (!isValid) {
           setError(true);
@@ -100,27 +114,18 @@ export function LockedPage() {
       };
       checkPin();
     }
-  }, [pinInput, selectedUser, verifyUserPin, requirePinChange]);
+  }, [pinInput, selectedUser, verifyUserPin, activeView]);
 
   const handleSaveNewPin = async () => {
     setPinChangeError('');
-    if (newPin.length !== 6) {
-      setPinChangeError('PIN baru harus 6 digit angka.');
-      return;
-    }
-    if (newPin !== confirmNewPin) {
-      setPinChangeError('Konfirmasi PIN tidak cocok.');
-      return;
-    }
+    if (newPin.length !== 6) { setPinChangeError('PIN baru harus 6 digit angka.'); return; }
+    if (newPin !== confirmNewPin) { setPinChangeError('Konfirmasi PIN tidak cocok.'); return; }
     if (!selectedUser) return;
-
     try {
       const hashedNewPin = await hashPin(newPin, selectedUser.id);
       await db.users.update(selectedUser.id, { pinHash: hashedNewPin });
       addToast('PIN berhasil diperbarui. Silakan masuk dengan PIN baru Anda.', 'success');
-      
-      // Reset state agar kembali ke layar input PIN untuk menguji PIN baru
-      setRequirePinChange(false);
+      setActiveView('enter_pin');
       setPinInput('');
       setNewPin('');
       setConfirmNewPin('');
@@ -130,23 +135,123 @@ export function LockedPage() {
     }
   };
 
+  /**
+   * Alur Recovery Key — Step 1: Verifikasi recovery key dan buka database.
+   * Menggunakan cryptoDB.unwrapKeyWithRecoveryKey yang baru diimplementasikan.
+   */
+  const handleVerifyRecoveryKey = async () => {
+    if (!selectedUser) return;
+    if (!recoveryKeyInput.trim()) {
+      setRecoveryError('Recovery Key tidak boleh kosong.');
+      return;
+    }
+    setIsRecovering(true);
+    setRecoveryError('');
+    try {
+      // Ambil wrapped device key dan salt dari db.keyval
+      const wrappedByRK = await db.keyval.get('rk_wrapped_device_key');
+      const saltBase64 = await db.keyval.get('device_key_salt');
+
+      if (!wrappedByRK?.value || !saltBase64?.value) {
+        setRecoveryError(
+          'Recovery Key tidak terdaftar di perangkat ini. ' +
+          'Pastikan Recovery Key sudah di-generate dari menu Pengaturan → Keamanan sebelumnya.'
+        );
+        return;
+      }
+
+      const saltBuffer = Uint8Array.from(atob(saltBase64.value), c => c.charCodeAt(0));
+      await cryptoDB.unwrapKeyWithRecoveryKey(
+        wrappedByRK.value,
+        recoveryKeyInput.trim(),
+        saltBuffer
+      );
+
+      // Recovery berhasil — minta PIN baru
+      setRecoveryStep('set_new_pin');
+      addToast('Recovery Key valid. Silakan set PIN baru Anda.', 'success');
+    } catch (err) {
+      setRecoveryError(
+        err instanceof Error
+          ? err.message
+          : 'Recovery Key tidak valid. Periksa kembali setiap kata dengan teliti.'
+      );
+    } finally {
+      setIsRecovering(false);
+    }
+  };
+
+  /**
+   * Alur Recovery Key — Step 2: Set PIN baru setelah recovery berhasil.
+   * Re-wrap device key dengan PIN baru dan simpan kembali ke db.keyval.
+   */
+  const handleSetPinAfterRecovery = async () => {
+    if (!selectedUser) return;
+    setRecoveryError('');
+    if (recoveryNewPin.length !== 6) { setRecoveryError('PIN baru harus 6 digit angka.'); return; }
+    if (recoveryNewPin !== recoveryConfirmPin) { setRecoveryError('Konfirmasi PIN tidak cocok.'); return; }
+
+    setIsRecovering(true);
+    try {
+      const saltBase64Entry = await db.keyval.get('device_key_salt');
+      if (!saltBase64Entry?.value) throw new Error('Salt perangkat tidak ditemukan.');
+      const saltBuffer = Uint8Array.from(atob(saltBase64Entry.value), c => c.charCodeAt(0));
+
+      const rawKey = cryptoDB.getRawDeviceKey();
+      if (!rawKey) throw new Error('Device key tidak tersedia di memori. Ulangi proses recovery.');
+
+      // Wrap ulang dengan PIN baru
+      const newWrappedByPin = await cryptoDB.wrapRawKeyWithPin(rawKey, recoveryNewPin, saltBuffer);
+      await db.keyval.put({ key: 'wrapped_device_key', value: newWrappedByPin });
+
+      // Update pinHash pengguna
+      const hashedNewPin = await hashPin(recoveryNewPin, selectedUser.id);
+      await db.users.update(selectedUser.id, { pinHash: hashedNewPin });
+
+      addToast('PIN berhasil direset! Silakan login dengan PIN baru.', 'success');
+
+      // Reset semua state recovery dan kembali ke login
+      setActiveView('enter_pin');
+      setRecoveryKeyInput('');
+      setRecoveryNewPin('');
+      setRecoveryConfirmPin('');
+      setRecoveryStep('enter_key');
+      setPinInput('');
+    } catch (err) {
+      setRecoveryError(
+        err instanceof Error ? err.message : 'Gagal mereset PIN. Coba ulangi dari awal.'
+      );
+    } finally {
+      setIsRecovering(false);
+    }
+  };
+
   const handleResetDatabase = async () => {
     try {
-      // Tutup koneksi secara eksplist untuk menghindari error blocking di DB yang aktif
-      db.close(); 
+      db.close();
       await db.delete();
-      
-      // Bersihkan memori Storage murni
       window.localStorage.clear();
       window.sessionStorage.clear();
-      
-      // Muat ulang mesin paksa
       window.location.replace('/');
     } catch (err) {
-      console.error("Gagal Reset:", err);
-      addToast("Terjadi kesalahan saat mereset: " + (err instanceof Error ? err.message : String(err)), "error");
-      setShowResetConfirm(false);
+      console.error('Gagal Reset:', err);
+      addToast('Terjadi kesalahan saat mereset: ' + (err instanceof Error ? err.message : String(err)), 'error');
+      setActiveView('enter_pin');
     }
+  };
+
+  const resetToUserSelect = () => {
+    setSelectedUser(null);
+    setPinInput('');
+    setActiveView('select_user');
+    setRecoveryKeyInput('');
+    setRecoveryNewPin('');
+    setRecoveryConfirmPin('');
+    setRecoveryError('');
+    setRecoveryStep('enter_key');
+    setNewPin('');
+    setConfirmNewPin('');
+    setPinChangeError('');
   };
 
   if (isLoading) {
@@ -158,25 +263,154 @@ export function LockedPage() {
   }
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-stone-900/40 backdrop-blur-md p-4">
-      {/* Container List User & Input PIN */}
-      {!showResetConfirm ? (
+    <div
+      className="fixed inset-0 z-50 flex items-center justify-center bg-stone-900/40 backdrop-blur-md p-4"
+      data-component-id="locked-page"
+      data-error-domain="auth"
+    >
+      {/* === KONFIRMASI RESET DATABASE === */}
+      {activeView === 'reset_confirm' ? (
+        <div className="bg-white rounded-3xl shadow-2xl w-full max-w-sm p-8 animate-in zoom-in-95 duration-200 flex flex-col items-center border border-red-100">
+          <div className="w-16 h-16 bg-red-100 rounded-full flex items-center justify-center mb-6 shadow-inner shadow-red-200">
+            <RotateCcw className="w-8 h-8 text-red-600" />
+          </div>
+          <h2 className="text-xl font-bold text-stone-800 mb-2 text-center">PERINGATAN KRITIKAL</h2>
+          <p className="text-stone-600 text-center mb-6 text-sm">
+            Aksi ini akan <b className="text-red-600">MENGHAPUS SEMUA DATA</b> yang ada di perangkat ini secara permanen.
+            Yakin ingin melanjutkan?
+          </p>
+          <div className="w-full flex flex-col gap-3">
+            <button onClick={handleResetDatabase} className="w-full py-3 bg-red-600 hover:bg-red-700 text-white font-bold rounded-xl transition-all shadow-md active:scale-95">
+              Ya, Reset Sekarang
+            </button>
+            <button onClick={() => setActiveView('enter_pin')} className="w-full py-3 bg-stone-100 hover:bg-stone-200 text-stone-700 font-bold rounded-xl transition-all active:scale-95">
+              Batal
+            </button>
+          </div>
+        </div>
+
+      /* === RECOVERY KEY FLOW === */
+      ) : activeView === 'recovery_key' ? (
+        <div className="bg-white rounded-[2.5rem] shadow-2xl w-full max-w-md overflow-hidden animate-in zoom-in-95 duration-200">
+          <div className="p-8 flex flex-col items-center">
+            <div className="w-16 h-16 bg-amber-50 rounded-full flex items-center justify-center mb-4">
+              <KeyRound className="w-8 h-8 text-amber-600" />
+            </div>
+            <h2 className="text-xl font-serif font-bold text-brand-900 mb-1 text-center">Pulihkan dengan Recovery Key</h2>
+            <p className="text-stone-500 text-center text-sm mb-6">
+              {recoveryStep === 'enter_key'
+                ? 'Masukkan Recovery Key (24 kata) yang Anda catat saat pertama kali setup perangkat.'
+                : 'Recovery Key valid. Sekarang buat PIN baru untuk akun Anda.'
+              }
+            </p>
+
+            {recoveryStep === 'enter_key' ? (
+              <>
+                <div className="w-full mb-4 relative">
+                  <label className="block text-xs font-bold text-stone-500 uppercase tracking-wider mb-1">Recovery Key</label>
+                  <textarea
+                    rows={4}
+                    value={recoveryKeyInput}
+                    onChange={(e) => { setRecoveryKeyInput(e.target.value); setRecoveryError(''); }}
+                    placeholder="Ketik atau tempel 24 kata Recovery Key Anda di sini..."
+                    className="w-full p-3 bg-stone-50 border border-stone-200 rounded-xl focus:ring-2 focus:ring-amber-500 focus:border-amber-500 outline-none transition-all text-sm font-mono resize-none"
+                    style={{ WebkitTextSecurity: showRecoveryKey ? 'none' : 'disc' } as React.CSSProperties}
+                  />
+                  <button
+                    type="button"
+                    onClick={() => setShowRecoveryKey(v => !v)}
+                    className="absolute right-3 top-8 text-stone-400 hover:text-stone-600 transition-colors"
+                    aria-label={showRecoveryKey ? 'Sembunyikan' : 'Tampilkan'}
+                  >
+                    {showRecoveryKey ? <EyeOff size={18} /> : <Eye size={18} />}
+                  </button>
+                </div>
+
+                {recoveryError && (
+                  <div className="w-full bg-red-50 border border-red-200 rounded-xl p-3 mb-4">
+                    <p className="text-red-600 text-sm font-medium">{recoveryError}</p>
+                  </div>
+                )}
+
+                <button
+                  onClick={handleVerifyRecoveryKey}
+                  disabled={isRecovering || !recoveryKeyInput.trim()}
+                  className="w-full bg-amber-600 hover:bg-amber-700 disabled:opacity-50 disabled:cursor-not-allowed text-white font-bold py-3 px-4 rounded-xl transition-colors active:scale-95 mb-3"
+                >
+                  {isRecovering ? 'Memverifikasi...' : 'Verifikasi Recovery Key'}
+                </button>
+              </>
+            ) : (
+              <>
+                <div className="w-full space-y-4 mb-4">
+                  <div>
+                    <label className="block text-xs font-bold text-stone-500 uppercase tracking-wider mb-1">PIN Baru (6 Digit)</label>
+                    <input
+                      type="password"
+                      maxLength={6}
+                      value={recoveryNewPin}
+                      onChange={(e) => setRecoveryNewPin(e.target.value.replace(/[^0-9]/g, ''))}
+                      className="w-full p-3 bg-stone-50 border border-stone-200 rounded-xl focus:ring-2 focus:ring-brand-500 focus:border-brand-500 outline-none transition-all text-center tracking-[0.5em] font-bold"
+                      placeholder="••••••"
+                    />
+                  </div>
+                  <div>
+                    <label className="block text-xs font-bold text-stone-500 uppercase tracking-wider mb-1">Konfirmasi PIN Baru</label>
+                    <input
+                      type="password"
+                      maxLength={6}
+                      value={recoveryConfirmPin}
+                      onChange={(e) => setRecoveryConfirmPin(e.target.value.replace(/[^0-9]/g, ''))}
+                      className="w-full p-3 bg-stone-50 border border-stone-200 rounded-xl focus:ring-2 focus:ring-brand-500 focus:border-brand-500 outline-none transition-all text-center tracking-[0.5em] font-bold"
+                      placeholder="••••••"
+                    />
+                  </div>
+                </div>
+
+                {recoveryError && (
+                  <div className="w-full bg-red-50 border border-red-200 rounded-xl p-3 mb-4">
+                    <p className="text-red-600 text-sm font-medium">{recoveryError}</p>
+                  </div>
+                )}
+
+                <button
+                  onClick={handleSetPinAfterRecovery}
+                  disabled={isRecovering || recoveryNewPin.length !== 6}
+                  className="w-full bg-brand-900 hover:bg-brand-800 disabled:opacity-50 disabled:cursor-not-allowed text-white font-bold py-3 px-4 rounded-xl transition-colors active:scale-95 mb-3"
+                >
+                  {isRecovering ? 'Menyimpan...' : 'Simpan PIN Baru'}
+                </button>
+              </>
+            )}
+
+            <button
+              onClick={resetToUserSelect}
+              className="flex items-center gap-2 text-stone-500 hover:text-brand-900 transition-colors font-medium text-sm"
+            >
+              <ArrowLeft className="w-4 h-4" />
+              Kembali ke Pilih Pengguna
+            </button>
+          </div>
+        </div>
+
+      /* === MAIN LOGIN CARD === */
+      ) : (
         <div className={`bg-white rounded-[2.5rem] shadow-2xl w-full max-w-md overflow-hidden animate-in zoom-in-95 duration-200 border-2 transition-all ${error ? 'border-red-500' : 'border-transparent'}`}>
           <div className="p-8 flex flex-col items-center">
             <div className="w-16 h-16 bg-brand-50 rounded-full flex items-center justify-center mb-6">
               <Lock className="w-8 h-8 text-brand-900" />
             </div>
-            
-            {!selectedUser ? (
+
+            {/* === PILIH USER === */}
+            {activeView === 'select_user' && (
               <>
                 <h2 className="text-2xl font-serif font-bold text-brand-900 mb-2 text-center">Pilih Pengguna</h2>
                 <p className="text-stone-500 text-center mb-8">Pilih profil Anda untuk masuk ke sistem</p>
-                
                 <div className="w-full space-y-3 mb-8 max-h-[300px] overflow-y-auto pr-2 custom-scrollbar">
                   {users.map(user => (
                     <button
                       key={user.id}
-                      onClick={() => setSelectedUser(user)}
+                      onClick={() => { setSelectedUser(user); setActiveView('enter_pin'); }}
                       className="w-full flex items-center justify-between p-4 bg-stone-50 hover:bg-stone-100 border border-stone-200 rounded-2xl transition-all group"
                     >
                       <div className="flex items-center gap-4">
@@ -193,7 +427,10 @@ export function LockedPage() {
                   ))}
                 </div>
               </>
-            ) : requirePinChange ? (
+            )}
+
+            {/* === FORCE PIN CHANGE === */}
+            {activeView === 'force_pin_change' && (
               <div className="w-full flex flex-col items-center">
                 <div className="w-16 h-16 bg-amber-50 rounded-full flex items-center justify-center mb-4">
                   <AlertTriangle className="w-8 h-8 text-amber-600" />
@@ -202,127 +439,78 @@ export function LockedPage() {
                 <p className="text-stone-500 text-center text-sm mb-6">
                   Anda menggunakan PIN default. Demi keamanan, Anda wajib membuat PIN baru (6 digit angka) sebelum melanjutkan.
                 </p>
-                
                 <div className="w-full space-y-4 mb-6">
                   <div>
                     <label className="block text-xs font-bold text-stone-500 uppercase tracking-wider mb-1">PIN Baru (6 Digit)</label>
-                    <input 
-                      type="password" 
-                      maxLength={6}
-                      value={newPin}
-                      onChange={(e) => setNewPin(e.target.value.replace(/[^0-9]/g, ''))}
-                      className="w-full p-3 bg-stone-50 border border-stone-200 rounded-xl focus:ring-2 focus:ring-brand-500 focus:border-brand-500 outline-none transition-all text-center tracking-[0.5em] font-bold"
-                      placeholder="••••••"
-                    />
+                    <input type="password" maxLength={6} value={newPin} onChange={(e) => setNewPin(e.target.value.replace(/[^0-9]/g, ''))}
+                      className="w-full p-3 bg-stone-50 border border-stone-200 rounded-xl focus:ring-2 focus:ring-brand-500 outline-none transition-all text-center tracking-[0.5em] font-bold" placeholder="••••••" />
                   </div>
                   <div>
                     <label className="block text-xs font-bold text-stone-500 uppercase tracking-wider mb-1">Konfirmasi PIN Baru</label>
-                    <input 
-                      type="password" 
-                      maxLength={6}
-                      value={confirmNewPin}
-                      onChange={(e) => setConfirmNewPin(e.target.value.replace(/[^0-9]/g, ''))}
-                      className="w-full p-3 bg-stone-50 border border-stone-200 rounded-xl focus:ring-2 focus:ring-brand-500 focus:border-brand-500 outline-none transition-all text-center tracking-[0.5em] font-bold"
-                      placeholder="••••••"
-                    />
+                    <input type="password" maxLength={6} value={confirmNewPin} onChange={(e) => setConfirmNewPin(e.target.value.replace(/[^0-9]/g, ''))}
+                      className="w-full p-3 bg-stone-50 border border-stone-200 rounded-xl focus:ring-2 focus:ring-brand-500 outline-none transition-all text-center tracking-[0.5em] font-bold" placeholder="••••••" />
                   </div>
                 </div>
-                
                 {pinChangeError && <p className="text-red-500 text-sm font-medium mb-4 text-center">{pinChangeError}</p>}
-                
-                <button 
-                  onClick={handleSaveNewPin}
-                  className="w-full bg-brand-900 text-gold-500 font-bold py-3 px-4 rounded-xl hover:bg-brand-800 transition-colors active:scale-95 mb-4"
-                >
+                <button onClick={handleSaveNewPin} className="w-full bg-brand-900 text-white font-bold py-3 px-4 rounded-xl hover:bg-brand-800 transition-colors active:scale-95 mb-4">
                   Simpan PIN Baru
                 </button>
               </div>
-            ) : (
+            )}
+
+            {/* === INPUT PIN === */}
+            {activeView === 'enter_pin' && selectedUser && (
               <>
-                <button 
-                  onClick={() => { setSelectedUser(null); setPinInput(''); }}
-                  className="mb-4 text-xs font-bold text-brand-900/50 hover:text-brand-900 uppercase tracking-widest flex items-center gap-1 transition-colors"
-                >
+                <button onClick={resetToUserSelect} className="mb-4 text-xs font-bold text-brand-900/50 hover:text-brand-900 uppercase tracking-widest flex items-center gap-1 transition-colors">
                   <ArrowLeft size={14} /> Ganti Pengguna
                 </button>
                 <h2 className="text-2xl font-serif font-bold text-brand-900 mb-1 text-center">{selectedUser.name}</h2>
                 <p className="text-stone-500 text-center mb-4">Masukkan PIN Anda</p>
-  
                 <div className="flex gap-3 mb-8">
                   {[...Array(6)].map((_, i) => (
-                    <div
-                      key={i}
-                      className={`w-4 h-4 rounded-full transition-all duration-200 ${i < pinInput.length ? 'bg-brand-900 scale-110' : 'bg-stone-200'} ${error ? 'bg-red-500' : ''}`}
-                    />
+                    <div key={i} className={`w-4 h-4 rounded-full transition-all duration-200 ${i < pinInput.length ? 'bg-brand-900 scale-110' : 'bg-stone-200'} ${error ? 'bg-red-500' : ''}`} />
                   ))}
                 </div>
-  
                 {error && <p className="text-red-500 text-sm font-medium mb-4">PIN salah</p>}
-  
                 <div className="w-full mb-6">
                   <CustomNumpad onPress={handlePress} onDelete={handleDelete} />
                 </div>
+
+                {/* Tombol Lupa PIN */}
+                <button
+                  onClick={() => { setActiveView('recovery_key'); setRecoveryStep('enter_key'); setRecoveryError(''); }}
+                  className="text-xs text-amber-600 hover:text-amber-800 font-semibold underline underline-offset-2 transition-colors mb-2"
+                >
+                  Lupa PIN? Gunakan Recovery Key
+                </button>
               </>
             )}
-  
-            <div className="flex flex-col items-center gap-4 mt-8 w-full">
-              <button
-                onClick={() => navigate({ to: '/', replace: true })}
-                className="flex items-center gap-2 text-stone-500 hover:text-brand-900 transition-colors font-medium"
-              >
+
+            {/* Footer Buttons */}
+            <div className="flex flex-col items-center gap-4 mt-6 w-full">
+              <button onClick={() => navigate({ to: '/', replace: true })} className="flex items-center gap-2 text-stone-500 hover:text-brand-900 transition-colors font-medium">
                 <ArrowLeft className="w-4 h-4" />
                 Kembali ke Beranda
               </button>
-  
+
               {import.meta.env.DEV === true && (
                 <button
-                  onClick={() => {
-                    useSecurityStore.setState({ isPinVerified: true });
-                    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-                    navigate({ to: (search.redirect as any) || '/' });
-                  }}
+                  onClick={() => { useSecurityStore.setState({ isPinVerified: true }); navigate({ to: (search.redirect as unknown as string) || '/' }); }}
                   className="flex items-center gap-2 text-stone-400 hover:text-stone-700 transition-colors font-bold text-sm bg-stone-100 px-4 py-2 rounded-lg"
                 >
                   <Beaker size={16} />
                   Bypass PIN (Sandbox Mode)
                 </button>
               )}
-  
-              {/* Helper Darurat: Modal Konfirmasi Reset Database */}
+
               <button
-                onClick={() => setShowResetConfirm(true)}
+                onClick={() => setActiveView('reset_confirm')}
                 className="text-[10px] uppercase font-bold tracking-wider text-red-500 hover:text-red-700 border border-red-300 bg-red-50 hover:bg-red-100 rounded-lg px-4 py-2 transition-colors active:scale-95 shadow-sm"
               >
                 Darurat: Reset Database Lokal
               </button>
             </div>
           </div>
-        </div>
-      ) : (
-        /* UI Konfirmasi Reset Database Lokal */
-        <div className="bg-white rounded-3xl shadow-2xl w-full max-w-sm p-8 animate-in zoom-in-95 duration-200 flex flex-col items-center border border-red-100">
-           <div className="w-16 h-16 bg-red-100 rounded-full flex items-center justify-center mb-6 shadow-inner shadow-red-200">
-              <RotateCcw className="w-8 h-8 text-red-600" />
-           </div>
-           <h2 className="text-xl font-bold text-stone-800 mb-2 text-center flex items-center gap-2 justify-center">PERINGATAN KRITIKAL</h2>
-           <p className="text-stone-600 text-center mb-6 text-sm">
-             Aksi ini akan <b className="text-red-600">MENGHAPUS SEMUA DATA</b> yang ada di perangkat ini secara permanen. Anda akan diminta melakukan setup ulang awal. Yakin ingin melanjutkan?
-           </p>
-           
-           <div className="w-full flex flex-col gap-3">
-             <button
-                onClick={handleResetDatabase}
-                className="w-full py-3 bg-red-600 hover:bg-red-700 text-white font-bold rounded-xl transition-all shadow-md active:scale-95"
-             >
-               Ya, Reset Sekarang
-             </button>
-             <button
-                onClick={() => setShowResetConfirm(false)}
-                className="w-full py-3 bg-stone-100 hover:bg-stone-200 text-stone-700 font-bold rounded-xl transition-all active:scale-95"
-             >
-               Batal
-             </button>
-           </div>
         </div>
       )}
     </div>

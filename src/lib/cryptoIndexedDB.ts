@@ -1,11 +1,15 @@
 /**
  * @lockdown_status: CRITICAL_CRYPTO_MODULE
  * @ai_context Sistem Manajer Database Enkripsi Lokal (IndexedDB AES-GCM).
+ *             Mengelola device key wrapping dengan PIN dan Recovery Key.
  * @security_tier HIGH
  * @business_rule LOGIKA AKAN DIROMBAK DI FASE 1 (Menjadi FULL LOCAL, Serverless).
  * Dilarang mengubah ALGO atau KEY_LENGTH untuk menjaga integritas data lintas-generasi.
  * @warning: DO NOT MODIFY without thorough context review.
- * @last_audit: 2026-04-19
+ * @last_audit: 2026-05-20
+ * @changelog:
+ *   2026-05-20 — Tambah wrapKeyWithRecoveryKey & unwrapKeyWithRecoveryKey (P1 Remediation)
+ *              — Recovery Key menggunakan HKDF-SHA256 agar deterministik dari mnemonic
  */
 import { logger } from './logger';
 import { Dexie } from 'dexie';
@@ -66,6 +70,39 @@ export class CryptoIndexedDB {
     );
   }
 
+  /**
+   * Derive a wrapping key from a Recovery Key (raw string mnemonic) using HKDF-SHA256.
+   * HKDF dipilih karena deterministik — recovery key menghasilkan kunci yang sama setiap kali,
+   * memungkinkan pemulihan tanpa menyimpan state apapun.
+   * @param recoveryKeyString - 24-kata mnemonic atau string rahasia recovery
+   * @param salt - salt unik perangkat (sama yang dipakai di PIN wrapping)
+   */
+  private async _deriveKeyFromRecoveryKey(
+    recoveryKeyString: string,
+    salt: Uint8Array
+  ): Promise<CryptoKey> {
+    const encoder = new TextEncoder();
+    const rawKeyMaterial = await window.crypto.subtle.importKey(
+      'raw',
+      encoder.encode(recoveryKeyString),
+      { name: 'HKDF' },
+      false,
+      ['deriveKey']
+    );
+    return window.crypto.subtle.deriveKey(
+      {
+        name: 'HKDF',
+        hash: 'SHA-256',
+        salt: salt,
+        info: encoder.encode('PSA-Recovery-Key-v1'),
+      },
+      rawKeyMaterial,
+      { name: this.ALGO, length: this.KEY_LENGTH },
+      true,
+      ['wrapKey', 'unwrapKey']
+    );
+  }
+
   async wrapKeyWithPin(deviceKey: CryptoKey, pin: string, salt: Uint8Array): Promise<string> {
     const iterations = this.PBKDF2_CONFIG[this.CURRENT_PBKDF2_VERSION].iterations;
     const wrappingKey = await this._deriveKeyFromPin(pin, salt, iterations);
@@ -79,6 +116,97 @@ export class CryptoIndexedDB {
     const ivBase64 = this.arrayBufferToBase64(iv.buffer);
     const wrappedBase64 = this.arrayBufferToBase64(wrappedKeyBuffer);
     return `${this.CURRENT_PBKDF2_VERSION}|${ivBase64}.${wrappedBase64}`;
+  }
+
+  /**
+   * Wrap device key menggunakan Recovery Key (HKDF-SHA256).
+   * Disimpan di db.keyval dengan key 'rk_wrapped_device_key'.
+   * Format: `rk1|<ivBase64>.<wrappedBase64>`
+   * @param deviceKey - CryptoKey yang akan di-wrap (harus extractable)
+   * @param recoveryKeyString - mnemonic / recovery phrase dari owner
+   * @param salt - salt perangkat (sama dengan PIN salt)
+   */
+  async wrapKeyWithRecoveryKey(
+    deviceKey: CryptoKey,
+    recoveryKeyString: string,
+    salt: Uint8Array
+  ): Promise<string> {
+    const wrappingKey = await this._deriveKeyFromRecoveryKey(recoveryKeyString, salt);
+    const iv = window.crypto.getRandomValues(new Uint8Array(12));
+    const wrappedKeyBuffer = await window.crypto.subtle.wrapKey(
+      'raw',
+      deviceKey,
+      wrappingKey,
+      { name: this.ALGO, iv }
+    );
+    const ivBase64 = this.arrayBufferToBase64(iv.buffer);
+    const wrappedBase64 = this.arrayBufferToBase64(wrappedKeyBuffer);
+    logger.info('[CryptoIndexedDB] Device key berhasil di-wrap dengan Recovery Key.');
+    return `rk1|${ivBase64}.${wrappedBase64}`;
+  }
+
+  /**
+   * Unwrap device key menggunakan Recovery Key.
+   * Setelah berhasil, key dimuat sebagai operational key (non-extractable).
+   * @param wrappedKeyByRK - string hasil wrapKeyWithRecoveryKey (format: rk1|iv.wrapped)
+   * @param recoveryKeyString - mnemonic / recovery phrase yang sama saat wrapping
+   * @param salt - salt perangkat
+   * @throws Error jika recovery key salah atau format tidak dikenali
+   */
+  async unwrapKeyWithRecoveryKey(
+    wrappedKeyByRK: string,
+    recoveryKeyString: string,
+    salt: Uint8Array
+  ): Promise<void> {
+    if (!wrappedKeyByRK.startsWith('rk1|')) {
+      throw new Error('Format Recovery Key tidak dikenali. Pastikan Anda menggunakan Recovery Key yang benar.');
+    }
+    const cleanWrapped = wrappedKeyByRK.substring(4); // strip 'rk1|'
+    if (!cleanWrapped.includes('.')) {
+      throw new Error('Format Recovery Key rusak (tidak ada pemisah iv.wrapped).');
+    }
+    const parts = cleanWrapped.split('.');
+    const iv = new Uint8Array(this.base64ToArrayBuffer(parts[0]));
+    const wrappedKeyBuffer = this.base64ToArrayBuffer(parts[1]);
+
+    let wrappingKey: CryptoKey;
+    try {
+      wrappingKey = await this._deriveKeyFromRecoveryKey(recoveryKeyString, salt);
+    } catch (err) {
+      logger.error('[CryptoIndexedDB] Gagal derive key dari Recovery Key.', { err });
+      throw new Error('Recovery Key tidak valid.');
+    }
+
+    let temporaryKey: CryptoKey;
+    try {
+      temporaryKey = await window.crypto.subtle.unwrapKey(
+        'raw',
+        wrappedKeyBuffer,
+        wrappingKey,
+        { name: this.ALGO, iv: iv as unknown as Uint8Array<ArrayBuffer> },
+        { name: this.ALGO, length: this.KEY_LENGTH },
+        true,
+        ['encrypt', 'decrypt', 'wrapKey', 'unwrapKey']
+      );
+    } catch {
+      logger.error('[CryptoIndexedDB] Gagal unwrap key dengan Recovery Key — key salah atau data rusak.');
+      throw new Error('Recovery Key salah atau data kunci rusak.');
+    }
+
+    // Simpan raw key untuk keperluan re-wrap dengan PIN baru
+    const keyData = await window.crypto.subtle.exportKey('raw', temporaryKey);
+    this.rawDeviceKey = keyData.slice(0);
+
+    // Import sebagai non-extractable operational key
+    const secureOperationalKey = await window.crypto.subtle.importKey(
+      'raw',
+      keyData,
+      { name: this.ALGO },
+      false,
+      ['encrypt', 'decrypt']
+    );
+    this.key = secureOperationalKey;
+    logger.info('[CryptoIndexedDB] Device key berhasil dipulihkan dengan Recovery Key.');
   }
 
   async wrapRawKeyWithPin(rawKeyMaterial: ArrayBuffer, pin: string, salt: Uint8Array): Promise<string> {

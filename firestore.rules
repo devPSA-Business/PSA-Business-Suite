@@ -56,8 +56,22 @@ service cloud.firestore {
             && data.category is string && data.category.size() > 0 && data.category.size() <= 50
             && data.price is number && data.price >= 0
             && data.cost is number && data.cost >= 0
+            // P2 CRDT Guard: quantity tidak boleh negatif (mencegah stok negatif saat multi-device sync)
             && data.quantity is number && data.quantity >= 0
             && data.branchId is string && data.branchId.size() > 0;
+    }
+
+    // P2 CRDT: Validasi bahwa update stok tidak menghasilkan quantity negatif
+    // Firestore menolak write jika incoming().quantity < 0
+    function isNonNegativeStockUpdate() {
+        return incoming().quantity is number && incoming().quantity >= 0;
+    }
+
+    // P2 CRDT: Validasi version untuk optimistic concurrency — mencegah stale write
+    // Hanya wajib untuk UPDATE yang membawa field 'version'
+    function isValidVersionUpdate() {
+        return !('version' in incoming()) 
+            || (incoming().version is number && incoming().version > existing().get('version', 0));
     }
 
     function isValidUser(data) {
@@ -136,9 +150,16 @@ service cloud.firestore {
       allow list: if isHardened() && isSignedIn() && belongsToBranch(resource.data);
       allow get: if isHardened() && belongsToBranch(resource.data);
       allow create: if isHardened() && isManager() && isValidId(id) && isValidStockItem(incoming()) && belongsToBranch(incoming()) && incoming().createdAt == request.time;
-      allow update: if isHardened() && isManager() && isValidStockItem(incoming()) && incoming().branchId == existing().branchId && belongsToBranch(existing()) 
-        && incoming().diff(existing()).affectedKeys().hasOnly(['name', 'barcode', 'category', 'price', 'cost', 'quantity', 'updatedAt'])
-        && incoming().updatedAt == request.time;
+      // P2 Hardened: Guard kuantitas non-negatif + CRDT version check pada setiap update stok
+      allow update: if isHardened() && isManager() && isValidStockItem(incoming()) 
+        && incoming().branchId == existing().branchId 
+        && belongsToBranch(existing())
+        && incoming().diff(existing()).affectedKeys().hasOnly(['name', 'barcode', 'category', 'price', 'cost', 'quantity', 'updatedAt', 'version'])
+        && incoming().updatedAt == request.time
+        // Kunci utama P2: tolak jika quantity negatif (multi-device race condition guard)
+        && isNonNegativeStockUpdate()
+        // CRDT version guard: tolak stale write dari perangkat yang offline terlalu lama
+        && isValidVersionUpdate();
       allow delete: if isHardened() && isAdmin();
     }
 
@@ -166,9 +187,7 @@ service cloud.firestore {
       allow create: if isHardened() && isValidId(id) && belongsToBranch(incoming()) && isValidRepair(incoming()) && incoming().createdAt == request.time;
       allow update: if isHardened() && belongsToBranch(existing()) && incoming().branchId == existing().branchId 
         && (
-          // Action: Update Status (Staff)
           incoming().diff(existing()).affectedKeys().hasOnly(['status', 'updatedAt']) ||
-          // Action: Full Edit (Manager)
           (isManager() && incoming().diff(existing()).affectedKeys().hasOnly(['status', 'description', 'price', 'updatedAt']))
         )
         && incoming().updatedAt == request.time;
@@ -180,11 +199,11 @@ service cloud.firestore {
       allow get: if isHardened() && belongsToBranch(resource.data);
       allow create: if isHardened() && isValidId(id) && belongsToBranch(incoming()) && isValidTransaction(incoming()) && incoming().createdAt == request.time;
       allow update: if isHardened() && isManager() && belongsToBranch(existing()) 
-        && existing().status != 'FINAL' // Terminal State Locking
+        && existing().status != 'FINAL'
         && incoming().branchId == existing().branchId 
         && incoming().diff(existing()).affectedKeys().hasOnly(['status', 'paymentMethod', 'updatedAt'])
         && incoming().updatedAt == request.time;
-      allow delete: if isHardened() && isAdmin(); // Void restricted to Admin
+      allow delete: if isHardened() && isAdmin();
     }
 
     match /shifts/{id} {

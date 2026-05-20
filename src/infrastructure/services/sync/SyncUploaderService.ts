@@ -3,6 +3,12 @@
  * @security_tier HIGH
  * @business_rule Semua write ke Firestore WAJIB melalui service ini, bukan dari UI langsung.
  *                Foto Base64 > 2MB wajib diupload ke Firebase Storage sebelum di-set ke Firestore.
+ * @data-component-id: sync-uploader-service
+ * @data-error-domain: sync
+ * @changelog:
+ *   2026-05-20 — P2: Integrasi classifyFirestoreError + moveToDeadLetterQueue dari SyncConflictHandler
+ *                    permission-denied → DLQ (bukan retry loop), type-safe tanpa 'any'
+ *              — P4: Ganti semua 'any' dengan unknown + type narrowing
  */
 import { db, SyncEvent } from '../../../shared/api/db';
 import {
@@ -10,6 +16,8 @@ import {
   safeFirestoreCall,
 } from '../../../shared/api/firebase';
 import {
+  WriteBatch,
+  DocumentReference,
   writeBatch,
   doc,
   collection,
@@ -24,6 +32,23 @@ import { SyncConflictHandler } from './SyncConflictHandler';
 
 const CHUNK_SIZE = 50;
 
+/** Type guard: memastikan nilai adalah Record yang bisa diindeks */
+function isRecord(value: unknown): value is Record<string, unknown> {
+  return typeof value === 'object' && value !== null && !Array.isArray(value);
+}
+
+/** Bersihkan undefined dari object payload sebelum dikirim ke Firestore */
+function stripUndefined(obj: unknown): unknown {
+  return JSON.parse(JSON.stringify(obj));
+}
+
+/** Ekstrak kode error Firestore dari error unknown */
+function extractFirestoreCode(error: unknown): string {
+  if (!isRecord(error)) return '';
+  const code = error['code'];
+  return typeof code === 'string' ? code : '';
+}
+
 export class SyncUploaderService {
   constructor(
     private readonly queueManager: SyncQueueManager,
@@ -37,7 +62,6 @@ export class SyncUploaderService {
     for (let i = 0; i < events.length; i += CHUNK_SIZE) {
       chunks.push(events.slice(i, i + CHUNK_SIZE));
     }
-
     for (const chunk of chunks) {
       await this._processChunk(chunk);
     }
@@ -62,7 +86,7 @@ export class SyncUploaderService {
           : String(event.id);
       const docRef = doc(collectionRef, docId);
 
-      // Conflict detection
+      // Conflict detection via CRDT version
       if (event.id && serverDocsMap.has(event.id)) {
         const serverData = serverDocsMap.get(event.id);
         if (this.conflictHandler.hasConflict(event, serverData)) {
@@ -74,13 +98,12 @@ export class SyncUploaderService {
       // Foto Base64 → Firebase Storage (repair images)
       if (event.entity_type === 'repair_services' && event.payload.photoBeforeBase64) {
         const uploaded = await this._uploadRepairPhoto(event);
-        if (!uploaded) continue; // event sudah ditandai FAILED, skip batch
+        if (!uploaded) continue;
       }
 
       this._addToBatch(batch, individualOps, event, docRef);
     }
 
-    // Simpan conflict events
     if (conflictEvents.length > 0) {
       await this.queueManager.markConflict(conflictEvents);
     }
@@ -88,44 +111,50 @@ export class SyncUploaderService {
     if (individualOps.length === 0) return;
 
     // Jeda kecil agar GC bisa berjalan sebelum commit
-    await new Promise((r) => setTimeout(r, 50));
+    await new Promise<void>((r) => setTimeout(r, 50));
 
     await this._commitBatch(batch, individualOps, chunk);
   }
 
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  private _addToBatch(batch: any, individualOps: { eventId: number; op: () => Promise<void> }[], event: SyncEvent, docRef: any): void {
+  private _addToBatch(
+    batch: WriteBatch,
+    individualOps: { eventId: number; op: () => Promise<void> }[],
+    event: SyncEvent,
+    docRef: DocumentReference
+  ): void {
     const eventId = event.id!;
 
-    if (event.action === 'UPDATE_DELTA' && event.payload.delta_field && event.payload.delta_value !== undefined) {
+    if (
+      event.action === 'UPDATE_DELTA' &&
+      event.payload.delta_field &&
+      event.payload.delta_value !== undefined
+    ) {
       const change = Number(event.payload.delta_value);
       const field = String(event.payload.delta_field);
       if (!isNaN(change)) {
-        const updateData = { ...event.payload };
-        delete updateData.delta_field;
-        delete updateData.delta_value;
-        // eslint-disable-next-line @typescript-eslint/no-explicit-any
-        (updateData as any)[field] = increment(change);
-        // eslint-disable-next-line @typescript-eslint/no-explicit-any
-        batch.update(docRef, updateData as any);
-        individualOps.push({ eventId, op: async () => { await updateDoc(docRef, updateData as any); } }); // eslint-disable-line @typescript-eslint/no-explicit-any
+        const updateData: Record<string, unknown> = { ...event.payload };
+        delete updateData['delta_field'];
+        delete updateData['delta_value'];
+        updateData[field] = increment(change);
+        batch.update(docRef, updateData);
+        individualOps.push({ eventId, op: async () => { await updateDoc(docRef, updateData); } });
       }
-    } else if (event.entity_type === 'stock' && event.action === 'UPDATE' && event.payload.quantityChange !== undefined) {
+    } else if (
+      event.entity_type === 'stock' &&
+      event.action === 'UPDATE' &&
+      event.payload.quantityChange !== undefined
+    ) {
       // Backward compatibility untuk event stock lama
       const change = Number(event.payload.quantityChange);
       if (!isNaN(change)) {
-        const updateData = { ...event.payload };
-        delete updateData.quantityChange;
-        // eslint-disable-next-line @typescript-eslint/no-explicit-any
-        (updateData as any).quantity = increment(change);
-        // eslint-disable-next-line @typescript-eslint/no-explicit-any
-        batch.update(docRef, updateData as any);
-        individualOps.push({ eventId, op: async () => { await updateDoc(docRef, updateData as any); } }); // eslint-disable-line @typescript-eslint/no-explicit-any
+        const updateData: Record<string, unknown> = { ...event.payload };
+        delete updateData['quantityChange'];
+        updateData['quantity'] = increment(change);
+        batch.update(docRef, updateData);
+        individualOps.push({ eventId, op: async () => { await updateDoc(docRef, updateData); } });
       }
     } else if (event.action === 'INSERT' || event.action === 'UPDATE') {
-      // eslint-disable-next-line @typescript-eslint/no-explicit-any
-      const stripUndefined = (obj: any) => JSON.parse(JSON.stringify(obj));
-      const safePayload = stripUndefined(event.payload);
+      const safePayload = stripUndefined(event.payload) as Record<string, unknown>;
       batch.set(docRef, safePayload, { merge: true });
       individualOps.push({ eventId, op: async () => { await setDoc(docRef, safePayload, { merge: true }); } });
     } else if (event.action === 'DELETE') {
@@ -134,16 +163,18 @@ export class SyncUploaderService {
     }
   }
 
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  private async _commitBatch(batch: any, individualOps: { eventId: number; op: () => Promise<void> }[], chunk: SyncEvent[]): Promise<void> {
+  private async _commitBatch(
+    batch: WriteBatch,
+    individualOps: { eventId: number; op: () => Promise<void> }[],
+    chunk: SyncEvent[]
+  ): Promise<void> {
     try {
       await safeFirestoreCall(async () => { await batch.commit(); });
       await this.queueManager.markSynced(individualOps.map((o) => o.eventId));
     } catch (error) {
       logger.warn('[SyncUploaderService] Batch commit gagal, fallback ke individual writes.', error);
-      // eslint-disable-next-line @typescript-eslint/no-explicit-any
-      const errCode = (error as any)?.code;
-      if (errCode === 'unauthenticated' || errCode === 'permission-denied') {
+      const errCode = extractFirestoreCode(error);
+      if (errCode === 'unauthenticated') {
         this.onAuthError();
         return;
       }
@@ -166,16 +197,34 @@ export class SyncUploaderService {
       if (result.status === 'fulfilled') {
         await this.queueManager.markSynced([eventId]);
       } else {
-        // eslint-disable-next-line @typescript-eslint/no-explicit-any
-        const errorObj = result.reason as any;
+        const errorObj: unknown = result.reason;
         const errorMessage = errorObj instanceof Error ? errorObj.message : String(errorObj);
+        const errCode = extractFirestoreCode(errorObj);
 
-        if (errorObj?.code === 'unauthenticated' || errorObj?.code === 'permission-denied') {
+        if (errCode === 'unauthenticated') {
           this.onAuthError();
           return;
         }
 
         const currentEvent = chunk.find((e) => e.id === eventId);
+
+        // P2 Remediation: permission-denied / CRDT reject → DLQ (bukan retry)
+        if (currentEvent) {
+          const errorClass = this.conflictHandler.classifyFirestoreError(errorObj);
+          if (errorClass === 'conflict') {
+            logger.warn(
+              `[SyncUploaderService] Event ${eventId} (${currentEvent.entity_type}) ditolak Firestore — dipindahkan ke DLQ`,
+              { errCode, errorMessage }
+            );
+            await this.conflictHandler.moveToDeadLetterQueue(
+              currentEvent,
+              errorObj,
+              errCode || 'conflict'
+            );
+            continue; // Tidak perlu markFailed — event sudah di DLQ
+          }
+        }
+
         await this.queueManager.markFailed(eventId, errorMessage, currentEvent);
       }
     }
@@ -192,7 +241,6 @@ export class SyncUploaderService {
       const raw = event.payload.photoBeforeBase64 as string;
       const base64Data = raw.includes(',') ? raw.split(',')[1] : raw;
 
-      // F-16: Validasi ukuran base64
       if (base64Data.length > 3_000_000) {
         throw new Error('Ukuran foto terlalu besar (> 2MB).');
       }

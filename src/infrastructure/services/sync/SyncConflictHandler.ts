@@ -3,6 +3,11 @@
  * @security_tier HIGH
  * @business_rule Setiap keputusan resolusi konflik WAJIB dilog ke audit_logs.
  *                Resolusi SERVER akan menimpa data lokal — hanya boleh dipilih secara eksplisit oleh owner.
+ * @data-component-id: sync-conflict-handler
+ * @data-error-domain: sync
+ * @changelog:
+ *   2026-05-20 — P2: Map permission-denied (stok negatif/CRDT reject) → sync_dlq dengan status CONFLICT
+ *                    Mencegah retry loop pada operasi yang sah ditolak oleh Firestore rules
  */
 import { db, SyncEvent } from '../../../shared/api/db';
 import {
@@ -17,6 +22,13 @@ import {
 import { useAuthStore } from '../../../shared/store/authStore';
 import { IUnitOfWork } from '../../../application/core/IUnitOfWork';
 import { logger } from '../../../lib/logger';
+
+/** Kode error Firestore yang dikenali sebagai konflik terstruktur, bukan failure sementara */
+const CONFLICT_ERROR_CODES = new Set([
+  'permission-denied',      // Firestore rules reject: stok negatif, CRDT version stale, dll
+  'failed-precondition',    // Kondisi prasyarat tidak terpenuhi (misalnya document state invalid)
+  'already-exists',         // Idempotency key collision (duplikat event)
+]);
 
 export class SyncConflictHandler {
   /**
@@ -74,6 +86,98 @@ export class SyncConflictHandler {
       }
     }
     return false;
+  }
+
+  /**
+   * P2 Remediation: Klasifikasi error Firestore — apakah ini konflik struktural atau kegagalan sementara.
+   *
+   * Konflik struktural (CONFLICT): permission-denied, failed-precondition, already-exists
+   * → Tidak perlu retry → masuk DLQ dengan status CONFLICT
+   *
+   * Kegagalan sementara: network error, unavailable, deadline-exceeded
+   * → Boleh retry dengan exponential backoff
+   *
+   * @param error - Error yang ditangkap dari operasi Firestore
+   * @returns 'conflict' | 'transient' | 'unknown'
+   */
+  classifyFirestoreError(error: unknown): 'conflict' | 'transient' | 'unknown' {
+    if (error instanceof Error) {
+      // Firebase error code format: "FirebaseError: [code/message]" atau error.code property
+      const firebaseError = error as Error & { code?: string };
+      const code = firebaseError.code ?? '';
+
+      // Ekstrak kode dari message jika tidak ada property code
+      const messageCode = error.message.match(/\(([^)]+)\)/)?.[1] ?? '';
+      const effectiveCode = code || messageCode;
+
+      if (CONFLICT_ERROR_CODES.has(effectiveCode)) {
+        return 'conflict';
+      }
+
+      // Kegagalan sementara yang layak di-retry
+      const transientCodes = new Set(['unavailable', 'deadline-exceeded', 'internal', 'cancelled']);
+      if (transientCodes.has(effectiveCode)) {
+        return 'transient';
+      }
+    }
+    return 'unknown';
+  }
+
+  /**
+   * P2 Remediation: Pindahkan event ke Dead Letter Queue (DLQ) saat Firestore menolak
+   * dengan error permission-denied (stok negatif / CRDT version reject).
+   *
+   * Event di DLQ TIDAK akan di-retry otomatis. Owner harus manual review di ConflictResolutionPage.
+   *
+   * @param event - SyncEvent yang gagal
+   * @param error - Error dari Firestore
+   * @param reason - Penjelasan singkat untuk audit log
+   */
+  async moveToDeadLetterQueue(
+    event: SyncEvent,
+    error: unknown,
+    reason: string = 'permission-denied'
+  ): Promise<void> {
+    const errorMessage = error instanceof Error ? error.message : String(error);
+    const dlqEntry: SyncEvent = {
+      ...event,
+      status: 'CONFLICT',
+      error_message: `[DLQ:${reason}] ${errorMessage}`,
+      retry_count: (event.retry_count ?? 0) + 1,
+      // Tandai waktu masuk DLQ untuk audit trail
+      next_retry_time: 0,
+    };
+
+    try {
+      await db.sync_dlq.add(dlqEntry);
+      logger.warn(
+        `[SyncConflictHandler] Event ${event.id} (${event.entity_type}/${event.action}) dipindahkan ke DLQ.`,
+        {
+          eventId: event.id,
+          entityType: event.entity_type,
+          reason,
+          errorMessage: errorMessage.slice(0, 200), // truncate untuk mencegah log bloat
+        }
+      );
+    } catch (dlqErr) {
+      // Jangan throw — kegagalan DLQ tidak boleh crash sync loop
+      logger.error('[SyncConflictHandler] CRITICAL: Gagal menulis ke sync_dlq', {
+        originalEventId: event.id,
+        dlqError: dlqErr instanceof Error ? dlqErr.message : String(dlqErr),
+      });
+    }
+
+    // Hapus dari antrian utama agar tidak di-retry
+    try {
+      if (event.id) {
+        await db.sync_events.delete(event.id);
+      }
+    } catch (deleteErr) {
+      logger.error('[SyncConflictHandler] Gagal hapus event dari sync_events setelah DLQ', {
+        eventId: event.id,
+        deleteError: deleteErr instanceof Error ? deleteErr.message : String(deleteErr),
+      });
+    }
   }
 
   /**

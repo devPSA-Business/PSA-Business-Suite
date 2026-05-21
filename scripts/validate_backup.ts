@@ -1,6 +1,11 @@
 /**
  * @file validate_backup.ts
- * @description Node.js CLI script untuk memvalidasi integritas backup dengan Checksum SHA-256 dan skenario PIN Rotasi.
+ * @description Node.js CLI script untuk memvalidasi integritas backup (SHA-256 + AES-256-GCM + PBKDF2).
+ * @runtime Node.js only — BUKAN untuk browser/PWA runtime.
+ * @note pbkdf2Sync (310.000 iterasi) dipakai di sini karena ini script CLI testing, bukan runtime app.
+ *       Di app runtime (browser), PIN hashing menggunakan Web Crypto API PBKDF2 asinkron
+ *       dengan 600.000 iterasi (lihat src/shared/store/useSecurityStore.ts hashPin()).
+ * @usage npm run test:backup
  */
 
 import { createHash, createCipheriv, createDecipheriv, randomBytes, pbkdf2Sync } from 'node:crypto';

@@ -310,17 +310,40 @@ export const useSecurityStore = create<SecurityState>()(
       },
 
       generateRecoveryKey: async () => {
+        // Generate random 128-bit key sebagai recovery phrase
         const key = Array.from(crypto.getRandomValues(new Uint8Array(16)))
           .map(b => b.toString(16).padStart(2, '0'))
           .join('').toUpperCase();
-          
-        // SEC-04: Simpan HASH dari kunci (bukan kunci itu sendiri) untuk verifikasi
+
+        // FIX KRITIS: Wrap device key dengan recovery key agar unwrapKeyWithRecoveryKey
+        // di LockedPage bisa bekerja saat PIN lupa. Tanpa ini, recovery = tidak berfungsi.
+        const currentDeviceKey = cryptoDB.getKey();
+        const saltEntry = await db.keyval.get('device_key_salt');
+
+        if (currentDeviceKey && saltEntry?.value) {
+          const saltBuffer = Uint8Array.from(atob(saltEntry.value), c => c.charCodeAt(0));
+          try {
+            const wrappedByRK = await cryptoDB.wrapKeyWithRecoveryKey(
+              currentDeviceKey,
+              key,
+              saltBuffer
+            );
+            await db.keyval.put({ key: 'rk_wrapped_device_key', value: wrappedByRK });
+          } catch (err) {
+            logger.error('[Security] Gagal wrap device key dengan Recovery Key', { err });
+            throw new Error('Gagal menyimpan Recovery Key ke perangkat. Coba lagi.');
+          }
+        } else {
+          logger.warn('[Security] generateRecoveryKey: device key atau salt tidak tersedia — rk_wrapped_device_key tidak disimpan.');
+        }
+
+        // Simpan HASH untuk verifikasi UI (konfirmasi user sudah catat key yang benar)
         const hashBuffer = await crypto.subtle.digest('SHA-256', new TextEncoder().encode(key));
         const keyHash = Array.from(new Uint8Array(hashBuffer))
           .map(b => b.toString(16).padStart(2, '0')).join('');
-          
         await db.keyval.put({ key: 'recovery_key_hash', value: keyHash });
-        // Kunci asli hanya dikembalikan ke UI untuk dicatat user, tidak disimpan
+
+        // Kunci asli hanya dikembalikan ke UI untuk dicatat owner — tidak disimpan plaintext
         return key;
       },
 

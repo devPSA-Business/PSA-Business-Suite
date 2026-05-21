@@ -72,9 +72,22 @@ export function MainLayout() {
     };
   }, []);
 
-  // BATCH C: Wire healthGuardian.worker → SyncHeartbeatIndicator
+  // BATCH C + FIX MEDIUM-8: Wire healthGuardian.worker → SyncHeartbeatIndicator
+  // dengan fallback graceful untuk browser yang tidak support Worker (Safari iOS lama)
   useEffect(() => {
-    const worker = new Worker(new URL('../workers/healthGuardian.worker.ts', import.meta.url), { type: 'module' });
+    // Guard: Web Workers tidak selalu tersedia (Safari Private Mode, beberapa iOS versions)
+    if (typeof Worker === 'undefined') {
+      setIsHealthLoading(false);
+      return;
+    }
+    let worker: Worker;
+    try {
+      worker = new Worker(new URL('../workers/healthGuardian.worker.ts', import.meta.url), { type: 'module' });
+    } catch {
+      // Worker gagal init (e.g. Content Security Policy terlalu ketat di beberapa environment)
+      setIsHealthLoading(false);
+      return;
+    }
     healthWorkerRef.current = worker;
     worker.onmessage = (e) => {
       if (e.data.type === 'HEALTH_REPORT') {
@@ -82,17 +95,26 @@ export function MainLayout() {
         setIsHealthLoading(false);
       }
     };
+    worker.onerror = () => {
+      // Worker error (misalnya module tidak bisa di-load) — graceful degradation
+      setIsHealthLoading(false);
+      healthWorkerRef.current = null;
+    };
     // Trigger health check pertama kali saat mount
     worker.postMessage({ type: 'RUN_HEALTH_CHECK' });
     setIsHealthLoading(true);
     // Interval setiap 5 menit
     const interval = setInterval(() => {
-      worker.postMessage({ type: 'RUN_HEALTH_CHECK' });
+      if (healthWorkerRef.current) {
+        healthWorkerRef.current.postMessage({ type: 'RUN_HEALTH_CHECK' });
+      }
     }, 5 * 60 * 1000);
     return () => {
       clearInterval(interval);
-      worker.terminate();
-      healthWorkerRef.current = null;
+      if (healthWorkerRef.current) {
+        healthWorkerRef.current.terminate();
+        healthWorkerRef.current = null;
+      }
     };
   }, []);
 

@@ -204,9 +204,15 @@ export function LockedPage() {
       const newWrappedByPin = await cryptoDB.wrapRawKeyWithPin(rawKey, recoveryNewPin, saltBuffer);
       await db.keyval.put({ key: 'wrapped_device_key', value: newWrappedByPin });
 
-      // Update pinHash pengguna
-      const hashedNewPin = await hashPin(recoveryNewPin, selectedUser.id);
-      await db.users.update(selectedUser.id, { pinHash: hashedNewPin });
+      // FIX KRITIS-2: Gunakan random salt untuk PIN baru (bukan userId deterministik).
+      // Ini konsisten dengan BATCH F fix di EmployeesPage untuk keamanan yang lebih kuat.
+      const newPinSalt = crypto.getRandomValues(new Uint8Array(32));
+      const hashedNewPin = await hashPin(recoveryNewPin, newPinSalt);
+      await db.users.update(selectedUser.id, {
+        pinHash: hashedNewPin,
+        salt: newPinSalt,        // simpan salt baru bersama user record
+        isDefaultPin: false,     // PIN sudah di-reset manual — bukan lagi default
+      });
 
       addToast('PIN berhasil direset! Silakan login dengan PIN baru.', 'success');
 

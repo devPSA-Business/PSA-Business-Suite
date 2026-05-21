@@ -45,5 +45,5 @@ jobs:
         with:
           sarif_file: 'trivy-results.sarif'
           category: 'trivy-filesystem'
-          # @ai_context: functions/ sudah dihapus dari repo (Spark Plan, tanpa kartu kredit)
+          # @ai_context: Scan src/ dan root saja. functions/ sudah diarsipkan (tidak ada di git).
           # Scan hanya pada src/ dan root dependencies

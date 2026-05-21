@@ -11,16 +11,10 @@ vi.mock('../../src/shared/api/firebase', () => ({
   auth: { currentUser: { uid: 'admin123' } }
 }));
 
-vi.mock('firebase/functions', () => ({
-  httpsCallable: vi.fn(() => {
-    return vi.fn().mockImplementation(async ({ pin, saltHex }) => {
-      // Create a unique hash for each different pin/salt combination to satisfy tests
-      const hash = `mock-hash-${pin}-${saltHex}`.padEnd(64, '0');
-      return { data: { hash } };
-    });
-  }),
-  getFunctions: vi.fn(() => ({}))
-}));
+// NOTE: firebase/functions mock DIHAPUS — hashPin sekarang menggunakan Web Crypto API
+// (PBKDF2-SHA256 langsung di browser, tanpa Cloud Functions). Mock httpsCallable
+// tidak lagi relevan dan menyebabkan false-positive di tests.
+// hashPin() di useSecurityStore.ts menggunakan crypto.subtle.deriveBits() natively.
 
 // Mock DB
 vi.mock('../../src/shared/api/db', () => ({
@@ -47,6 +41,10 @@ vi.mock('../../src/lib/cryptoIndexedDB', () => ({
     wrapKeyWithPin: vi.fn().mockResolvedValue('wrapped-key'),
     reWrapKeyWithPin: vi.fn().mockResolvedValue('new-wrapped-key'),
     unwrapKeyWithPin: vi.fn().mockResolvedValue(undefined),
+    wrapKeyWithRecoveryKey: vi.fn().mockResolvedValue('rk1|iv.wrapped'),
+    unwrapKeyWithRecoveryKey: vi.fn().mockResolvedValue(undefined),
+    getKey: vi.fn().mockReturnValue({ type: 'secret' }),
+    getRawDeviceKey: vi.fn().mockReturnValue(new ArrayBuffer(32)),
     setKey: vi.fn(),
     getKey: vi.fn()
   }

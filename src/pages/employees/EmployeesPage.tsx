@@ -68,8 +68,11 @@ export function EmployeesPage() {
           newUserSalt = crypto.getRandomValues(new Uint8Array(32));
           pinHash = await hashPin(formData.pin, newUserSalt);
         } else {
-          // Edit user: pakai userId sebagai salt fallback (salt baru akan dibuat saat login pertama via ensureUserSalt)
-          pinHash = await hashPin(formData.pin, targetUserId);
+          // FIX MEDIUM-7: Edit user dengan PIN baru → generate salt random baru.
+          // Salt lama (deterministik dari userId) digantikan dengan Uint8Array(32) random.
+          // Ini konsisten dengan kebijakan BATCH F untuk semua user — salt selalu random.
+          newUserSalt = crypto.getRandomValues(new Uint8Array(32));
+          pinHash = await hashPin(formData.pin, newUserSalt);
         }
       } else {
         pinHash = editingUser?.pinHash || '';
@@ -80,7 +83,9 @@ export function EmployeesPage() {
           name: formData.name,
           role: formData.role,
           branchId: formData.branchId,
-          pinHash: pinHash
+          pinHash: pinHash,
+          // FIX MEDIUM-7: Simpan salt baru jika PIN diubah (newUserSalt akan ada jika formData.pin diisi)
+          ...(newUserSalt ? { salt: newUserSalt as unknown as string } : {}),
         });
         
         // Auto-enroll user in local device crypto if PIN is updated

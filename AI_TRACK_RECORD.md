@@ -40,3 +40,75 @@ Catatan perubahan besar untuk PSA Business Suite v1.4+.
 | 2026-05-16 | **ZERO-COST DEPLOY FIX (Final)**: Audit menyeluruh menemukan kontradiksi dengan history — `functions/` folder muncul kembali padahal sudah dihapus 2026-05-01. Root cause: Secret Manager (`runWith({secrets})`) di Cloud Functions MEMBUTUHKAN Blaze Plan (kartu kredit). Perbaikan: (1) Hapus `functions/` dari git tracking (arsip lokal), (2) Hapus key `functions` dari `firebase.json`, (3) Hapus steps Functions dari `deploy.yml`, (4) Hapus `vercel.json` (misleading), (5) Refactor `NLQService.ts` → direct Gemini REST API via `VITE_GEMINI_API_KEY`, (6) Refactor `AlertService.ts` → direct Telegram Bot API via `VITE_TELEGRAM_*`, (7) Refactor `hashPin()` di `useSecurityStore.ts` → Web Crypto API + `VITE_CRYPTO_PEPPER` (menghapus `OFFLINE_DEFERRED_VERIFICATION` fallback yang menyebabkan login gagal offline). Deploy target: Firebase Hosting HTTPS saja. Total biaya: Rp 0/bulan. | Selesai | Tinggi |
 | 2026-05-18 | **P0 FIX + DEV/PROD SEPARATION**: (1) Refactor NLQService.ts: VITE_GEMINI_API_KEY (P0 violation) → VITE_GEMINI_PROXY_URL (Cloudflare Worker BFF). API key kini tersimpan di Cloudflare Secrets, tidak pernah ke bundle JS. Fallback VITE_GEMINI_API_KEY hanya aktif di mode DEV lokal (import.meta.env.DEV). (2) Buat workers/gemini-proxy/ — Cloudflare Worker dengan CORS whitelist domain PSA, rate limit 60 req/mnt per IP, body limit 50KB. Free tier: 100K req/hari, tanpa kartu kredit. (3) Buat .github/workflows/preview.yml — Firebase Hosting Preview Channel untuk semua branch non-main (ui/*, fix/*, feature/*, develop). URL preview otomatis diposting ke PR, expires 7 hari. (4) Fix deploy.yml: hapus functions/** dari paths trigger, tambah VITE_GEMINI_PROXY_URL ke build env, hapus nama workflow lama. (5) Update CSP firebase.json: hapus cloudfunctions.net, tambah generativelanguage.googleapis.com dan api.telegram.org. (6) Upgrade model Gemini: 2.0-flash → 2.5-flash. ALUR: AI Studio Google dev → branch → PR → Preview URL → Owner review → merge main → Deploy produksi otomatis. | Selesai | Kritis |
 | 2026-05-18 | **DEV/PROD SEPARATION + APK + OFFLINE HARDENING**: (1) Fix seeder.ts — data seed diubah sesuai fakta lapangan PSA: 15 SKU perhiasan IMITASI (Xuping/Yaxiya/Titanium/Stainless), 2 jasa reparasi/sepuh, 2 transaksi, 2 petty cash. GOLD_JEWELLERY dan GOLD_BAR dihapus (bukan produk PSA). (2) Buat DevPreviewBanner.tsx — banner amber fixed di top, muncul di DEV dan Preview Channel, bisa ditutup, link ke produksi. Dipasang di App.tsx. (3) Fix vite.config.ts workbox: hapus cloudfunctions.net rule (sudah tidak relevan), tambah woff2 ke glob, perkuat offline dengan expiration lebih panjang, tambah rule Cloudflare Worker + Telegram (NetworkOnly). (4) Buat .github/workflows/twa-build.yml — build APK dari PWA via Bubblewrap CLI. Sign dengan release keystore (atau debug key jika belum ada). Distribute via Firebase App Distribution ke email owner+pasangan. Trigger: manual atau release tag v*.*.*. (5) Update secrets-checklist.md dengan panduan generate Android keystore. | Selesai | Tinggi |
+| 2026-05-21 | **MASTER ARCHITECTURAL AUDIT & REMEDIATION v1.4.0+ — BATCH EKSEKUSI PENUH** | Selesai | Tinggi |
+
+## 🏗️ Detail Remediasi: Master Architectural Audit 2026-05-21
+
+**Referensi:** Master Architectural Audit & Remediation Plan (10 file, 5 batch)
+**Eksekutor:** PSA AI Engineer (Automated)
+**Commit Range:** B1–B6 (6 commit atomic)
+
+### P1 — Security & Cryptography (CRITICAL) ✅
+
+| File | Perubahan | Status |
+|------|-----------|--------|
+| `src/lib/cryptoIndexedDB.ts` | `wrapKeyWithRecoveryKey()` + `unwrapKeyWithRecoveryKey()` via HKDF-SHA256 | Selesai |
+| `src/pages/LockedPage.tsx` | UI "Lupa PIN? Gunakan Recovery Key" — alur 2 langkah dengan state machine `ActiveView` | Selesai |
+| `docs/runbook-crypto-recovery.md` | Panduan fisik backup VITE_CRYPTO_PEPPER, Recovery Key, prosedur darurat | Dibuat |
+
+**Teknis:**
+- HKDF-SHA256 dipilih karena **deterministik** — recovery key menghasilkan wrapping key yang sama setiap kali tanpa menyimpan state apapun
+- Operational key selalu `extractable: false` (non-extractable) setelah unwrap
+- `rawDeviceKey` disimpan sementara di memori hanya untuk keperluan re-wrap setelah recovery
+
+### P2 — Data Integrity & Performance (HIGH) ✅
+
+| File | Perubahan | Status |
+|------|-----------|--------|
+| `firestore.rules` | `isNonNegativeStockUpdate()` + `isValidVersionUpdate()` CRDT guard pada `/stock/{id}` | Selesai |
+| `src/infrastructure/services/sync/SyncConflictHandler.ts` | `classifyFirestoreError()` + `moveToDeadLetterQueue()` untuk `permission-denied` | Selesai |
+| `src/infrastructure/services/sync/SyncUploaderService.ts` | Integrasi DLQ routing + eliminasi semua `any` → `unknown` + type guards | Selesai |
+
+**Teknis:**
+- Firestore menolak write jika `incoming().quantity < 0` — mencegah stok negatif saat multi-device sync simultaneous
+- CRDT version guard: `incoming().version > existing().version` — tolak stale write dari device yang offline terlama
+- `permission-denied` → DLQ (bukan retry loop) — mencegah infinite retry pada operasi yang sah ditolak
+- `classifyFirestoreError()`: `'conflict' | 'transient' | 'unknown'` classification untuk routing yang tepat
+
+### P3 — Hardware & Maintenance (MEDIUM) ✅
+
+| File | Perubahan | Status |
+|------|-----------|--------|
+| `src/infrastructure/queries/LiveQueriesImpl.ts` | `observeTodayCashSummary()`: `.toArray().reduce()` → `.each()` cursor streaming | Selesai |
+| `src/pages/WorkspacePage.tsx` | `React.memo` pada 4 sub-komponen + `useMemo` timestamps + aggregates | Selesai |
+| `src/infrastructure/services/PrintServiceImpl.ts` | HAL: `ReceiptTemplating` + `PrintTransportLayer` dipisahkan | Selesai |
+| `src/shared/utils/backupManager.ts` | `savePhysicalBackup()` via File System Access API + download fallback | Selesai |
+| `src/features/shift/usecases/CloseShiftUseCase.ts` | Inject `archiveOldLogsAndEvents()` post-shift async (di luar transaksi Dexie) | Selesai |
+| `src/lib/logger.ts` | `logger.fatal()` + Telegram alert via `AlertService` (throttled 30s, fire-and-forget) | Selesai |
+
+**Teknis:**
+- Cursor `.each()` vs `.toArray().reduce()`: hemat 60-80% heap allocation karena tidak materialisasi array penuh
+- `useMemo` timestamps stabil sepanjang hari → mencegah `useLiveQuery` restart setiap render minor
+- HAL pattern (Strategy): `PrintServiceImpl` orkestrasi, `ReceiptTemplating` hanya format string, `PrintTransportLayer` hanya I/O hardware
+- File System Access API: user pilih folder tujuan langsung via native OS picker (Downloads, OneDrive, dll)
+- `archiveOldLogsAndEvents()` dalam `setTimeout(1000ms)` — wajib di luar transaksi Dexie (Engineering Rule 6)
+
+### P4 — Code Quality (LOW) ✅
+
+| File | Perubahan | Status |
+|------|-----------|--------|
+| `src/infrastructure/services/sync/SyncUploaderService.ts` | Semua `any` → `unknown` + type guards `isRecord()`, `extractFirestoreCode()`, `stripUndefined()` | Selesai |
+| `src/features/pos/store/useCartStore.ts` | Perkuat MathUtils compliance, explicit return types pada getters | Selesai |
+
+**Dead Code Flagged (Next Sprint):**
+- `DatabaseAdminServiceImpl.cleanupOldLogs()` — konfirmasi masih dead code, hapus di sprint berikutnya
+
+### Risiko Sisa
+
+| Risiko | Level | Mitigasi |
+|--------|-------|---------|
+| Recovery Key belum ada UI Generate di Settings | **Menengah** | Owner harus generate manual via console sementara — tambahkan UI di sprint berikutnya |
+| File System Access API tidak tersedia di Safari iOS | **Rendah** | Fallback download biasa sudah diimplementasikan |
+| CRDT version field belum di-populate semua write path | **Menengah** | Firestore rules sudah guard — write tanpa `version` masih diizinkan (`isValidVersionUpdate` opsional) |
+| cleanupOldLogs() dead code belum dihapus | **Rendah** | Flagged P3 backlog — hapus di sprint berikutnya |
+

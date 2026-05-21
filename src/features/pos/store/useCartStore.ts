@@ -1,29 +1,41 @@
+/**
+ * @ai_context CartStore — state management keranjang belanja kasir ritel PSA.
+ * @security_tier HIGH (HPP MASKING & FINANCIAL CALCULATIONS)
+ * @business_rule CartStore HANYA untuk layar (UI) Kasir.
+ *   Kasir DILARANG MELIHAT nilai Cost, specificCost, HPP, maupun Gross Profit.
+ *   Perhitungan Gross Profit hanya di CheckoutUseCase (tertutup dari state ini).
+ *   ATURAN UANG: SEMUA kalkulasi moneter WAJIB via MathUtils (Decimal.js).
+ *   DILARANG: + - * / native JS untuk nilai Rupiah atau berat gram.
+ *   UI hanya menerima dan merender `number` — TIDAK ada Decimal object di props.
+ * @data-component-id: cart-store
+ * @data-error-domain: pos
+ * @stop_for_ai: Baca AI_TRACK_RECORD.md sebelum memodifikasi file ini.
+ * @changelog:
+ *   2026-05-20 — P4: Perkuat MathUtils compliance — semua aggregasi totalPrice
+ *                    menggunakan MathUtils.add() dalam reduce (sudah ada, diperkuat typing)
+ *                    Tambah return type eksplisit pada getter computed values
+ *                    Isolasi semua Decimal logic di actions, UI terima number
+ */
 import { create } from 'zustand';
 import { persist, createJSONStorage } from 'zustand/middleware';
 import { StockItem, TransactionItem } from '@shared/api/db';
 import { MathUtils } from '../../../shared/utils/decimalUtils';
 import { dexieCartStorage } from '../../../infrastructure/storage/dexieCartStorage';
 
-/**
- * ============================================================================
- * 🛑 AI EMERGENCY STOP & AUDIT PROTOCOL
- * ============================================================================
- * @security_tier HIGH (HPP MASKING & FINANCIAL CALCULATIONS)
- * STOP! JIKA ANDA (AI MODEL) MENGAKSES FILE INI, BACA `/AI_TRACK_RECORD.md` SEGERA.
- * Aturan Visibilitas (SANGAT KRITIS):
- * - CartStore HANYA untuk layar (UI) Kasir.
- * - Kasir DILARANG MELIHAT nilai Cost, specificCost, HPP, maupun Gross Profit.
- * - Perhitungan Gross Profit dilakukan di Backend (Firestore Rules/Functions) atau
- *   CheckoutUseCase (yang tertutup dari state ini). JANGAN taruh HPP di sini.
- * - PERHATIAN UANG: JANGAN HILANGKAN Math.round() pada setiap parameter nominal.
- * ============================================================================
- */
-
 interface CartState {
   _hasHydrated: boolean;
   setHasHydrated: (state: boolean) => void;
   cartItems: TransactionItem[];
+  /**
+   * Jumlah baris item (bukan total unit) — integer, MathUtils tidak diperlukan.
+   * UI: Render langsung sebagai badge count.
+   */
   readonly totalItems: number;
+  /**
+   * Total harga keranjang dalam Rupiah (integer, sudah MathUtils.roundInt).
+   * UI: Render sebagai Rp formatting — tidak perlu konversi lagi.
+   * Selalu berupa `number` (bukan Decimal object) agar aman untuk JSX.
+   */
   readonly totalPrice: number;
   manualDiscountAmount: number;
   manualDiscountNote: string;
@@ -40,43 +52,54 @@ export const useCartStore = create<CartState>()(
   persist(
     (set, get) => ({
       _hasHydrated: false,
-      setHasHydrated: (state) => set({ _hasHydrated: state }),
+      setHasHydrated: (state: boolean) => set({ _hasHydrated: state }),
       cartItems: [],
       manualDiscountAmount: 0,
       manualDiscountNote: '',
 
-      get totalItems() {
+      get totalItems(): number {
+        // Jumlah baris unik — integer arithmetic, bukan finansial
         return get().cartItems.length;
       },
 
-      get totalPrice() {
-        return MathUtils.roundInt(get().cartItems.reduce((sum, item) => MathUtils.add(sum, item.subtotal), 0));
+      get totalPrice(): number {
+        /**
+         * P4: Aggregasi subtotal menggunakan MathUtils.add() bukan operator +
+         * MathUtils.roundInt() memastikan output adalah integer Rupiah tanpa floating-point drift.
+         * Semua Decimal logic terisolasi di sini — UI cukup render angka hasilnya.
+         */
+        const raw = get().cartItems.reduce(
+          (acc: number, item: TransactionItem) => MathUtils.add(acc, item.subtotal),
+          0
+        );
+        return MathUtils.roundInt(raw);
       },
 
-      addItem: (product) =>
+      addItem: (product: StockItem) =>
         set((state) => {
-          const existingItem = state.cartItems.find(
-            (item) => item.stockId === product.id
-          );
+          const existing = state.cartItems.find((i) => i.stockId === product.id);
 
-          if (existingItem) {
-            const newQuantity = existingItem.quantity + 1;
-            if (existingItem.maxStock !== undefined && newQuantity > existingItem.maxStock) {
-              return state; // Do not add more than maxStock
+          if (existing) {
+            // Qty increment: integer + 1 (bukan finansial, boleh native)
+            const newQty = existing.quantity + 1;
+            if (existing.maxStock !== undefined && newQty > existing.maxStock) {
+              return state; // Tidak tambah melebihi stok
             }
             return {
               cartItems: state.cartItems.map((item) =>
                 item.stockId === product.id
                   ? {
                       ...item,
-                      quantity: newQuantity,
-                      subtotal: MathUtils.roundInt(MathUtils.mul(newQuantity, item.price)),
+                      quantity: newQty,
+                      // P4: subtotal = qty × price via MathUtils (wajib Decimal precision)
+                      subtotal: MathUtils.roundInt(MathUtils.mul(newQty, item.price)),
                     }
                   : item
               ),
             };
           }
 
+          // Item baru: subtotal = harga satuan (qty = 1)
           return {
             cartItems: [
               ...state.cartItems,
@@ -92,33 +115,33 @@ export const useCartStore = create<CartState>()(
           };
         }),
 
-      addCustomItem: (customItem) =>
+      addCustomItem: (customItem: TransactionItem) =>
         set((state) => {
-          const existingItem = state.cartItems.find((i) => i.stockId === customItem.stockId);
-          if (existingItem) {
+          const existing = state.cartItems.find((i) => i.stockId === customItem.stockId);
+          if (existing) {
             return {
               cartItems: state.cartItems.map((item) =>
                 item.stockId === customItem.stockId
                   ? {
                       ...item,
+                      // Qty merge: integer arithmetic (bukan finansial)
                       quantity: item.quantity + customItem.quantity,
+                      // Subtotal merge: MathUtils untuk presisi
                       subtotal: MathUtils.roundInt(MathUtils.add(item.subtotal, customItem.subtotal)),
                     }
                   : item
               ),
             };
           }
-          return {
-            cartItems: [...state.cartItems, customItem],
-          };
+          return { cartItems: [...state.cartItems, customItem] };
         }),
 
-      removeItem: (stockId) =>
+      removeItem: (stockId: string) =>
         set((state) => ({
           cartItems: state.cartItems.filter((item) => item.stockId !== stockId),
         })),
 
-      updateQuantity: (stockId, quantity) =>
+      updateQuantity: (stockId: string, quantity: number) =>
         set((state) => {
           if (quantity <= 0) {
             return {
@@ -126,9 +149,9 @@ export const useCartStore = create<CartState>()(
             };
           }
 
-          const itemToUpdate = state.cartItems.find(item => item.stockId === stockId);
-          if (itemToUpdate && itemToUpdate.maxStock !== undefined && quantity > itemToUpdate.maxStock) {
-            return state; // Do not update if exceeds maxStock
+          const target = state.cartItems.find((item) => item.stockId === stockId);
+          if (target?.maxStock !== undefined && quantity > target.maxStock) {
+            return state; // Tidak update melebihi stok
           }
 
           return {
@@ -137,6 +160,7 @@ export const useCartStore = create<CartState>()(
                 ? {
                     ...item,
                     quantity,
+                    // P4: subtotal recalc via MathUtils
                     subtotal: MathUtils.roundInt(MathUtils.mul(quantity, item.price)),
                   }
                 : item
@@ -146,12 +170,14 @@ export const useCartStore = create<CartState>()(
 
       clearCart: () => set({ cartItems: [], manualDiscountAmount: 0, manualDiscountNote: '' }),
       setCartItems: (items: TransactionItem[]) => set({ cartItems: items }),
-      setManualDiscount: (amount: number, note: string) => set({ manualDiscountAmount: amount, manualDiscountNote: note }),
+      setManualDiscount: (amount: number, note: string) =>
+        set({ manualDiscountAmount: amount, manualDiscountNote: note }),
     }),
     {
       name: 'pos-cart-storage',
       storage: createJSONStorage(() => dexieCartStorage),
       partialize: (state) => {
+        // Hanya persist data, bukan action functions
         // eslint-disable-next-line @typescript-eslint/no-unused-vars
         const { addItem, addCustomItem, removeItem, updateQuantity, clearCart, setCartItems, setManualDiscount, setHasHydrated, ...stateToPersist } = state;
         return stateToPersist;

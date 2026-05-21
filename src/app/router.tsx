@@ -121,6 +121,7 @@ const employeesRoute = createRoute({ getParentRoute: () => rootRoute, path: '/em
 const customersRoute = createRoute({ getParentRoute: () => rootRoute, path: '/customers', beforeLoad: requireRole([UserRole.ADMIN, UserRole.MANAGER]), component: lazyRouteComponent(() => import('../pages/employees/CustomersPage'), 'CustomersPage') });
 const printerSettingsRoute = createRoute({ getParentRoute: () => rootRoute, path: '/settings/printer', beforeLoad: requireRole([UserRole.ADMIN, UserRole.MANAGER]), component: lazyRouteComponent(() => import('../features/settings/ui/PrinterSettingsPage'), 'PrinterSettingsPage') });
 const receiptSettingsRoute = createRoute({ getParentRoute: () => rootRoute, path: '/settings/receipt', beforeLoad: requireRole([UserRole.ADMIN, UserRole.MANAGER]), component: lazyRouteComponent(() => import('../features/settings/ui/ReceiptSettingsPage'), 'ReceiptSettingsPage') });
+const securitySettingsRoute = createRoute({ getParentRoute: () => rootRoute, path: '/settings/security', beforeLoad: requireRole([UserRole.ADMIN]), component: lazyRouteComponent(() => import('../features/settings/ui/SecuritySettingsPage'), 'SecuritySettingsPage') });
 const syncDlqRoute = createRoute({ getParentRoute: () => rootRoute, path: '/settings/sync-dlq', beforeLoad: requireRole([UserRole.ADMIN]), component: lazyRouteComponent(() => import('../features/settings/ui/DeadLetterQueuePage'), 'DeadLetterQueuePage') });
 
 const routeTree = rootRoute.addChildren([
@@ -128,7 +129,7 @@ const routeTree = rootRoute.addChildren([
   auditRoute, systemAuditRoute, syncStatusRoute, conflictResolutionRoute, financeRoute, servicePosRoute, buybackRoute,
   goldBuybackSalesRoute, inventoryRoute, receiveStockRoute, barcodePrintRoute,
   servicesRoute, shiftRoute, handoverRoute, settingsRoute, executiveRoute,
-  lockedRoute, loginRoute, onboardingRoute, employeesRoute, customersRoute, printerSettingsRoute, receiptSettingsRoute, syncDlqRoute, ownerDashboardRoute
+  lockedRoute, loginRoute, onboardingRoute, employeesRoute, customersRoute, printerSettingsRoute, receiptSettingsRoute, syncDlqRoute, securitySettingsRoute, ownerDashboardRoute
 ]);
 
 export const router = createRouter({ routeTree });

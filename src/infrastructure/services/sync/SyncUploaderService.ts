@@ -154,7 +154,17 @@ export class SyncUploaderService {
         individualOps.push({ eventId, op: async () => { await updateDoc(docRef, updateData); } });
       }
     } else if (event.action === 'INSERT' || event.action === 'UPDATE') {
-      const safePayload = stripUndefined(event.payload) as Record<string, unknown>;
+      const rawPayload = stripUndefined(event.payload) as Record<string, unknown>;
+      // CRDT: Inject version field jika belum ada.
+      // INSERT → version = timestamp enqueue (monotonic clock per device).
+      // UPDATE → increment version dari payload; jika tidak ada, pakai Date.now().
+      // Ini memungkinkan SyncConflictHandler.hasConflict() mendeteksi konflik dengan akurat.
+      if (!rawPayload['version']) {
+        rawPayload['version'] = event.action === 'INSERT'
+          ? event.timestamp  // waktu enqueue original, lebih stabil dari Date.now()
+          : Date.now();
+      }
+      const safePayload = rawPayload;
       batch.set(docRef, safePayload, { merge: true });
       individualOps.push({ eventId, op: async () => { await setDoc(docRef, safePayload, { merge: true }); } });
     } else if (event.action === 'DELETE') {

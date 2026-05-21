@@ -1,6 +1,6 @@
 import { logger } from '@lib/logger';
 import { useState, useRef, useEffect } from 'react';
-import { Download, Upload, Trash2, AlertTriangle, Archive, Users, ShieldAlert, Target, Activity, Lock, Database, Printer } from 'lucide-react';
+import { Download, Upload, Trash2, AlertTriangle, Archive, Users, ShieldAlert, Target, Activity, Lock, Database, Printer, Shield } from 'lucide-react';
 import { DIContainer } from '@infrastructure/di/Container';
 import { useToastStore } from '../../../shared/store/toastStore';
 import { BackButton } from '../../../shared/components/BackButton';
@@ -363,6 +363,23 @@ export function SettingsPage() {
                   className="w-full flex items-center justify-center gap-2 px-4 py-2.5 bg-white border border-stone-200 hover:bg-stone-100 text-stone-700 font-medium rounded-lg transition-colors"
                 >
                   Buka Manajemen Pegawai
+                </Link>
+              </div>
+
+              {/* Security Settings */}
+              <div className="p-5 border border-stone-100 bg-stone-50 rounded-xl">
+                <div className="w-10 h-10 bg-emerald-100 text-emerald-600 rounded-full flex items-center justify-center mb-4">
+                  <Shield size={20} />
+                </div>
+                <h3 className="font-bold text-stone-800 mb-2">Keamanan Sistem</h3>
+                <p className="text-sm text-stone-500 mb-6">
+                  Buat Recovery Key untuk memulihkan akses jika PIN lupa, dan kelola pengaturan keamanan sistem.
+                </p>
+                <Link
+                  to="/settings/security"
+                  className="w-full flex items-center justify-center gap-2 px-4 py-2.5 bg-white border border-stone-200 hover:bg-stone-100 text-stone-700 font-medium rounded-lg transition-colors"
+                >
+                  Buka Pengaturan Keamanan
                 </Link>
               </div>
 

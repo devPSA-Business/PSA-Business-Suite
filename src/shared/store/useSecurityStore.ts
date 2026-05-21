@@ -435,7 +435,23 @@ export const useSecurityStore = create<SecurityState>()(
     }),
     { 
       name: 'psa-security-storage',
-      storage: createJSONStorage(() => dexieSecurityStorage)
+      storage: createJSONStorage(() => dexieSecurityStorage),
+      // BATCH D: partialize — exclude state yang TIDAK boleh di-persist antar sesi.
+      // isPinVerified: HARUS selalu false saat app restart (security requirement).
+      //   Jika di-persist, user yang ambil tablet orang lain bisa bypass PIN.
+      // isSetupComplete: dibaca dari db.store_profile di initSetupState(), bukan dari persist.
+      partialize: (state: SecurityState) => ({
+        // Yang di-persist: lockout tracking (agar Nuclear Lockout tidak hilang saat reload)
+        failedAttempts: state.failedAttempts,
+        absoluteFailedAttempts: state.absoluteFailedAttempts,
+        lastAttemptTime: state.lastAttemptTime,
+        isSystemLocked: state.isSystemLocked,
+        adminFailedAttempts: state.adminFailedAttempts,
+        lastAdminAttemptTime: state.lastAdminAttemptTime,
+        // Yang TIDAK di-persist: session state (direset tiap app restart)
+        // isPinVerified: intentionally excluded
+        // isSetupComplete: intentionally excluded (dibaca dari db)
+      }),
     }
   )
 );

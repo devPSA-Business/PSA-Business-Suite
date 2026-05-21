@@ -14,10 +14,15 @@ import { GlobalSidebar } from '../shared/components/navigation/GlobalSidebar';
 import { ContextualBottomSheet } from '../shared/components/navigation/ContextualBottomSheet';
 
 import { useSessionTimeout } from '../shared/hooks/useSessionTimeout';
+import { SyncHeartbeatIndicator, type HealthReport } from '../shared/components/SyncHeartbeatIndicator';
 
 export function MainLayout() {
   useSessionTimeout();
   const [isOnline, setIsOnline] = useState(navigator.onLine);
+  const [healthReport, setHealthReport] = useState<HealthReport | null>(null);
+  const [isHealthLoading, setIsHealthLoading] = useState(false);
+  const [showHealthPanel, setShowHealthPanel] = useState(false);
+  const healthWorkerRef = React.useRef<Worker | null>(null);
   const routerState = useRouterState();
   const isCashier = routerState.location.pathname === '/cashier';
   const navigate = useNavigate();
@@ -66,6 +71,37 @@ export function MainLayout() {
       window.removeEventListener('offline', handleOffline);
     };
   }, []);
+
+  // BATCH C: Wire healthGuardian.worker → SyncHeartbeatIndicator
+  useEffect(() => {
+    const worker = new Worker(new URL('../workers/healthGuardian.worker.ts', import.meta.url), { type: 'module' });
+    healthWorkerRef.current = worker;
+    worker.onmessage = (e) => {
+      if (e.data.type === 'HEALTH_REPORT') {
+        setHealthReport(e.data.data as HealthReport);
+        setIsHealthLoading(false);
+      }
+    };
+    // Trigger health check pertama kali saat mount
+    worker.postMessage({ type: 'RUN_HEALTH_CHECK' });
+    setIsHealthLoading(true);
+    // Interval setiap 5 menit
+    const interval = setInterval(() => {
+      worker.postMessage({ type: 'RUN_HEALTH_CHECK' });
+    }, 5 * 60 * 1000);
+    return () => {
+      clearInterval(interval);
+      worker.terminate();
+      healthWorkerRef.current = null;
+    };
+  }, []);
+
+  const triggerHealthCheck = () => {
+    if (healthWorkerRef.current) {
+      setIsHealthLoading(true);
+      healthWorkerRef.current.postMessage({ type: 'RUN_HEALTH_CHECK' });
+    }
+  };
 
   const pendingSyncs = useLiveQuery(
     () => DIContainer.liveQueries.observePendingSyncCount(),
@@ -199,23 +235,54 @@ export function MainLayout() {
                 </button>
               )}
 
-              {/* Sync Status Indicator */}
-              {!isOnline ? (
-                <div className="bg-stone-100 text-stone-500 border border-stone-200 px-2 sm:px-3 py-1 sm:py-1.5 rounded-lg flex items-center gap-1.5 sm:gap-2 text-xs sm:text-sm font-medium transition-colors">
-                  <WifiOff size={14} className="sm:w-4 sm:h-4" />
-                  <span className="hidden sm:inline">Mode Offline</span>
-                </div>
-              ) : pendingSyncs > 0 ? (
-                <div className="bg-amber-50 text-amber-600 border border-amber-200 px-2 sm:px-3 py-1 sm:py-1.5 rounded-lg flex items-center gap-1.5 sm:gap-2 text-xs sm:text-sm font-bold">
-                  <RefreshCw size={14} className="animate-spin sm:w-4 sm:h-4" />
-                  <span className="hidden sm:inline">{pendingSyncs} Sync</span>
-                </div>
-              ) : (
-                <div className="bg-green-50 text-green-600 border border-green-200 px-2 sm:px-3 py-1 sm:py-1.5 rounded-lg flex items-center gap-1.5 sm:gap-2 text-xs sm:text-sm font-bold">
-                  <CloudDrizzle size={14} className="sm:w-4 sm:h-4" />
-                  <span className="hidden sm:inline">Sync</span>
-                </div>
-              )}
+              {/* Sync Status Indicator — BATCH C: clickable, terhubung ke healthGuardian */}
+              <div className="relative">
+                <button
+                  onClick={() => setShowHealthPanel((v) => !v)}
+                  title="Status Sistem"
+                  className="focus:outline-none"
+                >
+                  {!isOnline ? (
+                    <div className="bg-stone-100 text-stone-500 border border-stone-200 px-2 sm:px-3 py-1 sm:py-1.5 rounded-lg flex items-center gap-1.5 sm:gap-2 text-xs sm:text-sm font-medium transition-colors">
+                      <WifiOff size={14} className="sm:w-4 sm:h-4" />
+                      <span className="hidden sm:inline">Offline</span>
+                    </div>
+                  ) : pendingSyncs > 0 ? (
+                    <div className="bg-amber-50 text-amber-600 border border-amber-200 px-2 sm:px-3 py-1 sm:py-1.5 rounded-lg flex items-center gap-1.5 sm:gap-2 text-xs sm:text-sm font-bold">
+                      <RefreshCw size={14} className="animate-spin sm:w-4 sm:h-4" />
+                      <span className="hidden sm:inline">{pendingSyncs} Sync</span>
+                    </div>
+                  ) : healthReport?.status === 'CRITICAL' ? (
+                    <div className="bg-rose-50 text-rose-600 border border-rose-200 px-2 sm:px-3 py-1 sm:py-1.5 rounded-lg flex items-center gap-1.5 sm:gap-2 text-xs sm:text-sm font-bold animate-pulse">
+                      <AlertTriangle size={14} className="sm:w-4 sm:h-4" />
+                      <span className="hidden sm:inline">Kritis</span>
+                    </div>
+                  ) : healthReport?.status === 'WARNING' ? (
+                    <div className="bg-amber-50 text-amber-600 border border-amber-200 px-2 sm:px-3 py-1 sm:py-1.5 rounded-lg flex items-center gap-1.5 sm:gap-2 text-xs sm:text-sm font-bold">
+                      <CloudDrizzle size={14} className="sm:w-4 sm:h-4" />
+                      <span className="hidden sm:inline">Warning</span>
+                    </div>
+                  ) : (
+                    <div className="bg-green-50 text-green-600 border border-green-200 px-2 sm:px-3 py-1 sm:py-1.5 rounded-lg flex items-center gap-1.5 sm:gap-2 text-xs sm:text-sm font-bold">
+                      <CloudDrizzle size={14} className="sm:w-4 sm:h-4" />
+                      <span className="hidden sm:inline">Sync</span>
+                    </div>
+                  )}
+                </button>
+                {/* Health Panel Dropdown */}
+                {showHealthPanel && (
+                  <>
+                    <div className="fixed inset-0 z-40" onClick={() => setShowHealthPanel(false)} />
+                    <div className="absolute right-0 top-full mt-2 z-50 bg-white rounded-2xl shadow-xl border border-stone-200 overflow-hidden">
+                      <SyncHeartbeatIndicator
+                        report={healthReport}
+                        isLoading={isHealthLoading}
+                        onRefresh={triggerHealthCheck}
+                      />
+                    </div>
+                  </>
+                )}
+              </div>
               
               {!isCashierRole && (
                 <button 

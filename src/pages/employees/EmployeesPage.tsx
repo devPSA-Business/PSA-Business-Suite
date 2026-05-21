@@ -56,7 +56,24 @@ export function EmployeesPage() {
       const generatedId = `USR-${Date.now()}`;
       const targetUserId = editingUser ? editingUser.id : generatedId;
       
-      const pinHash = formData.pin ? await hashPin(formData.pin, targetUserId) : (editingUser?.pinHash || '');
+      // BATCH F / TD-05: Generate random 32-byte salt untuk user BARU.
+      // Sebelumnya menggunakan targetUserId (string deterministik) sebagai salt —
+      // ini lebih lemah karena userId bisa ditebak. Random Uint8Array jauh lebih aman.
+      // Untuk edit user: salt lama dipertahankan (jangan di-rotate kecuali PIN berubah).
+      let pinHash: string;
+      let newUserSalt: Uint8Array | undefined;
+      if (formData.pin) {
+        if (!editingUser) {
+          // User BARU: generate salt random sebelum hash
+          newUserSalt = crypto.getRandomValues(new Uint8Array(32));
+          pinHash = await hashPin(formData.pin, newUserSalt);
+        } else {
+          // Edit user: pakai userId sebagai salt fallback (salt baru akan dibuat saat login pertama via ensureUserSalt)
+          pinHash = await hashPin(formData.pin, targetUserId);
+        }
+      } else {
+        pinHash = editingUser?.pinHash || '';
+      }
       
       if (editingUser) {
         await db.users.update(editingUser.id, {
@@ -78,6 +95,9 @@ export function EmployeesPage() {
           role: formData.role,
           branchId: formData.branchId,
           pinHash: pinHash,
+          // TD-05: simpan salt random (Uint8Array) bersama user record
+          // eslint-disable-next-line @typescript-eslint/no-explicit-any
+          ...(newUserSalt ? { salt: newUserSalt as any } : {}),
           status: 'ACTIVE',
           createdAt: Date.now()
         };

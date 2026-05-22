@@ -22,7 +22,6 @@ export function MainLayout() {
   const [healthReport, setHealthReport] = useState<HealthReport | null>(null);
   const [isHealthLoading, setIsHealthLoading] = useState(false);
   const [showHealthPanel, setShowHealthPanel] = useState(false);
-  const healthWorkerRef = React.useRef<Worker | null>(null);
   const routerState = useRouterState();
   const isCashier = routerState.location.pathname === '/cashier';
   const navigate = useNavigate();
@@ -72,57 +71,31 @@ export function MainLayout() {
     };
   }, []);
 
-  // BATCH C + FIX MEDIUM-8: Wire healthGuardian.worker → SyncHeartbeatIndicator
-  // dengan fallback graceful untuk browser yang tidak support Worker (Safari iOS lama)
+  // FIX BUG-01: Hapus worker duplikat.
+  // MainLayout tidak lagi membuat instance healthGuardian.worker sendiri.
+  // Worker dikelola eksklusif oleh App.tsx — MainLayout hanya mendengarkan event broadcast.
+  //
+  // Protocol event (custom window events dari App.tsx → worker):
+  //   'PSA_HEALTH_REPORT' : worker selesai check, membawa HealthReport di e.detail
+  //   'REQUEST_HEALTH_CHECK' : MainLayout meminta refresh manual → App.tsx forward ke worker
+  //
+  // Ini eliminasi: dual Telegram alert, read contention Dexie, dan memory leak dari 2 Worker instances.
   useEffect(() => {
-    // Guard: Web Workers tidak selalu tersedia (Safari Private Mode, beberapa iOS versions)
-    if (typeof Worker === 'undefined') {
+    const handleHealthReport = (e: Event) => {
+      const customEvent = e as CustomEvent<HealthReport>;
+      setHealthReport(customEvent.detail);
       setIsHealthLoading(false);
-      return;
-    }
-    let worker: Worker;
-    try {
-      worker = new Worker(new URL('../workers/healthGuardian.worker.ts', import.meta.url), { type: 'module' });
-    } catch {
-      // Worker gagal init (e.g. Content Security Policy terlalu ketat di beberapa environment)
-      setIsHealthLoading(false);
-      return;
-    }
-    healthWorkerRef.current = worker;
-    worker.onmessage = (e) => {
-      if (e.data.type === 'HEALTH_REPORT') {
-        setHealthReport(e.data.data as HealthReport);
-        setIsHealthLoading(false);
-      }
     };
-    worker.onerror = () => {
-      // Worker error (misalnya module tidak bisa di-load) — graceful degradation
-      setIsHealthLoading(false);
-      healthWorkerRef.current = null;
-    };
-    // Trigger health check pertama kali saat mount
-    worker.postMessage({ type: 'RUN_HEALTH_CHECK' });
-    setIsHealthLoading(true);
-    // Interval setiap 5 menit
-    const interval = setInterval(() => {
-      if (healthWorkerRef.current) {
-        healthWorkerRef.current.postMessage({ type: 'RUN_HEALTH_CHECK' });
-      }
-    }, 5 * 60 * 1000);
+    window.addEventListener('PSA_HEALTH_REPORT', handleHealthReport);
     return () => {
-      clearInterval(interval);
-      if (healthWorkerRef.current) {
-        healthWorkerRef.current.terminate();
-        healthWorkerRef.current = null;
-      }
+      window.removeEventListener('PSA_HEALTH_REPORT', handleHealthReport);
     };
   }, []);
 
   const triggerHealthCheck = () => {
-    if (healthWorkerRef.current) {
-      setIsHealthLoading(true);
-      healthWorkerRef.current.postMessage({ type: 'RUN_HEALTH_CHECK' });
-    }
+    setIsHealthLoading(true);
+    // Dispatch ke App.tsx yang mengelola worker
+    window.dispatchEvent(new CustomEvent('REQUEST_HEALTH_CHECK'));
   };
 
   const pendingSyncs = useLiveQuery(

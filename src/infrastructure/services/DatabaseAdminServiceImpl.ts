@@ -29,26 +29,40 @@ export class DatabaseAdminServiceImpl implements IDatabaseAdminService {
   }
 
   async recoverFromCloud(): Promise<void> {
+    // FIX BUG-04: bulkAdd → bulkPut (idempotent: tidak crash jika dipanggil 2x)
+    // FIX NEW-02: tambah recovery untuk repair_services dan customers (sebelumnya hilang)
+    //
+    // Tabel yang dipulihkan (sinkron dengan importDatabase()):
+    //   stock, transactions, repair_services, customers
+    //   audit_logs TIDAK dipulihkan dari Cloud — append-only, hindari overwrite trail audit
+    //
+    // @changelog: 2026-05-22 — BUG-04 + NEW-02 fix. recoverFromCloud sekarang idempoten.
     const { collection, getDocs } = await import('firebase/firestore');
     const { firestoreDb, isConfigValid } = await import('../../shared/api/firebase');
 
-    if (!isConfigValid) throw new Error("Fitur pemulihan Cloud tidak tersedia: Firebase API Key tidak dikonfigurasi.");
+    if (!isConfigValid) throw new Error('Fitur pemulihan Cloud tidak tersedia: Firebase API Key tidak dikonfigurasi.');
 
-    const stockSnapshot = await getDocs(collection(firestoreDb, 'stock'));
-    const transactionsSnapshot = await getDocs(collection(firestoreDb, 'transactions'));
+    // Ambil semua snapshot secara paralel (lebih cepat dari sequential)
+    const [stockSnapshot, transactionsSnapshot, repairSnapshot, customersSnapshot] = await Promise.all([
+      getDocs(collection(firestoreDb, 'stock')),
+      getDocs(collection(firestoreDb, 'transactions')),
+      getDocs(collection(firestoreDb, 'repair_services')),
+      getDocs(collection(firestoreDb, 'customers')),
+    ]);
 
-    await db.transaction('rw', db.stock, db.transactions, async () => {
+    await db.transaction('rw', db.stock, db.transactions, db.repair_services, db.customers, async () => {
       await db.stock.clear();
       await db.transactions.clear();
+      await db.repair_services.clear();
+      await db.customers.clear();
 
-      if (!stockSnapshot.empty) {
-        // eslint-disable-next-line @typescript-eslint/no-explicit-any
-        await db.stock.bulkAdd(stockSnapshot.docs.map(doc => doc.data() as any));
-      }
-      if (!transactionsSnapshot.empty) {
-        // eslint-disable-next-line @typescript-eslint/no-explicit-any
-        await db.transactions.bulkAdd(transactionsSnapshot.docs.map(doc => doc.data() as any));
-      }
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      const toData = (snap: typeof stockSnapshot) => snap.docs.map(doc => doc.data() as any);
+
+      if (!stockSnapshot.empty)        await db.stock.bulkPut(toData(stockSnapshot));
+      if (!transactionsSnapshot.empty) await db.transactions.bulkPut(toData(transactionsSnapshot));
+      if (!repairSnapshot.empty)       await db.repair_services.bulkPut(toData(repairSnapshot));
+      if (!customersSnapshot.empty)    await db.customers.bulkPut(toData(customersSnapshot));
     });
   }
 

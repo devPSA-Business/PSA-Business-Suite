@@ -359,8 +359,8 @@ async function buildNlqContext(startDateMs: number, endDateMs: number) {
   let totalProfit = 0;
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   dailyMetrics.forEach((d: any) => {
-    totalOmzet += d.totalOmzet;
-    totalProfit += d.totalGrossProfit;
+    totalOmzet  += d.omzetTotal;       // FIX BUG-02: field konsisten dengan calculateDailyMetrics()
+    totalProfit += d.grossProfitTotal; // FIX BUG-02: field konsisten dengan calculateDailyMetrics()
   });
 
   // 2. Get top product metrics
@@ -369,7 +369,7 @@ async function buildNlqContext(startDateMs: number, endDateMs: number) {
   // 3. Select top N (default 10)
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const topProducts = productRanking.slice(0, 10).map((p: any) => ({
-    name: p.name,
+    name: p.productName, // FIX NEW-01: konsisten dengan calculateProductRanking() return field
     qtySold: p.qtySold,
     category: p.category,
     normalizedMargin: (p.normalizedMarginPct && !isNaN(p.normalizedMarginPct)) ? p.normalizedMarginPct.toFixed(2) : '-1'

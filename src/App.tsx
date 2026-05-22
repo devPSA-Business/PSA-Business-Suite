@@ -99,6 +99,8 @@ export default function App() {
           const report = e.data.data;
           import('./shared/store/useHealthStore').then((module) => {
             module.useHealthStore.getState().setReport(report);
+            // Broadcast ke komponen lain (MainLayout, dll) tanpa Worker duplikat — FIX BUG-01
+            window.dispatchEvent(new CustomEvent('PSA_HEALTH_REPORT', { detail: report }));
           });
 
           if (report.status === 'CRITICAL') {
@@ -203,7 +205,7 @@ export default function App() {
         logger.info('Database has been successfully deleted by the user.');
         window.location.reload();
       } catch (error) {
-        const message = error instanceof Error ? (error instanceof Error ? error.message : String(error)) : String(error);
+        const message = error instanceof Error ? error.message : String(error); // FIX NEW-03: hapus double instanceof check
         logger.error('Failed to reset database', { error: message });
         setBootError('Gagal mereset database: ' + message);
       }
@@ -294,7 +296,7 @@ export default function App() {
            logger.info('Device is not enrolled. First login will initialize local crypto.');
         }
       } catch (error) {
-        const message = error instanceof Error ? (error instanceof Error ? error.message : String(error)) : String(error);
+        const message = error instanceof Error ? error.message : String(error); // FIX NEW-03: hapus double instanceof check
         logger.error('Failed to bootstrap security', { error: message });
         setBootError('Gagal memuat modul keamanan: ' + message);
       } finally {

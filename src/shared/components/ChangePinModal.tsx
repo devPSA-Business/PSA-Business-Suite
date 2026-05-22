@@ -45,19 +45,28 @@ export const ChangePinModal: React.FC<ChangePinModalProps> = ({ isOpen, onClose 
         return;
       }
 
-      const hashedCurrentPin = await hashPin(currentPin, user.id);
-      
-      // The previous code checked: if (userInDb.pinHash !== hashedCurrentPin)
-      // We should check both PBKDF2 hash and the old SHA-256 for backward compatibility.
+      // FIX BUG-03: Gunakan salt dari db record (bukan user.id deterministik)
+      // Lapisan verifikasi: (1) PBKDF2 dengan salt dari DB, (2) legacy SHA-256 backward compat
+      const dbSalt = userInDb.salt; // string | Uint8Array dari DB
+
       let isPinValid = false;
-      if (userInDb.pinHash === hashedCurrentPin) {
-        isPinValid = true;
-      } else {
-         const msgBuffer = new TextEncoder().encode(currentPin);
-         const oldHashBuffer = await crypto.subtle.digest('SHA-256', msgBuffer);
-         const oldHashArray = Array.from(new Uint8Array(oldHashBuffer));
-         const oldHash = oldHashArray.map(b => b.toString(16).padStart(2, '0')).join('');
-         if (userInDb.pinHash === oldHash) isPinValid = true;
+      if (dbSalt) {
+        // Verifikasi dengan salt dari DB (PBKDF2 — path normal)
+        const hashedCurrentPin = await hashPin(currentPin, dbSalt);
+        if (userInDb.pinHash === hashedCurrentPin) isPinValid = true;
+      }
+      if (!isPinValid) {
+        // Fallback: coba deterministik user.id (untuk akun lama yang belum di-migrate)
+        const hashedWithUserId = await hashPin(currentPin, user.id);
+        if (userInDb.pinHash === hashedWithUserId) isPinValid = true;
+      }
+      if (!isPinValid) {
+        // Fallback terakhir: legacy SHA-256 (akun paling lama sebelum PBKDF2)
+        const msgBuffer = new TextEncoder().encode(currentPin);
+        const oldHashBuffer = await crypto.subtle.digest('SHA-256', msgBuffer);
+        const oldHash = Array.from(new Uint8Array(oldHashBuffer))
+          .map(b => b.toString(16).padStart(2, '0')).join('');
+        if (userInDb.pinHash === oldHash) isPinValid = true;
       }
 
       if (!isPinValid) {
@@ -66,8 +75,10 @@ export const ChangePinModal: React.FC<ChangePinModalProps> = ({ isOpen, onClose 
         return;
       }
 
-      const hashedNewPin = await hashPin(newPin, user.id);
-      await db.users.update(user.id, { pinHash: hashedNewPin });
+      // PIN baru: selalu gunakan random salt (eliminasi determinisme) — FIX BUG-03
+      const newSalt = crypto.getRandomValues(new Uint8Array(32));
+      const hashedNewPin = await hashPin(newPin, newSalt);
+      await db.users.update(user.id, { pinHash: hashedNewPin, salt: newSalt });
       
       addToast('PIN berhasil diperbarui.', 'success');
       

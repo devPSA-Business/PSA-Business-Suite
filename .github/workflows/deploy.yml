@@ -92,6 +92,41 @@ jobs:
             --project "${{ secrets.FIREBASE_PROJECT_ID }}" \
             --token   "${{ secrets.FIREBASE_DEPLOY_TOKEN }}"
 
+      # ─── ROLLBACK MECHANISM ────────────────────────────────────────────────────
+      # Setiap deploy produksi yang berhasil secara otomatis membuat git tag
+      # dengan format: prod-YYYYMMDD-HHmm-<7-char-sha>
+      #
+      # CARA ROLLBACK (manual, jika terjadi bug kritis setelah deploy):
+      #   1. Buka GitHub → Actions → "Deploy — Produksi Firebase Hosting"
+      #   2. Klik "Run workflow" → pilih tag yang ingin di-rollback
+      #   ATAU via terminal:
+      #     git checkout <tag-name>
+      #     npm ci && npm run build && firebase deploy --only hosting
+      #
+      # List semua tag produksi: git tag --list 'prod-*' --sort=-creatordate
+      # ─────────────────────────────────────────────────────────────────────────
+      - name: Tag rilis produksi (untuk rollback)
+        if: success()
+        permissions:
+          contents: write
+        run: |
+          TIMESTAMP=$(date -u +"%Y%m%d-%H%M")
+          SHORT_SHA="${{ github.sha }}"
+          SHORT_SHA="${SHORT_SHA:0:7}"
+          TAG_NAME="prod-${TIMESTAMP}-${SHORT_SHA}"
+
+          git config user.name  "PSA CI/CD Bot"
+          git config user.email "ci@psa-business-suite.internal"
+          git tag -a "${TAG_NAME}" -m "Auto-tag deploy produksi ${TIMESTAMP}
+
+          Commit : ${{ github.sha }}
+          Pesan  : ${{ github.event.head_commit.message }}
+          URL    : https://psa-business-suite.web.app"
+
+          git push origin "${TAG_NAME}"
+          echo "ROLLBACK_TAG=${TAG_NAME}" >> $GITHUB_ENV
+          echo "✅ Release tag dibuat: ${TAG_NAME}"
+
       - name: Ringkasan deploy
         if: success()
         run: |
@@ -99,8 +134,19 @@ jobs:
           echo "" >> $GITHUB_STEP_SUMMARY
           echo "| Field | Nilai |" >> $GITHUB_STEP_SUMMARY
           echo "|---|---|" >> $GITHUB_STEP_SUMMARY
-          echo "| **Live URL** | https://psa-business-suite.web.app |" >> $GITHUB_STEP_SUMMARY
-          echo "| **Commit**   | \`${{ github.sha }}\` |" >> $GITHUB_STEP_SUMMARY
+          echo "| **Live URL**      | https://psa-business-suite.web.app |" >> $GITHUB_STEP_SUMMARY
+          echo "| **Commit**        | \`${{ github.sha }}\` |" >> $GITHUB_STEP_SUMMARY
+          echo "| **Rollback Tag**  | \`${ROLLBACK_TAG}\` |" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "### 🔄 Cara Rollback" >> $GITHUB_STEP_SUMMARY
+          echo "\`\`\`bash" >> $GITHUB_STEP_SUMMARY
+          echo "# List semua tag produksi:" >> $GITHUB_STEP_SUMMARY
+          echo "git tag --list 'prod-*' --sort=-creatordate | head -10" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "# Rollback ke versi ini:" >> $GITHUB_STEP_SUMMARY
+          echo "git checkout ${ROLLBACK_TAG}" >> $GITHUB_STEP_SUMMARY
+          echo "npm ci && npm run build && firebase deploy --only hosting" >> $GITHUB_STEP_SUMMARY
+          echo "\`\`\`" >> $GITHUB_STEP_SUMMARY
 
       - name: Email — Deploy berhasil
         if: success() && secrets.MAIL_USERNAME != ''

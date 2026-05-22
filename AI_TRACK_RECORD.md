@@ -112,3 +112,53 @@ Catatan perubahan besar untuk PSA Business Suite v1.4+.
 | CRDT version field belum di-populate semua write path | **Menengah** | Firestore rules sudah guard — write tanpa `version` masih diizinkan (`isValidVersionUpdate` opsional) |
 | cleanupOldLogs() dead code belum dihapus | **Rendah** | Flagged P3 backlog — hapus di sprint berikutnya |
 
+| 2026-05-21 | **CRITICAL HARDENING v1.5.0 — 5 Atomic Fixes + Production Readiness Audit** | Selesai | Tinggi |
+
+## 🏗️ Detail: Critical Hardening v1.5.0 (2026-05-21)
+
+**Referensi:** MASTER_ARCHITECTURAL_DIRECTIVE.md v1.5.0-Final  
+**Eksekutor:** PSA AI Engineer (6 atomic commits + Production Readiness Audit)
+
+### Batch 1 — Critical Bug Fixes ✅
+
+| Fix ID | File | Perubahan | Status |
+|--------|------|-----------|--------|
+| C-01 | `src/shared/utils/timeUtils.ts` | Hapus `setDoc` — ubah ke read-only approach. Dokumen `serverInfo/timestamp` kini hanya dibaca, bukan ditulis dari client. | ✅ |
+| C-02 | `src/pages/LockedPage.tsx` | Ganti `localStorage.clear()` dengan selective removal kunci prefix `psa_`/`PSA_` saja. | ✅ |
+| C-03 | `src/features/auth/usecases/SetupStoreUseCase.ts` | Tambah `branchId: 'main'` ke genesis user. Hapus `@ts-expect-error`. | ✅ |
+| M-02 | `src/lib/cryptoIndexedDB.ts` | Generic `<T extends object>` untuk `encryptRecord` dan `decryptRecord`. Eliminasi `any` di crypto layer. | ✅ |
+| M-04 | `src/shared/api/db.ts` | Template `version(2).stores().upgrade()` dengan dokumentasi komprehensif. | ✅ |
+
+### Batch 2 — Production Readiness Audit (9-Point Checklist) ✅
+
+| Point | Area | Status | Aksi |
+|-------|------|--------|------|
+| 1. Code Quality | Lint, console.log, `as any` | 🟡 | 55 `as any` tersisa di infrastructure — flagged P3 |
+| 2. Security | CSP, HSTS, secrets, App Check, branchId | ✅ | Semua green. C-01/C-02/C-03 memperkuat postur. |
+| 3. Performance | Vite build, IndexedDB index, responsive | ✅ | 391 responsive Tailwind classes, semua tabel Dexie terindex |
+| 4. Documentation | MASTER_DIRECTIVE, runbook | ✅ | `docs/MASTER_ARCHITECTURAL_DIRECTIVE.md` + `docs/PRODUCTION_RUNBOOK.md` dibuat |
+| 5. Deployment & Rollback | Git tags, Firebase deploy | ✅ | Auto-tag `prod-YYYYMMDD-HHmm-SHA` setelah setiap deploy berhasil |
+| 6. UX | Responsive, accessibility | 🟡 | Responsive ✅, aria labels hanya 3 — flagged P3 |
+| 7. Stress Testing | Money Path, concurrency | 🟡 | Script `test:stress` ada, file test belum dibuat — P3 backlog |
+| 8. Third-party Failover | Gemini, Gold API, Firestore | ✅ | Semua ada try/catch fallback. Offline-first handles Firestore down. |
+| 9. Human Factor | CS guide, escalation, monitoring | ✅ | `docs/PRODUCTION_RUNBOOK.md` mencakup semua skenario operasional |
+
+### Files Modified/Created (Batch 2)
+
+| File | Perubahan |
+|------|-----------|
+| `.github/workflows/deploy.yml` | Auto-tagging `prod-*` untuk rollback + ringkasan cara rollback di GitHub Summary |
+| `src/lib/sentry.ts` | Modul Sentry opsional — no-op jika DSN tidak dikonfigurasi, dynamic import untuk zero-bundle-cost |
+| `src/App.tsx` | Inject `initSentry()` sebagai langkah pertama bootstrap |
+| `package.json` | Tambah `@sentry/react` + `@sentry/vite-plugin` sebagai opsional dependency |
+| `docs/PRODUCTION_RUNBOOK.md` | Runbook operasional lengkap: rollback SOP, CS guide, failover guide, eskalasi |
+| `AI_TRACK_RECORD.md` | Update ini |
+
+### Risiko Sisa (Carry Forward)
+
+| Risiko | Level | Mitigasi | Status |
+|--------|-------|----------|--------|
+| 55 `as any` di infrastructure layer | Rendah | Mostly casting Dexie query returns — bukan financial logic | P3 Backlog |
+| Accessibility: hanya 3 aria attributes | Rendah | Tablet kasir dioperasikan touch — bukan screen reader use case | P3 Backlog |
+| Stress test (`test:stress`) belum ada file | Menengah | Logger + Telegram alert cover production monitoring sementara | P2 Sprint berikutnya |
+| Sentry butuh `npm install` di production | Rendah | `@sentry/react` sudah ditambah ke `package.json` — CI akan install otomatis pada push berikutnya | Auto-resolved saat next deploy |

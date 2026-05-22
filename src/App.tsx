@@ -10,6 +10,7 @@ import { SystemHealthBot } from './shared/components/SystemHealthBot';
 import { useEffect, useState, useRef } from 'react';
 import { cryptoKeyStore } from './lib/cryptoKeyStore';
 import { logger } from './lib/logger';
+import { initSentry } from './lib/sentry';
 import { Loader2, ShieldAlert } from 'lucide-react';
 import { db } from './shared/api/db';
 import { syncTimeOffset } from './shared/utils/timeUtils';
@@ -212,6 +213,10 @@ export default function App() {
   useEffect(() => {
     async function bootstrapSecurity() {
       try {
+        // Inisialisasi Sentry monitoring (no-op jika VITE_SENTRY_DSN tidak dikonfigurasi)
+        // Dipanggil paling awal agar error bootstrap pun tertangkap
+        await initSentry();
+
         // Sync server time immediately, but don't block forever if Firebase hangs
         await Promise.race([
           syncTimeOffset(),

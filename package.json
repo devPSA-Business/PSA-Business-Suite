@@ -40,7 +40,8 @@
     "react-is": "^19.2.6",
     "recharts": "^3.8.1",
     "tailwind-merge": "^3.5.0",
-    "zustand": "^5.0.12"
+    "zustand": "^5.0.12",
+    "@sentry/react": "^8.0.0"
   },
   "devDependencies": {
     "@firebase/eslint-plugin-security-rules": "^0.0.2",
@@ -68,7 +69,8 @@
     "vite": "^6.2.0",
     "vite-plugin-pwa": "^1.2.0",
     "vite-plugin-remove-console": "^2.2.0",
-    "vitest": "^4.1.2"
+    "vitest": "^4.1.2",
+    "@sentry/vite-plugin": "^2.0.0"
   },
   "overrides": {
     "serialize-javascript": "^7.0.5",

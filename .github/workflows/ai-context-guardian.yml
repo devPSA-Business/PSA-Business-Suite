@@ -8,6 +8,9 @@ on:
       - 'SCOPE.md'
       - 'INTERFACES.md'
 
+permissions:
+  contents: read
+
 jobs:
   verify-docs:
     runs-on: ubuntu-latest

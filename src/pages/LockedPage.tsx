@@ -232,15 +232,53 @@ export function LockedPage() {
     }
   };
 
+  /**
+   * @ai_context: Nuclear reset — menghapus IndexedDB PSA dan semua kunci localStorage/sessionStorage
+   *              milik aplikasi PSA saja. Tidak menyentuh kunci browser lain (ekstensi, PWA lain, dsb).
+   * @business_rule: Panggil ini HANYA saat owner mengonfirmasi reset dari UI reset_confirm.
+   *                 FIX C-02: Mengganti window.localStorage.clear() yang berbahaya (menghapus semua kunci
+   *                 browser, termasuk milik ekstensi/tool lain) dengan penghapusan selektif kunci PSA.
+   * @security_tier: HIGH
+   * @changelog: 2026-05-21 — FIX C-02: Selective localStorage removal. Eliminasi "The Shortcut" pattern.
+   */
   const handleResetDatabase = async () => {
     try {
       db.close();
       await db.delete();
-      window.localStorage.clear();
-      window.sessionStorage.clear();
+
+      // Hapus hanya kunci localStorage yang dimiliki PSA Business Suite.
+      // Pola: 'psa_*', 'vite-*', dan kunci spesifik yang diketahui dipakai aplikasi.
+      // DILARANG menggunakan localStorage.clear() — bisa menghapus data ekstensi/tab browser lain.
+      const PSA_LOCALSTORAGE_KEYS = [
+        'psa_store_setup_complete',
+        'psa_last_sync',
+        'psa_shift_active',
+        'psa_theme',
+        'psa_language',
+        'psa_dev_bypass',
+      ];
+      PSA_LOCALSTORAGE_KEYS.forEach((key) => window.localStorage.removeItem(key));
+
+      // Hapus semua kunci yang diawali prefix PSA (dinamis, jika ada).
+      const PSA_PREFIXES = ['psa_', 'PSA_'];
+      for (let i = window.localStorage.length - 1; i >= 0; i--) {
+        const key = window.localStorage.key(i);
+        if (key && PSA_PREFIXES.some((prefix) => key.startsWith(prefix))) {
+          window.localStorage.removeItem(key);
+        }
+      }
+
+      // sessionStorage: selektif untuk prefix PSA juga.
+      for (let i = window.sessionStorage.length - 1; i >= 0; i--) {
+        const key = window.sessionStorage.key(i);
+        if (key && PSA_PREFIXES.some((prefix) => key.startsWith(prefix))) {
+          window.sessionStorage.removeItem(key);
+        }
+      }
+
       window.location.replace('/');
     } catch (err) {
-      console.error('Gagal Reset:', err);
+      console.error('[LockedPage] Gagal Reset Database:', err);
       addToast('Terjadi kesalahan saat mereset: ' + (err instanceof Error ? err.message : String(err)), 'error');
       setActiveView('enter_pin');
     }

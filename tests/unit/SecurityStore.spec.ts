@@ -45,8 +45,7 @@ vi.mock('../../src/lib/cryptoIndexedDB', () => ({
     unwrapKeyWithRecoveryKey: vi.fn().mockResolvedValue(undefined),
     getKey: vi.fn().mockReturnValue({ type: 'secret' }),
     getRawDeviceKey: vi.fn().mockReturnValue(new ArrayBuffer(32)),
-    setKey: vi.fn(),
-    getKey: vi.fn()
+    setKey: vi.fn()
   }
 }));
 

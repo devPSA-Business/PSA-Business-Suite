@@ -10,20 +10,20 @@
  */
 
 import { describe, it, expect, vi, beforeEach } from 'vitest';
-import { useSecurityStore } from '../../src/shared/store/useSecurityStore';
-import { db } from '../../src/shared/api/db';
-import { cryptoDB } from '../../src/lib/cryptoIndexedDB';
+import { useSecurityStore } from '@shared/store/useSecurityStore';
+import { db } from '@shared/api/db';
+import { cryptoDB } from '@lib/cryptoIndexedDB';
 
 // ── Mocks ────────────────────────────────────────────────────────────────────
 
-vi.mock('../../src/shared/api/firebase', () => ({
+vi.mock('@shared/api/firebase', () => ({
   auth: { currentUser: null },
   firestoreDb: {},
 }));
 
 const keyvalStore: Map<string, unknown> = new Map();
 
-vi.mock('../../src/shared/api/db', () => ({
+vi.mock('@shared/api/db', () => ({
   db: {
     keyval: {
       get: vi.fn(async (key: string) => {
@@ -46,7 +46,7 @@ vi.mock('../../src/shared/api/db', () => ({
 
 const mockDeviceKey = { type: 'secret', algorithm: { name: 'AES-GCM' } } as unknown as CryptoKey;
 
-vi.mock('../../src/lib/cryptoIndexedDB', () => ({
+vi.mock('@lib/cryptoIndexedDB', () => ({
   cryptoDB: {
     getKey: vi.fn().mockReturnValue(mockDeviceKey),
     getRawDeviceKey: vi.fn().mockReturnValue(new ArrayBuffer(32)),
@@ -60,23 +60,23 @@ vi.mock('../../src/lib/cryptoIndexedDB', () => ({
   },
 }));
 
-vi.mock('../../src/lib/cryptoKeyStore', () => ({
+vi.mock('@lib/cryptoKeyStore', () => ({
   cryptoKeyStore: { set: vi.fn(), get: vi.fn().mockReturnValue(null) },
 }));
 
-vi.mock('../../src/shared/store/toastStore', () => ({
+vi.mock('@shared/store/toastStore', () => ({
   useToastStore: {
     getState: () => ({ addToast: vi.fn() }),
   },
 }));
 
-vi.mock('../../src/shared/store/authStore', () => ({
+vi.mock('@shared/store/authStore', () => ({
   useAuthStore: {
     getState: () => ({ login: vi.fn() }),
   },
 }));
 
-vi.mock('../../src/lib/logger', () => ({
+vi.mock('@lib/logger', () => ({
   logger: {
     info: vi.fn(), warn: vi.fn(), error: vi.fn(), fatal: vi.fn(), debug: vi.fn(),
   },

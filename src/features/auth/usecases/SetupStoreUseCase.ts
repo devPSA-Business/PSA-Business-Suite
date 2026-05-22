@@ -69,17 +69,20 @@ export class SetupStoreUseCase {
       cryptoDB.setKey(secureDeviceKey, wrappedKeyMeta.keyId);
 
       // 3. Simpan Entitas User Owner (Role: ADMIN)
+      // FIX C-03: Tambah branchId (kunci isolasi data Firestore). Default 'main' untuk UMKM single-branch.
+      //           Hapus @ts-expect-error: tipe User domain sudah memiliki branchId?: string.
+      // @changelog: 2026-05-21 — FIX C-03: branchId genesis, type-safe add().
       const newUser = {
         id: userId,
         name: payload.ownerName,
         role: UserRole.ADMIN,
         pinHash: hashedPin,
-        salt: userSalt, // Rekam salt
+        salt: userSalt,
         status: 'ACTIVE' as const,
-        createdAt: getCurrentTime()
+        createdAt: getCurrentTime(),
+        branchId: 'main', // Default branch. Dapat diubah via assignBranchToUser Cloud Function.
       };
 
-      // @ts-expect-error db users mock
       await db.users.add(newUser);
 
       // Sinkronisasikan Pembuatan User ke Cloud

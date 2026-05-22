@@ -316,8 +316,12 @@ export class CryptoIndexedDB {
     return this.rawDeviceKey;
   }
 
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  async encryptRecord(record: any): Promise<{ ciphertext: string; iv: string; keyId: string }> {
+  /**
+   * @ai_context: Enkripsi record sebelum disimpan ke IndexedDB.
+   * FIX M-02: Generic Type <T extends object> menggantikan `any` — type-safe tanpa kehilangan fleksibilitas.
+   * @changelog: 2026-05-21 — M-02: Eliminasi `any` di encryptRecord.
+   */
+  async encryptRecord<T extends object>(record: T): Promise<{ ciphertext: string; iv: string; keyId: string }> {
     if (!this.key || !this.currentKeyId) throw new Error('Encryption key not initialized');
 
     const iv = window.crypto.getRandomValues(new Uint8Array(12));
@@ -336,8 +340,13 @@ export class CryptoIndexedDB {
     };
   }
 
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  async decryptRecord(encryptedRecord: { ciphertext: string; iv: string; keyId?: string }): Promise<any> {
+  /**
+   * @ai_context: Dekripsi record dari IndexedDB.
+   * FIX M-02: Generic Type <T extends object> menggantikan `any` — caller menentukan tipe output secara eksplisit.
+   * Contoh penggunaan: cryptoDB.decryptRecord<StockItem>(encrypted)
+   * @changelog: 2026-05-21 — M-02: Eliminasi `any` di decryptRecord.
+   */
+  async decryptRecord<T extends object>(encryptedRecord: { ciphertext: string; iv: string; keyId?: string }): Promise<T> {
     if (!this.key) throw new Error('Encryption key not initialized');
     if (encryptedRecord.keyId && encryptedRecord.keyId !== this.currentKeyId) {
       throw new Error(`Key mismatch. Record encrypted with ${encryptedRecord.keyId}, current key is ${this.currentKeyId}`);
@@ -353,7 +362,7 @@ export class CryptoIndexedDB {
     ));
 
     const decodedData = new TextDecoder().decode(decryptedBuffer);
-    return JSON.parse(decodedData);
+    return JSON.parse(decodedData) as T;
   }
 
   private arrayBufferToBase64(buffer: ArrayBuffer): string {

@@ -503,6 +503,41 @@ export class PsaDatabase extends Dexie {
       store_profile: 'id, isSetupComplete'
     });
 
+    // ─────────────────────────────────────────────────────────────────────────
+    // VERSION 2 MIGRATION TEMPLATE
+    // FIX M-04: Standardisasi pola migrasi Dexie — gunakan .version(x).stores().upgrade().
+    // ─────────────────────────────────────────────────────────────────────────
+    // INSTRUKSI UNTUK EKSEKUTOR AI / DEVELOPER:
+    //   1. JANGAN hapus version(1). Dexie membutuhkan semua versi historis untuk upgrade chain.
+    //   2. Saat menambah kolom atau index baru: increment ke version(2), tambah di .stores(),
+    //      dan implementasikan .upgrade() untuk data migration jika diperlukan.
+    //   3. Gunakan tx (Dexie.Transaction) di dalam .upgrade() — JANGAN akses db langsung.
+    //   4. Setiap perubahan skema WAJIB dicatat di docs/adr/ dan di AI_TRACK_RECORD.md.
+    //
+    // CONTOH PENGGUNAAN (UNCOMMENT dan adaptasi saat dibutuhkan):
+    //
+    // this.version(2).stores({
+    //   // Salin SEMUA tabel dari version(1) — hanya modifikasi yang berubah.
+    //   // Tabel yang tidak disebut ulang akan dipertahankan otomatis oleh Dexie.
+    //   stock: 'id, name, category, barcode, quantity, branchId, newIndexedField',
+    //   // Contoh tambah tabel baru:
+    //   // new_table: 'id, field1, field2',
+    // }).upgrade(async (tx) => {
+    //   // Migrasi data dari v1 ke v2 jika ada perubahan struktur data.
+    //   // Contoh: backfill field baru dengan nilai default.
+    //   await tx.table('stock').toCollection().modify((item) => {
+    //     if (item.newIndexedField === undefined) {
+    //       item.newIndexedField = 'default_value';
+    //     }
+    //   });
+    // });
+    //
+    // @business_rule: version() TIDAK boleh didelete atau di-renumber setelah deploy ke produksi.
+    //                 Ini akan menyebabkan IDB upgrade failure pada semua perangkat yang sudah punya data.
+    // @security_tier: HIGH — perubahan skema berdampak pada semua data terenkripsi offline.
+    // @last_reviewed: 2026-05-21 (FIX M-04 — PSA Business Suite v1.5.0)
+    // ─────────────────────────────────────────────────────────────────────────
+
     this.on('populate', () => {
     });
   }

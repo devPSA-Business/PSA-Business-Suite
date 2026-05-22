@@ -1,6 +1,6 @@
 import { IRetailRepository } from '@domain/repositories/IRetailRepository';
 import { RetailTransaction } from '@domain/models/RetailTransaction';
-import { db } from '../../shared/api/db';
+import { db, TransactionItem } from '../../shared/api/db';
 import { cryptoDB } from '../../lib/cryptoIndexedDB';
 import { logger } from '../../lib/logger';
 
@@ -49,8 +49,9 @@ export class RetailRepositoryImpl implements IRetailRepository {
 
     if (record.secureData) {
       try {
-        const decrypted = await cryptoDB.decryptRecord(JSON.parse(record.secureData));
-        items = decrypted.items;
+        type TxSecurePayload = { items?: TransactionItem[]; manualDiscountNote?: string };
+        const decrypted = await cryptoDB.decryptRecord<TxSecurePayload>(JSON.parse(record.secureData));
+        items = decrypted.items ?? [];
         manualDiscountNote = decrypted.manualDiscountNote;
       } catch (err) {
         logger.error('Failed to decrypt transaction', err);
@@ -95,8 +96,9 @@ export class RetailRepositoryImpl implements IRetailRepository {
 
       if (record.secureData) {
         try {
-          const decrypted = await cryptoDB.decryptRecord(JSON.parse(record.secureData));
-          items = decrypted.items;
+          type SingleTxPayload = { items?: TransactionItem[]; manualDiscountNote?: string };
+          const decrypted = await cryptoDB.decryptRecord<SingleTxPayload>(JSON.parse(record.secureData));
+          items = decrypted.items ?? [];
           manualDiscountNote = decrypted.manualDiscountNote;
         } catch (err) {
           logger.error('Failed to decrypt transaction list item', err);

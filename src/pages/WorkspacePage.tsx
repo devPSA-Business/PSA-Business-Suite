@@ -187,7 +187,7 @@ export function WorkspacePage() {
   const totalPettyCash = useMemo(() => {
     if (!pettyCashRecords) return 0;
     return pettyCashRecords.reduce(
-      (sum, record) => sum + (record.category === 'KELUHAN' ? 0 : record.amount),
+      (sum, record) => sum + record.amount,
       0
     );
   }, [pettyCashRecords]);

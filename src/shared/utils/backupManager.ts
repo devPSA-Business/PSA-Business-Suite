@@ -135,7 +135,7 @@ export class BackupManager {
     if (isFileSystemAccessSupported()) {
       try {
         // File System Access API — user memilih folder sendiri (bisa Downloads, OneDrive, dll)
-        const fileHandle = await (window as Window & {
+        const fileHandle = await (window as unknown as Window & {
           showSaveFilePicker: (options: unknown) => Promise<{
             createWritable: () => Promise<{
               write: (blob: Blob) => Promise<void>;

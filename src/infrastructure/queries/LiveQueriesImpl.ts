@@ -7,7 +7,7 @@ export class LiveQueriesImpl implements ILiveQueries {
   private async decryptAuditLog(log: AuditLog): Promise<AuditLog> {
     if (log.secureData) {
       try {
-        const decrypted = await cryptoDB.decryptRecord(JSON.parse(log.secureData));
+        const decrypted = await cryptoDB.decryptRecord<Record<string, unknown>>(JSON.parse(log.secureData));
         return { ...log, details: String(decrypted.details || '') };
       } catch (err) {
         console.error('Failed to decrypt audit log', err);
@@ -223,7 +223,7 @@ export class LiveQueriesImpl implements ILiveQueries {
   }
 
   observeRecentTransactions(shiftStartTime: number, limit = 5, branchId?: string): PromiseExtended<Transaction[]> {
-    let query = db.transactions
+    const query = db.transactions
       .where('date')
       .aboveOrEqual(shiftStartTime)
       .reverse();
@@ -237,7 +237,7 @@ export class LiveQueriesImpl implements ILiveQueries {
   observeActiveCustomOrders(branchId?: string): PromiseExtended<CustomOrder[]> {
     const query = db.custom_orders.where('status').notEqual('DONE').reverse().sortBy('date');
     if (branchId && branchId !== 'HQ') {
-      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+       
       return (query as unknown as PromiseExtended<CustomOrder[]>).then((orders: CustomOrder[]) =>
         orders.filter((o) => o.branchId === branchId)
       // eslint-disable-next-line @typescript-eslint/no-explicit-any

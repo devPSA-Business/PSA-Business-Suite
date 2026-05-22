@@ -59,7 +59,7 @@ export class CryptoIndexedDB {
     return window.crypto.subtle.deriveKey(
       {
         name: 'PBKDF2',
-        salt: salt as Uint8Array<ArrayBuffer>,
+        salt: new Uint8Array(salt) as unknown as Uint8Array<ArrayBuffer>,
         iterations: iterations,
         hash: 'SHA-256',
       },
@@ -93,7 +93,7 @@ export class CryptoIndexedDB {
       {
         name: 'HKDF',
         hash: 'SHA-256',
-        salt: salt,
+        salt: salt as unknown as Uint8Array<ArrayBuffer>,
         info: encoder.encode('PSA-Recovery-Key-v1'),
       },
       rawKeyMaterial,

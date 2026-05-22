@@ -62,7 +62,7 @@ export function SecuritySettingsPage() {
       setGeneratedKey(formatted);
       setPageState('show_key');
       setHasExistingKey(true);
-    } catch (err) {
+    } catch (_err) {
       addToast('Gagal generate Recovery Key. Coba lagi.', 'error');
     } finally {
       setIsLoading(false);

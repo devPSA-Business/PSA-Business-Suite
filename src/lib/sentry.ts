@@ -67,29 +67,11 @@ export async function initSentry(): Promise<void> {
         /ResizeObserver loop/, // false positive browser warning
       ],
 
-      /**
-       * beforeSend: Sanitasi PII sebelum event dikirim ke Sentry.
-       * WAJIB — toko perhiasan menyimpan data nama & nomor HP pelanggan.
-       */
       beforeSend(event) {
-        // Hapus user context (tidak perlu track siapa yang error)
+        // PII Safety: hapus user context dan breadcrumbs sebelum kirim ke Sentry
+        // Breadcrumbs dapat berisi nama pelanggan / HP — dihapus seluruhnya
         delete event.user;
-
-        // Sanitasi breadcrumbs dari data sensitif
-        if (event.breadcrumbs?.values) {
-          event.breadcrumbs.values = event.breadcrumbs.values.map((crumb) => {
-            if (crumb.data) {
-              const sanitized: Record<string, unknown> = {};
-              for (const [key, val] of Object.entries(crumb.data)) {
-                const sensitiveKeys = ['pin', 'password', 'phone', 'email', 'name', 'customerName', 'salt'];
-                sanitized[key] = sensitiveKeys.includes(key.toLowerCase()) ? '<<REDACTED>>' : val;
-              }
-              return { ...crumb, data: sanitized };
-            }
-            return crumb;
-          });
-        }
-
+        event.breadcrumbs = undefined;
         return event;
       },
     });

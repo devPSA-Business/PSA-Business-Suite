@@ -19,8 +19,9 @@ export class ReportQueryImpl implements IReportQuery {
   private async decryptTransaction(tx: Transaction): Promise<Transaction> {
     if (tx.secureData) {
       try {
-        const decrypted = await cryptoDB.decryptRecord(JSON.parse(tx.secureData));
-        return { ...tx, items: decrypted.items || [], manualDiscountNote: String(decrypted.manualDiscountNote) };
+        type TxSecurePayload = { items: Transaction['items']; manualDiscountNote?: string };
+        const decrypted = await cryptoDB.decryptRecord<TxSecurePayload>(JSON.parse(tx.secureData));
+        return { ...tx, items: decrypted.items ?? [], manualDiscountNote: decrypted.manualDiscountNote };
       } catch (err) {
         console.error('Failed to decrypt transaction in report', err);
         return { ...tx, items: [] };

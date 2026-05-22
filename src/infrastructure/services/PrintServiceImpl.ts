@@ -223,7 +223,8 @@ class PrintTransportLayer {
       for (let i = 0; i < encoded.length; i += CHUNK) {
         await char?.writeValue(encoded.slice(i, i + CHUNK));
       }
-      device.gatt?.disconnect();
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      (device.gatt as any)?.disconnect?.();
       return { success: true, method: 'BLUETOOTH' };
     } catch (err) {
       const msg = err instanceof Error ? err.message : String(err);

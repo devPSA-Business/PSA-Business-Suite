@@ -77,7 +77,7 @@ export class SetupStoreUseCase {
         name: payload.ownerName,
         role: UserRole.ADMIN,
         pinHash: hashedPin,
-        salt: userSalt,
+        salt: userSalt, // Uint8Array — db.ts User.salt: string | Uint8Array
         status: 'ACTIVE' as const,
         createdAt: getCurrentTime(),
         branchId: 'main', // Default branch. Dapat diubah via assignBranchToUser Cloud Function.

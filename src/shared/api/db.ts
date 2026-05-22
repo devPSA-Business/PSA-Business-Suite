@@ -299,7 +299,7 @@ export interface User {
   name: string;
   role: UserRole;
   pinHash: string;
-  salt?: string; // Phase 1.2: Random UUID salt for PBKDF2
+  salt?: string | Uint8Array; // Phase 1.2: Random salt PBKDF2 — string (base64) atau Uint8Array raw bytes
   status: 'ACTIVE' | 'INACTIVE';
   createdAt: number;
   branchId?: string;

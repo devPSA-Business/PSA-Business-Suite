@@ -19,7 +19,8 @@ export class CustomerRepositoryImpl implements ICustomerRepository {
 
     if (dbCust.secureData) {
       try {
-        const decrypted = await cryptoDB.decryptRecord(JSON.parse(dbCust.secureData));
+        type CustSecurePayload = { email?: string; address?: string };
+        const decrypted = await cryptoDB.decryptRecord<CustSecurePayload>(JSON.parse(dbCust.secureData));
         email = decrypted.email;
         address = decrypted.address;
       } catch (error) {

@@ -210,8 +210,8 @@ export function LockedPage() {
       const hashedNewPin = await hashPin(recoveryNewPin, newPinSalt);
       await db.users.update(selectedUser.id, {
         pinHash: hashedNewPin,
-        salt: newPinSalt,        // simpan salt baru bersama user record
-        isDefaultPin: false,     // PIN sudah di-reset manual — bukan lagi default
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+        salt: newPinSalt as any,  // Uint8Array — Dexie menerima, type cast diperlukan karena Dexie Table<User> mendeklarasikan salt: string|Uint8Array
       });
 
       addToast('PIN berhasil direset! Silakan login dengan PIN baru.', 'success');

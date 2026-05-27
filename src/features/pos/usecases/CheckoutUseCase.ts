@@ -20,7 +20,7 @@ import { withLock } from '../../../shared/utils/transactionMutex';
  * `/AI_TRACK_RECORD.md` TERLEBIH DAHULU. 
  * Aturan Mutlak:
  * 1. Jangan sebar data Harga Modal (HPP/Cost/specificCost) ke Frontend Kasir.
- * 2. Selalu bungkus kalkulasi laba/rugi dengan Math.round().
+ * 2. Selalu bungkus kalkulasi laba/rugi dengan MathUtils.roundInt() — BUKAN Math.round().
  * 3. HPP dihitung via Moving Average atau Specific Identification.
  * ============================================================================
  */
@@ -44,7 +44,7 @@ export interface CheckoutRequestDTO {
  * @ai_context Sistem orkestrasi utama untuk memproses pembayaran kasir.
  * @security_tier HIGH
  * @business_rule LOGIKA KEUANGAN:
- * 1. Setiap hitungan final total, grossProfit, diskon harus di wrap Math.round()
+ * 1. Setiap hitungan final total, grossProfit, diskon WAJIB menggunakan MathUtils.roundInt() — BUKAN Math.round().
  * 2. Stok tidak boleh menjadi negatif (InsufficientStockError).
  * 3. HPP yang menjadi modal kalkulasi laba-rugi wajib diamankan sebelum record ke db/audit_log.
  * 4. ANTI-ZERO: Transaksi Rp 0 atau diskon > 30% wajib diotorisasi ADMIN.

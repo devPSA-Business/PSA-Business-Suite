@@ -5,6 +5,11 @@ import './index.css';
 import { registerSW } from 'virtual:pwa-register';
 import { DIContainer } from '@infrastructure/di/Container';
 import { useUIStore } from './shared/store/useUIStore';
+import { initGlobalErrorHandlers } from './lib/logger';
+
+// BACKLOG-03: Inisialisasi global error handlers — WAJIB dipanggil pertama
+// Menangkap unhandledrejection dan uncaughtError yang sebelumnya hilang secara senyap.
+initGlobalErrorHandlers();
 
 // Request persistent storage to prevent browser eviction
 if (navigator.storage && navigator.storage.persist) {

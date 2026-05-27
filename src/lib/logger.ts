@@ -9,6 +9,8 @@
  *   2026-05-20 — P3: Tambah logger.fatal() dengan Telegram alert via AlertService
  *                    Throttling 30 detik untuk mencegah spam alert
  *                    Lazy import AlertService untuk menghindari circular dependency
+ *   2026-05-27 — BACKLOG-03: Tambah initGlobalErrorHandlers() untuk capture
+ *                    unhandledrejection dan uncaughtError — mencegah silent failures.
  */
 
 const SANITIZE_KEYS = [
@@ -127,3 +129,59 @@ export const logger = {
     void _sendFatalTelegramAlert(msg, meta);
   },
 };
+
+/**
+ * BACKLOG-03: Inisialisasi global error handlers untuk capture promise rejections
+ * dan error yang tidak tertangani. Dipanggil SEKALI di main.tsx saat bootstrap.
+ *
+ * Tanpa ini, error async yang tidak ada try-catch-nya akan "hilang" secara senyap
+ * — tidak terlog, tidak ada Telegram alert, tidak bisa di-diagnosa.
+ *
+ * @example // main.tsx
+ *   import { initGlobalErrorHandlers } from './lib/logger';
+ *   initGlobalErrorHandlers();
+ */
+export function initGlobalErrorHandlers(): void {
+  // Guard: jangan register lebih dari sekali
+  if ((window as Window & { __PSA_GLOBAL_HANDLERS_INIT__?: boolean }).__PSA_GLOBAL_HANDLERS_INIT__) {
+    return;
+  }
+  (window as Window & { __PSA_GLOBAL_HANDLERS_INIT__?: boolean }).__PSA_GLOBAL_HANDLERS_INIT__ = true;
+
+  // 1. Promise rejection yang tidak ada .catch() handler-nya
+  window.addEventListener('unhandledrejection', (event: PromiseRejectionEvent) => {
+    const reason = event.reason;
+    const msg = reason instanceof Error
+      ? reason.message
+      : (typeof reason === 'string' ? reason : JSON.stringify(reason));
+
+    logger.error('[UnhandledRejection] Promise gagal tanpa handler', {
+      reason: msg,
+      stack: reason instanceof Error ? reason.stack : undefined,
+    });
+
+    // Kirim fatal alert jika terlihat seperti error kritis (bukan timeout biasa)
+    const isCritical = msg.toLowerCase().includes('quota') ||
+      msg.toLowerCase().includes('crypto') ||
+      msg.toLowerCase().includes('corrupt') ||
+      msg.toLowerCase().includes('nuclear') ||
+      msg.toLowerCase().includes('dexie');
+
+    if (isCritical) {
+      logger.fatal('[UnhandledRejection] Error kritis terdeteksi — perlu investigasi', {
+        reason: msg,
+      });
+    }
+  });
+
+  // 2. Synchronous error global (sangat jarang di React, tapi safety net)
+  window.addEventListener('error', (event: ErrorEvent) => {
+    logger.error('[UncaughtError] Error global tidak tertangani', {
+      message: event.message,
+      filename: event.filename,
+      lineno: event.lineno,
+      colno: event.colno,
+      error: event.error instanceof Error ? event.error.message : String(event.error),
+    });
+  });
+}

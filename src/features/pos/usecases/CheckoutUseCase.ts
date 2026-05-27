@@ -236,7 +236,9 @@ export class CheckoutUseCase {
           const manualDiscountAmount = request.manualDiscountAmount || 0;
           const manualDiscountNote = request.manualDiscountNote;
           if (manualDiscountAmount > 0) {
-            finalTotal = MathUtils.roundInt(Math.max(0, MathUtils.sub(finalTotal, manualDiscountAmount)));
+            // P0-FINANCIAL: Gunakan MathUtils.sub lalu clamp ke 0 — dilarang Math.max untuk nilai Rupiah
+            const afterDiscount = MathUtils.sub(finalTotal, manualDiscountAmount);
+            finalTotal = MathUtils.roundInt(afterDiscount < 0 ? 0 : afterDiscount);
           }
 
           // ANOMALY DETECTION: Flagging transaksi Rp 0 akibat diskon

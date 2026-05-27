@@ -39,9 +39,9 @@ export function CheckoutModal() {
   if (!isCheckoutModalOpen) return null;
 
   const loyaltyDiscountAmount = MathUtils.mul((pointsToRedeem || 0), 100); // Rp 100 per point
-  const finalTotal = MathUtils.roundInt(
-    Math.max(0, MathUtils.sub(MathUtils.sub(totalPrice, loyaltyDiscountAmount), manualDiscountAmount))
-  );
+  // P0-FINANCIAL: Dilarang Math.max untuk Rupiah — clamp manual setelah MathUtils chain
+  const rawFinalTotal = MathUtils.sub(MathUtils.sub(totalPrice, loyaltyDiscountAmount), manualDiscountAmount);
+  const finalTotal = MathUtils.roundInt(rawFinalTotal < 0 ? 0 : rawFinalTotal);
   const change = MathUtils.sub(cashReceived, finalTotal);
 
   const handleAdjustQuantity = () => {

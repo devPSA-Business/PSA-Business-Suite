@@ -162,3 +162,80 @@ Catatan perubahan besar untuk PSA Business Suite v1.4+.
 | Accessibility: hanya 3 aria attributes | Rendah | Tablet kasir dioperasikan touch — bukan screen reader use case | P3 Backlog |
 | Stress test (`test:stress`) belum ada file | Menengah | Logger + Telegram alert cover production monitoring sementara | P2 Sprint berikutnya |
 | Sentry butuh `npm install` di production | Rendah | `@sentry/react` sudah ditambah ke `package.json` — CI akan install otomatis pada push berikutnya | Auto-resolved saat next deploy |
+
+| 2026-05-27 | **SPRINT v1.5.0 — 6 Atomic Fixes (BACKLOG + P0 Financial)** | Selesai | Tinggi |
+
+## 🏗️ Detail: Sprint v1.5.0 — 2026-05-27
+
+**Eksekutor:** PSA AI Engineer (Claude Sonnet 4.6)
+**Referensi:** Master Context Document v1.5.0-Final + Deep Audit dari Repository Clone
+
+### Fix 1 — BACKLOG-01: MorningReadiness Hard Blocker → Soft Reminder ✅
+| File | Perubahan |
+|------|-----------|
+| `src/features/auth/components/MorningReadinessUI.tsx` | Hard-blocker dihapus. Tombol "Lewati & Buka Shift" selalu aktif. Item di-skip → audit `HARDWARE_READINESS_SKIPPED`. Printer ditandai OPSIONAL. |
+
+**Teknis:**
+- `blocked` state dihapus — state baru: `allPassed` (semua OK) dan `hasUnchecked` (ada yang belum dicek)
+- Tombol berubah label dinamis: "Buka Shift" (semua OK) / "Lewati & Buka Shift" (ada skip/gagal)
+- `saveSkipAudit()` dipanggil saat proceed dengan item yang tidak `success` — log ke `audit_logs`
+- Pesan feedback diubah dari `bg-red-50` ke `bg-amber-50` (soft warning, bukan error)
+
+### Fix 2 — BACKLOG-03: Logger Global Error Handlers ✅
+| File | Perubahan |
+|------|-----------|
+| `src/lib/logger.ts` | Tambah `initGlobalErrorHandlers()` — capture `unhandledrejection` + `window.error` |
+| `src/main.tsx` | Import dan panggil `initGlobalErrorHandlers()` sebagai langkah PERTAMA bootstrap |
+
+**Teknis:**
+- Guard `__PSA_GLOBAL_HANDLERS_INIT__` mencegah double-registration
+- `unhandledrejection` → `logger.error`; jika mengandung kata kunci kritis (quota, crypto, corrupt, nuclear, dexie) → `logger.fatal` + Telegram alert
+- `window.error` → `logger.error` (sync errors, sangat jarang di React)
+
+### Fix 3 — P0-FINANCIAL: Eliminasi Math.max untuk Nilai Rupiah ✅
+| File | Perubahan |
+|------|-----------|
+| `src/features/pos/usecases/CheckoutUseCase.ts:239` | `Math.max(0, MathUtils.sub(...))` → clamp manual setelah `MathUtils.sub` |
+| `src/features/pos/usecases/LoyaltyUseCase.ts:38` | `Math.max(0, MathUtils.sub(...))` → clamp manual setelah `MathUtils.sub` |
+| `src/features/pos/components/CartDisplay.tsx:153` | `Math.max(0, totalPrice - manualDiscountAmount)` → `MathUtils.sub` + clamp manual |
+| `src/features/pos/components/CheckoutModal.tsx:43` | `Math.max(0, MathUtils.sub(...))` → clamp manual setelah `MathUtils.sub` chain |
+
+**Teknis:**
+- Pattern seragam: `const raw = MathUtils.sub(a, b); const result = raw < 0 ? 0 : MathUtils.roundInt(raw);`
+- `Math.min` di LoyaltyUseCase untuk perbandingan integer points (bukan Rupiah) = acceptable, dipertahankan dengan komentar justifikasi
+- `Math.abs` di ShiftCloseForm = UI display saja, bukan kalkulasi finansial = acceptable
+
+### Fix 4 — BACKLOG-10: ProductList Category Filter dari Enum ✅
+| File | Perubahan |
+|------|-----------|
+| `src/features/pos/ui/ProductList.tsx` | Hapus hardcoded strings; tambah `POS_VISIBLE_CATEGORIES` array dari `StockCategory` enum; tambah tab filter UI |
+
+**Teknis:**
+- `POS_VISIBLE_CATEGORIES = [StockCategory.IMITATION, StockCategory.ACCESSORIES]`
+- `BUYBACK_GOLD`, `GOLD_JEWELLERY`, `GOLD_BAR` dikecualikan dari kasir ritel (P0-KAS)
+- Tab filter di atas product grid, scrollable horizontal untuk mobile
+- Client-side filter sebagai defence-in-depth jika `liveQueries.searchProducts` tidak filter per kategori
+
+### Fix 5 — BACKLOG-04: Sync Retry Jitter ✅
+| File | Perubahan |
+|------|-----------|
+| `src/infrastructure/services/sync/SyncQueueManager.ts` | Tambah `jitterMs = random(0, 30_000)` pada `nextRetryTime`. Simpan `error_message` di update. |
+
+**Teknis:**
+- Formula baru: `nextRetryTime = now + (2^attempt * 1000ms) + random(0, 30_000ms)`
+- Mencegah thundering herd: semua device yang baru online tidak retry di waktu yang sama
+- `error_message` kini disimpan saat update (sebelumnya hanya saat DLQ) → membantu debug
+
+### Fix 6 — Version Bump ✅
+| File | Perubahan |
+|------|-----------|
+| `package.json` | `1.4.0` → `1.5.0` |
+
+### Risiko Sisa (Carry Forward)
+
+| Risiko | Level | Status |
+|--------|-------|--------|
+| 52 `as any` di infrastructure layer | Rendah | P3 Backlog — mostly Dexie query casting, bukan financial logic |
+| Recovery Key UI belum ada tombol "Generate" di Settings | Menengah | P2 Sprint berikutnya |
+| Stress test (`test:stress`) belum ada file | Menengah | P2 Sprint berikutnya |
+| `DatabaseAdminServiceImpl` — scope export/import sempit (4 tabel saja) | Rendah | Untuk full export perlu expand scope |

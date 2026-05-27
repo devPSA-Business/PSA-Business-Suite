@@ -32,10 +32,17 @@ export class LoyaltyUseCase {
     }
 
     // 1. Calculate Redemption Discount
+    // P0-FINANCIAL: Math.ceil untuk integer point (bukan Rupiah), acceptable.
+    // Math.min untuk comparison antar integer point — bukan kalkulasi Rupiah langsung.
     const maxPointsNeeded = Math.ceil(MathUtils.div(request.transactionAmount, this.IDR_PER_POINT));
-    const pointsRedeemed = Math.min(request.pointsToRedeem, customer.loyaltyPoints, maxPointsNeeded);
+    // Clamp pointsRedeemed ke minimum dari 3 nilai integer (points, bukan Rupiah)
+    const rawRedeemable = Math.min(request.pointsToRedeem, customer.loyaltyPoints, maxPointsNeeded);
+    const pointsRedeemed = rawRedeemable < 0 ? 0 : rawRedeemable;
     const loyaltyDiscountAmount = MathUtils.roundInt(MathUtils.mul(pointsRedeemed, this.IDR_PER_POINT));
-    const netTotal = Math.max(0, MathUtils.sub(request.transactionAmount, loyaltyDiscountAmount));
+    
+    // P0-FINANCIAL: Gunakan MathUtils.sub lalu clamp ke 0 — dilarang Math.max untuk nilai Rupiah
+    const afterLoyalty = MathUtils.sub(request.transactionAmount, loyaltyDiscountAmount);
+    const netTotal = MathUtils.roundInt(afterLoyalty < 0 ? 0 : afterLoyalty);
 
     // 2. Calculate Earned Points (based on net total after discount)
     const pointsEarned = Math.floor(MathUtils.div(netTotal, this.POINTS_PER_IDR));

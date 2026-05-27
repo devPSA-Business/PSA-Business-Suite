@@ -138,7 +138,14 @@ export class SyncQueueManager {
     });
   }
 
-  /** Tandai event FAILED dengan exponential backoff. Pindahkan ke DLQ jika melebihi MAX_RETRIES. */
+  /** Tandai event FAILED dengan exponential backoff + jitter. Pindahkan ke DLQ jika melebihi MAX_RETRIES.
+   * 
+   * Formula: baseDelay * 2^attempt + random(0, MAX_JITTER_MS)
+   * Jitter mencegah "thundering herd" — skenario di mana semua perangkat yang baru online
+   * kembali mencoba sync secara bersamaan di waktu yang sama, menyebabkan spike ke Firestore.
+   *
+   * @changelog 2026-05-27 BACKLOG-04: Tambah jitter random(0, 30_000ms) pada backoff.
+   */
   async markFailed(eventId: number, errorMessage: string, currentEvent?: SyncEvent): Promise<void> {
     const currentRetryCount = currentEvent?.retry_count || 0;
     const newRetryCount = currentRetryCount + 1;
@@ -152,8 +159,18 @@ export class SyncQueueManager {
       await db.sync_dlq.add(eventToDlq);
       await db.sync_events.delete(eventId);
     } else {
-      const nextRetryTime = Date.now() + Math.pow(2, newRetryCount) * 1000;
-      await db.sync_events.update(eventId, { retry_count: newRetryCount, next_retry_time: nextRetryTime });
+      // Exponential backoff: 2^attempt detik (2s, 4s, 8s, 16s, 32s)
+      const BASE_DELAY_MS = 1_000;
+      const MAX_JITTER_MS = 30_000; // Jitter maks 30 detik — mencegah thundering herd
+      const exponentialMs = Math.pow(2, newRetryCount) * BASE_DELAY_MS;
+      const jitterMs = Math.floor(Math.random() * MAX_JITTER_MS);
+      const nextRetryTime = Date.now() + exponentialMs + jitterMs;
+      
+      await db.sync_events.update(eventId, {
+        retry_count: newRetryCount,
+        next_retry_time: nextRetryTime,
+        error_message: errorMessage,
+      });
     }
   }
 }

@@ -150,7 +150,9 @@ export function CartDisplay() {
     );
   }
 
-  const finalTotal = Math.max(0, totalPrice - manualDiscountAmount);
+  // P0-FINANCIAL: Dilarang Math.max untuk nilai Rupiah — clamp manual setelah MathUtils.sub
+  const rawTotal = MathUtils.sub(totalPrice, manualDiscountAmount);
+  const finalTotal = rawTotal < 0 ? 0 : MathUtils.roundInt(rawTotal);
 
   return (
     <>

@@ -99,32 +99,28 @@ export class ShiftRepositoryImpl implements IShiftRepository {
     await db.transactions
       .where('sessionId').equals(shiftId)
       .filter(t => t.status === 'SUCCESS' && t.paymentMethod === 'CASH')
-      .each(tx => { expectedCash += tx.total; });
+      .each(tx => { expectedCash = MathUtils.add(expectedCash, tx.total); });
 
     // [+] CASH IN: 2. Pendapatan Jasa/Reparasi (Tunai & Selesai)
     await db.repair_services
       .where('date').between(shift.startTime, endTime, true, true)
       .filter(r => (r.status === 'COMPLETED' || r.status === 'DELIVERED') && r.paymentMethod === 'CASH')
-      .each(rs => { expectedCash += rs.price; });
+      .each(rs => { expectedCash = MathUtils.add(expectedCash, rs.price); });
 
     // [+] CASH IN: 3. Likuidasi Emas ke Pengepul (Tunai)
     // Berdasarkan ADR-008: liquidation menggunakan status 'sold_to_collector'
     await db.gold_buyback
       .filter(gb => gb.status === 'sold_to_collector' && gb.soldDate !== undefined && new Date(gb.soldDate).getTime() >= shift.startTime && new Date(gb.soldDate).getTime() <= endTime)
-      // For now assume all sold items paid in CASH if not explicitly stated, or add soldPaymentMethod support.
-      // Since we just added paymentMethod to LiquidationUseCase, we need to check it.
       .each(gb => { 
-          // We only add to expected cash if it paid in CASH. Currently we'll assume soldPaymentMethod is stored, or default to CASH if checking cash injection from collector.
-          // Wait, if it's transfer, we shouldn't add it to physical drawer. Assuming soldPaymentMethod is added.
           if ((gb as GoldBuyback).soldPaymentMethod !== 'TRANSFER') {
-            expectedCash += (gb.soldPrice || 0); 
+            expectedCash = MathUtils.add(expectedCash, gb.soldPrice || 0);
           }
       });
 
     // [-] CASH OUT: 1. Pengeluaran Kas Kecil (Petty Cash)
     await db.petty_cash
       .where('date').between(shift.startTime, endTime, true, true)
-      .each(pc => { expectedCash -= pc.amount; });
+      .each(pc => { expectedCash = MathUtils.sub(expectedCash, pc.amount); });
 
     return expectedCash;
   }
@@ -146,8 +142,8 @@ export class ShiftRepositoryImpl implements IShiftRepository {
     if (shiftTotal) {
       await db.shift_totals.put({
         ...shiftTotal,
-        cashIn: Math.max(0, MathUtils.sub(shiftTotal.cashIn, removedCash)),
-        salesTotal: Math.max(0, MathUtils.sub(shiftTotal.salesTotal, voidAmount)),
+        cashIn: MathUtils.max(0, MathUtils.sub(shiftTotal.cashIn, removedCash)),
+        salesTotal: MathUtils.max(0, MathUtils.sub(shiftTotal.salesTotal, voidAmount)),
         lastUpdatedAt: Date.now()
       });
     }

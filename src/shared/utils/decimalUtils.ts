@@ -27,5 +27,12 @@ export const MathUtils = {
   /** Membulatkan ke integer (Standar Finansial Rupiah) */
   roundInt: (val: number | string): number => {
     return new Decimal(val || 0).toDecimalPlaces(0).toNumber();
+  },
+  /**
+   * Mengembalikan nilai terbesar dari dua angka dengan presisi mutlak.
+   * @business_rule Pengganti Math.max() untuk data finansial/berat emas (P0-FINANCIAL).
+   */
+  max: (a: number | string, b: number | string): number => {
+    return Decimal.max(new Decimal(a || 0), new Decimal(b || 0)).toNumber();
   }
 };

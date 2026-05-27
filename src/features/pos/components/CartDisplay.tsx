@@ -8,6 +8,7 @@ import { ConfirmActionDialog } from '../../../shared/components/ConfirmActionDia
 import { DIContainer } from '@infrastructure/di/Container';
 import { logger } from '@lib/logger';
 import { useAuthStore } from '../../../shared/store/authStore';
+import { MathUtils } from '../../../shared/utils/decimalUtils';
 
 const CartItemRow = React.memo(({ item, onUpdateQuantity, onRemove }: {
   item: TransactionItem;

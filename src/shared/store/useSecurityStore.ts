@@ -56,24 +56,25 @@ export const HASH_ITERATIONS_V2 = 600000;
 export const hashPin = async (
   pin: string, 
   saltInput: string | Uint8Array, 
-  usePepper: boolean = true,
+  // BUG-03 MIGRATION: Default diubah ke false. Hash BARU tidak menggunakan pepper.
+  // usePepper=true dipertahankan HANYA untuk verifikasi hash LAMA (backward-compat).
+  // Ref: docs/TD.md MIGRATION-01 — hapus sepenuhnya setelah semua user reset PIN.
+  usePepper: boolean = false,
   iterations: number = HASH_ITERATIONS_V2
 ): Promise<string> => {
   const encoder = new TextEncoder();
   const salt = typeof saltInput === 'string' ? encoder.encode(saltInput) : saltInput;
 
-  // @ai_context: Migrasi dari Cloud Functions (Blaze/berbayar) ke Web Crypto API (gratis, browser-native).
-  // @business_rule: VITE_CRYPTO_PEPPER di-bundle dalam build. Trade-off Zero-Cost vs Zero-Trust:
-  //   Acceptable untuk UMKM 1 toko karena pepper bukan kunci enkripsi data, hanya penguat hash PIN.
-  //   Bahaya nyata (brute force) tetap dicegah oleh PBKDF2 600K iterasi + salt unik per user.
-  // @security_tier: MEDIUM — pepper di client, tapi PBKDF2 tetap kuat secara kriptografis.
+  // BUG-03 FIX (partial): pepper tidak lagi digunakan untuk hash baru (usePepper default=false).
+  // @security_tier: Improving — PBKDF2 600K iter + UUID salt per-user adalah lapisan proteksi utama.
+  // VITE_CRYPTO_PEPPER hanya diakses via usePepper=true di jalur verifikasi backward-compat.
   let pinWithOptionalPepper = pin;
   if (usePepper) {
+    // @deprecated-path: Hanya untuk verifikasi hash LAMA. Jangan gunakan untuk creation baru.
     const pepper = import.meta.env.VITE_CRYPTO_PEPPER;
     if (pepper && pepper.length > 0) {
       pinWithOptionalPepper = pin + pepper;
     }
-    // Jika VITE_CRYPTO_PEPPER tidak diset (dev env), lanjutkan tanpa pepper — tidak throw error.
   }
 
   // Web Crypto API PBKDF2 — tersedia di semua browser modern dan PWA
@@ -198,6 +199,10 @@ export const useSecurityStore = create<SecurityState>()(
         const needsHashUpgrade = (!isPinValid && !isOfflineVerification);
 
         if (!isPinValid && !isOfflineVerification) {
+          // BUG-03 MIGRATION: coba V2 tanpa pepper (untuk hash baru yang dibuat setelah fix)
+          const hashedInputV2NoPepper = await hashPin(pin, currentSalt, false, HASH_ITERATIONS_V2);
+          isPinValid = (hashedInputV2NoPepper === user.pinHash);
+          if (!isPinValid) {
           const hashedInputV1 = await hashPin(pin, currentSalt, true, HASH_ITERATIONS_V1);
           isPinValid = (hashedInputV1 === user.pinHash);
           if (!isPinValid) {
@@ -211,6 +216,7 @@ export const useSecurityStore = create<SecurityState>()(
               isPinValid = (oldHash === user.pinHash);
             }
           }
+          } // end BUG-03 V2-no-pepper block
         }
 
         const handleFailedAttempt = () => {
@@ -252,7 +258,8 @@ export const useSecurityStore = create<SecurityState>()(
               createdAt: Date.now()
             };
             await cryptoKeyStore.saveWrappedKey(wrappedKeyMeta);
-            const updatedHash = await hashPin(pin, newSalt, true, HASH_ITERATIONS_V2);
+            // BUG-03: hash baru menggunakan usePepper=false (default baru)
+            const updatedHash = await hashPin(pin, newSalt, false, HASH_ITERATIONS_V2);
             // eslint-disable-next-line @typescript-eslint/no-explicit-any
             await db.users.update(user.id, { salt: newSalt as any, pinHash: updatedHash });
             cryptoDB.setKey(deviceKey, wrappedKeyMeta.keyId);
@@ -267,7 +274,8 @@ export const useSecurityStore = create<SecurityState>()(
               const newPinWrappedKey = await cryptoDB.reWrapKeyWithPin(userOfflineKey, pin, oldSalt, pin, newSalt);
               wrappedKeyMeta.wrappedKeysByPin[user.id] = newPinWrappedKey;
               await cryptoKeyStore.saveWrappedKey(wrappedKeyMeta);
-              const updatedHash = await hashPin(pin, newSalt, true, HASH_ITERATIONS_V2);
+              // BUG-03: hash upgrade menggunakan usePepper=false (migrating away from pepper)
+              const updatedHash = await hashPin(pin, newSalt, false, HASH_ITERATIONS_V2);
               // eslint-disable-next-line @typescript-eslint/no-explicit-any
               await db.users.update(user.id, { salt: newSalt as any, pinHash: updatedHash });
               await cryptoDB.unwrapKeyWithPin(newPinWrappedKey, pin, newSalt);
@@ -402,6 +410,13 @@ export const useSecurityStore = create<SecurityState>()(
                break;
             }
             
+            // BUG-03 MIGRATION: coba V2 tanpa pepper (untuk hash baru setelah pepper dihapus dari creation path)
+            const hashedInputV2NoPepper = await hashPin(pin, currentSalt, false, HASH_ITERATIONS_V2);
+            if (hashedInputV2NoPepper === user.pinHash) {
+               isValid = true;
+               break;
+            }
+
             // Fallback V1 (100k)
             const hashedInputV1 = await hashPin(pin, currentSalt, true, HASH_ITERATIONS_V1);
             if (hashedInputV1 !== 'OFFLINE_DEFERRED_VERIFICATION' && hashedInputV1 === user.pinHash) {

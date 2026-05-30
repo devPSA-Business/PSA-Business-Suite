@@ -109,12 +109,12 @@ export default function App() {
           }
         } else if (e.data.type === 'TRIGGER_FORCE_SYNC') {
           import('./infrastructure/di/Container').then(m => {
-            m.DIContainer.syncService.processSyncQueue().catch(console.error);
+            m.DIContainer.syncService.processSyncQueue().catch((e) => logger.error('[App] processSyncQueue failed', { error: e }));
           });
         } else if (e.data.type === 'SEND_ALERT') {
           import('./infrastructure/services/AlertService').then(m => {
             const alertService = new m.AlertService();
-            alertService.sendTelegramAlert(e.data.message).catch(console.error);
+            alertService.sendTelegramAlert(e.data.message).catch((err) => logger.error('[App] sendTelegramAlert failed', { error: err }));
           });
         }
       };
@@ -186,7 +186,7 @@ export default function App() {
             }
           }
         } catch (error) {
-          console.warn("Kill-switch check failed (offline):", error);
+          logger.warn("[App] Kill-switch check failed (offline)", { error });
         }
       });
     };

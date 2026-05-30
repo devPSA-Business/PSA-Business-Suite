@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from 'react';
+import { logger } from '../lib/logger';
 import { Outlet, useRouterState, useNavigate } from '@tanstack/react-router';
 import { useLiveQuery } from 'dexie-react-hooks';
 import { DIContainer } from '../infrastructure/di/Container';
@@ -48,7 +49,7 @@ export function MainLayout() {
       // SW Registered
     },
     onRegisterError(error) {
-      console.error('SW registration error', error);
+      logger.error('[MainLayout] SW registration error', { error });
     },
   });
 

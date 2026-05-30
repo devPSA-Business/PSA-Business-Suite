@@ -1,4 +1,5 @@
 import { useState, useEffect, useRef } from 'react';
+import { logger } from '../../lib/logger';
 import { Search, Plus, User, X } from 'lucide-react';
 import { Customer } from '@domain/models/Customer';
 import { DIContainer } from '@infrastructure/di/Container';
@@ -67,7 +68,7 @@ export function CustomerSelector({ onSelect, selectedCustomer }: CustomerSelecto
       setNewEmail('');
       setNewAddress('');
     } catch (error) {
-      console.error('Failed to create customer:', error);
+      logger.error('[CustomerSelector] Failed to create customer', { error });
     }
   };
 

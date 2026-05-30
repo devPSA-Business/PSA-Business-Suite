@@ -4,6 +4,7 @@
  * @business_rule : User HARUS tahu kenapa permission diminta sebelum browser prompt muncul untuk mencegah penolakan izin secara tidak sengaja.
  */
 import React, { useState, useCallback } from 'react';
+import { logger } from '../../lib/logger';
 
 interface PermissionExplainerProps {
   icon: string;
@@ -73,7 +74,7 @@ export function useCameraWithExplainer() {
           setStream(s);
           resolve(s);
         } catch (err) {
-          console.error('[Permission] Camera access denied or failed', err);
+          logger.error('[Permission] Camera access denied or failed', { error: err });
           resolve(null);
         }
       });

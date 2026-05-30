@@ -1,4 +1,5 @@
 import { useState } from 'react';
+import { logger } from '../../lib/logger';
 import { useLiveQuery } from 'dexie-react-hooks';
 import { db, SyncEvent } from '../../shared/api/db';
 import { AlertCircle, Check, X, RefreshCw } from 'lucide-react';
@@ -27,7 +28,7 @@ export function ConflictResolutionPage() {
         addToast('Konflik diselesaikan dengan menggunakan data server.', 'success');
       }
     } catch (error) {
-      console.error('Failed to resolve conflict:', error);
+      logger.error('[ConflictResolution] Failed to resolve conflict', { error });
       addToast('Gagal menyelesaikan konflik.', 'error');
     } finally {
       setResolvingId(null);

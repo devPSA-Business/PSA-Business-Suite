@@ -1,4 +1,5 @@
 import React, { useEffect, useRef } from 'react';
+import { logger } from '../../lib/logger';
 import { Html5QrcodeScanner, Html5QrcodeSupportedFormats } from 'html5-qrcode';
 import { X } from 'lucide-react';
 
@@ -46,7 +47,7 @@ export const BarcodeScanner: React.FC<BarcodeScannerProps> = ({ onScan, onClose 
     return () => {
       if (scannerRef.current) {
         scannerRef.current.clear().catch(err => {
-          console.error('Failed to clear scanner:', err);
+          logger.error('[BarcodeScanner] Failed to clear scanner', { error: err });
         });
       }
     };

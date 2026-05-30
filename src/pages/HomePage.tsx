@@ -4,6 +4,7 @@ import { ShoppingCart, Building, Info, X, TrendingUp, Wallet, Package, Activity 
 import { useAuthStore } from '../shared/store/authStore';
 import { useLiveQuery } from 'dexie-react-hooks';
 import { DIContainer } from '../infrastructure/di/Container';
+import { logger } from '../lib/logger';
 import { db } from '../shared/api/db';
 
 export function HomePage() {
@@ -18,12 +19,12 @@ export function HomePage() {
         if (!hasSeenFtue) {
           setShowFtue(true);
         }
-      }).catch(console.error);
+      }).catch((e) => logger.error('[HomePage] DB operation failed', { error: e }));
     }
   }, [user]);
 
   const dismissFtue = () => {
-    db.keyval.put({ key: 'psa_has_seen_ftue', value: 'true' }).catch(console.error);
+    db.keyval.put({ key: 'psa_has_seen_ftue', value: 'true' }).catch((e) => logger.error('[HomePage] DB operation failed', { error: e }));
     setShowFtue(false);
   };
 

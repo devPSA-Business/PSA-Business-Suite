@@ -1,4 +1,5 @@
 import React, { useState } from 'react';
+import { logger } from '../../lib/logger';
 import { useNavigate } from '@tanstack/react-router';
 import { Store, User, Lock, ArrowRight, Loader2, ShieldCheck, MapPin, Beaker } from 'lucide-react';
 import { useToastStore } from '../../shared/store/toastStore';
@@ -63,7 +64,7 @@ export function OnboardingPage() {
       // Ke LockedPage (Login via PIN Lapis 2) atau ke Root tergantung alur guard Router
       navigate({ to: '/' });
     } catch (error) {
-      console.error('[Onboarding] Setup failed:', error);
+      logger.error('[Onboarding] Setup failed', { error });
       addToast(`Gagal melakukan setup data: ${(error instanceof Error ? error.message : String(error))}`, 'error');
     } finally {
       setIsLoading(false);

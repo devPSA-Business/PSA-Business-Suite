@@ -1,4 +1,5 @@
 import React, { useState } from 'react';
+import { logger } from '../../lib/logger';
 import { useNavigate } from '@tanstack/react-router';
 import { signInWithEmailAndPassword } from 'firebase/auth';
 import { auth } from '../../shared/api/firebase';
@@ -32,7 +33,7 @@ export function LoginPage() {
       // App.tsx / Router guard akan menentukan apakah toko perlu di-setup atau langsung minta PIN (Lapis 2).
       navigate({ to: '/' }); 
     } catch (error: unknown) {
-      console.error('[Auth] Login failed:', error);
+      logger.error('[Auth] Login failed', { error });
       let errorMsg = ERROR_MESSAGES.LOGIN_FAILED;
       
       if (error instanceof Error && 'code' in error) {

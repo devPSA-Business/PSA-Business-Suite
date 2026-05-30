@@ -1,6 +1,7 @@
 import { create } from 'zustand';
 import { db } from '../api/db';
 import { MathUtils } from '../utils/decimalUtils';
+import { logger } from '../../lib/logger';
 
 interface GoldStore {
   marketPricePerGram: number;
@@ -31,7 +32,7 @@ export const useGoldStore = create<GoldStore>((set, get) => ({
         updatedAt: Date.now()
       });
     } catch(e) {
-      console.warn('Failed to save to daily_gold_price', e);
+      logger.warn('[GoldStore] Failed to save to daily_gold_price', { error: e });
     }
     set({ marketPricePerGram: price, lastFetchedAt: Date.now(), isManualPriceRequired: false });
   },
@@ -65,7 +66,7 @@ export const useGoldStore = create<GoldStore>((set, get) => ({
         throw new Error('API Error');
       }
     } catch (error) {
-      console.warn('Failed to fetch live gold price, checking local cache or requiring manual input', error);
+      logger.warn('[GoldStore] Failed to fetch live gold price — fallback ke cache lokal atau input manual', { error });
       const today = new Date().toISOString().split('T')[0];
       try {
         const localPriceFallback = await db.daily_gold_price.get(today);

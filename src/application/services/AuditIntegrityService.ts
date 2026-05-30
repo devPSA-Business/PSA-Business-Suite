@@ -3,6 +3,7 @@ import { IUnitOfWork } from '../core/IUnitOfWork';
 import { IReportQuery } from '../queries/IReportQuery';
 import { firestoreDb, isConfigValid } from '../../shared/api/firebase';
 import { doc, getDoc } from 'firebase/firestore';
+import { logger } from '../../lib/logger';
 
 export class AuditIntegrityService {
   constructor(
@@ -59,7 +60,7 @@ export class AuditIntegrityService {
           // Since we required pendingSyncCount == 0, if it's not in cloud, it truly doesn't exist.
         }
       } catch (err) {
-        console.error("Gagal mengambil previousHash dari Cloud:", err);
+        logger.error("[AuditIntegrity] Gagal mengambil previousHash dari Cloud", { error: err });
         throw new Error("Koneksi ke sistem pusat terganggu saat mengambil hash otoritatif. Coba lagi.");
       }
 

@@ -7,6 +7,7 @@
  *   2026-05-21 — FIX C-01: Hapus setDoc — dari write+read menjadi read-only.
  *                Eliminasi pelanggaran "Rule of Least Privilege" dan "The Leak" pattern.
  */
+import { logger } from '../../lib/logger';
 import { doc, getDocFromServer } from 'firebase/firestore';
 import { firestoreDb, isConfigValid } from '../api/firebase';
 
@@ -37,12 +38,12 @@ export async function syncTimeOffset(): Promise<void> {
 
       const offsetMinutes = Math.abs(timeOffset) / (60 * 1000);
       if (offsetMinutes > 5) {
-        console.warn(`[timeUtils] Time drift detected: ${offsetMinutes.toFixed(2)} menit dari server.`);
+        logger.warn('[timeUtils] Time drift detected', { offsetMinutes: offsetMinutes.toFixed(2) });
       }
     }
   } catch (error) {
     // Silent fail: tidak kritis — sistem tetap berjalan dengan waktu lokal.
-    console.warn('[timeUtils] Gagal sync time offset:', error);
+    logger.warn('[timeUtils] Gagal sync time offset', { error });
   }
 }
 

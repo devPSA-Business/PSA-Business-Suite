@@ -3,6 +3,7 @@ import { ILiveQueries, InventoryListFilter, InventoryListResult } from '../../ap
 import { PromiseExtended, liveQuery } from 'dexie';
 import { cryptoDB } from '../../lib/cryptoIndexedDB';
 import { MathUtils } from '../../shared/utils/decimalUtils';
+import { logger } from '../../lib/logger';
 
 export class LiveQueriesImpl implements ILiveQueries {
   private async decryptAuditLog(log: AuditLog): Promise<AuditLog> {
@@ -11,7 +12,7 @@ export class LiveQueriesImpl implements ILiveQueries {
         const decrypted = await cryptoDB.decryptRecord<Record<string, unknown>>(JSON.parse(log.secureData));
         return { ...log, details: String(decrypted.details || '') };
       } catch (err) {
-        console.error('Failed to decrypt audit log', err);
+        logger.error('[LiveQueries] Failed to decrypt audit log', { error: err });
         return { ...log, details: '' };
       }
     }

@@ -1,4 +1,5 @@
 import { metrics } from '../../lib/metrics';
+import { logger } from '../../lib/logger';
 
 /**
  * @file ScaleService.ts
@@ -75,7 +76,7 @@ export class ScaleService {
         }
       }
     } catch (error) {
-      console.error('[ScaleService] Read Error:', error);
+      logger.error('[ScaleService] Read Error', { error });
       throw error instanceof Error ? error : new Error('Gagal membaca data dari timbangan.');
     } finally {
       if (this.reader) {

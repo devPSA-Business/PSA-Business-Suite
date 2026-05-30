@@ -10,6 +10,7 @@ import {
   CustomerRevenue
 } from '@application/queries/IReportQuery';
 import { db, Transaction, AuditLog } from '../../shared/api/db';
+import { logger } from '../../lib/logger';
 import { StockItem } from '../../domain/models/StockItem';
 import { cryptoDB } from '../../lib/cryptoIndexedDB';
 
@@ -23,7 +24,7 @@ export class ReportQueryImpl implements IReportQuery {
         const decrypted = await cryptoDB.decryptRecord<TxSecurePayload>(JSON.parse(tx.secureData));
         return { ...tx, items: decrypted.items ?? [], manualDiscountNote: decrypted.manualDiscountNote };
       } catch (err) {
-        console.error('Failed to decrypt transaction in report', err);
+        logger.error('[ReportQuery] Failed to decrypt transaction in report', { error: err });
         return { ...tx, items: [] };
       }
     }

@@ -4,6 +4,7 @@ import { db, GoldBuyback } from '../../shared/api/db';
 import { firestoreDb, isConfigValid } from '../../shared/api/firebase';
 import { collection, query, where, getDocs } from 'firebase/firestore';
 import { MathUtils } from '../../shared/utils/decimalUtils';
+import { logger } from '../../lib/logger';
 
 export class ShiftRepositoryImpl implements IShiftRepository {
   async hasOpenShift(): Promise<boolean> {
@@ -33,7 +34,7 @@ export class ShiftRepositoryImpl implements IShiftRepository {
 
       return { hasActiveShift: !snapshot.empty };
     } catch (error) {
-      console.warn('Failed to check cloud for active shift', error);
+      logger.warn('[ShiftRepository] Failed to check cloud for active shift', { error });
       if ((error instanceof Error ? error.message : String(error)) === 'TIMEOUT') {
         return { hasActiveShift: false, isTimeout: true };
       }

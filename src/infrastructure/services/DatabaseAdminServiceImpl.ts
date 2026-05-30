@@ -1,5 +1,5 @@
 import { IDatabaseAdminService } from '../../application/services/IDatabaseAdminService';
-import { db } from '../../shared/api/db';
+import { db, StockItem, Transaction, RepairService, Customer } from '../../shared/api/db';
 
 export class DatabaseAdminServiceImpl implements IDatabaseAdminService {
   async exportDatabase(): Promise<string> {
@@ -56,13 +56,15 @@ export class DatabaseAdminServiceImpl implements IDatabaseAdminService {
       await db.repair_services.clear();
       await db.customers.clear();
 
-      // eslint-disable-next-line @typescript-eslint/no-explicit-any
-      const toData = (snap: typeof stockSnapshot) => snap.docs.map(doc => doc.data() as any);
+      // Firestore DocumentData diverifikasi oleh collection name — double-cast (unknown → entity)
+      // adalah idiom TS yang aman di sini karena data berasal dari koleksi Firestore yang typed
+      const toData = <T>(snap: typeof stockSnapshot): T[] =>
+        snap.docs.map(doc => doc.data() as unknown as T);
 
-      if (!stockSnapshot.empty)        await db.stock.bulkPut(toData(stockSnapshot));
-      if (!transactionsSnapshot.empty) await db.transactions.bulkPut(toData(transactionsSnapshot));
-      if (!repairSnapshot.empty)       await db.repair_services.bulkPut(toData(repairSnapshot));
-      if (!customersSnapshot.empty)    await db.customers.bulkPut(toData(customersSnapshot));
+      if (!stockSnapshot.empty)        await db.stock.bulkPut(toData<StockItem>(stockSnapshot));
+      if (!transactionsSnapshot.empty) await db.transactions.bulkPut(toData<Transaction>(transactionsSnapshot));
+      if (!repairSnapshot.empty)       await db.repair_services.bulkPut(toData<RepairService>(repairSnapshot));
+      if (!customersSnapshot.empty)    await db.customers.bulkPut(toData<Customer>(customersSnapshot));
     });
   }
 

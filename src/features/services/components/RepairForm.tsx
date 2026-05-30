@@ -56,7 +56,7 @@ export function RepairForm({ hideBackButton: _hideBackButton }: RepairFormProps 
           let height = img.height;
 
           if (width > MAX_WIDTH) {
-            height = Math.round((height * MAX_WIDTH) / width);
+            height = Math.round((height * MAX_WIDTH) / width); // UI-only: pixel dimension calculation, not financial data
             width = MAX_WIDTH;
           }
 

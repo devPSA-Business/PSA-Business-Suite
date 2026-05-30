@@ -185,11 +185,11 @@ export const OwnerDashboardPage: React.FC<{ embedded?: boolean }> = ({ embedded 
           <div className="text-3xl lg:text-4xl font-bold text-brand-900">{formatRupiah(totalOmzet30d)}</div>
           {/* Target Track - Eksekusi Strategi Terukur */}
           <div className="w-full bg-stone-100 rounded-full h-1.5 mt-4">
-            <div className="bg-brand-900 h-1.5 rounded-full" style={{ width: `${Math.min((totalOmzet30d / 50000000) * 100, 100)}%` }}></div>
+            <div className="bg-brand-900 h-1.5 rounded-full" style={{ width: `${Math.min((totalOmzet30d / 50000000) * 100, 100)}%` /* UI-only: CSS geometry, not financial */ }}></div>
           </div>
           <div className="text-[10px] text-stone-400 mt-1 mt-1 flex justify-between">
             <span>Target: Rp 50Jt</span>
-            <span>{Math.round(Math.min((totalOmzet30d / 50000000) * 100, 100))}%</span>
+            <span>{Math.round(Math.min((totalOmzet30d / 50000000) * 100, 100))}%{/* UI-only: integer % label, not persisted */}</span>
           </div>
         </div>
         <div className="bg-emerald-50 p-6 rounded-2xl shadow-sm border border-emerald-200 flex flex-col justify-center relative overflow-hidden">
@@ -197,7 +197,7 @@ export const OwnerDashboardPage: React.FC<{ embedded?: boolean }> = ({ embedded 
           <div className="text-3xl lg:text-4xl font-bold text-emerald-700">{formatRupiah(totalProfit30d)}</div>
           {/* ROI Proxy */}
           <div className="text-[10px] text-emerald-600 font-bold mt-2 bg-emerald-100 w-max px-2 py-0.5 rounded">
-            Margin: {totalOmzet30d > 0 ? Math.round((totalProfit30d / totalOmzet30d) * 100) : 0}% 
+            Margin: {totalOmzet30d > 0 ? Math.round((totalProfit30d / totalOmzet30d) * 100) : 0}%{/* UI-only: integer % label, not persisted */} 
           </div>
         </div>
         <div className={`p-6 rounded-2xl shadow-sm border flex flex-col justify-center cursor-pointer transition-colors ${missingCostTxs.length > 0 ? 'bg-amber-50 border-amber-200 hover:bg-amber-100' : 'bg-white border-stone-200'}`} onClick={() => missingCostTxs.length > 0 && setShowCostModal(true)}>

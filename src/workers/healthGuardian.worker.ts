@@ -60,7 +60,7 @@ async function checkSyncQueueAge(): Promise<{ count: number, ageMs: number } | n
       ageMs: Date.now() - oldestTimestamp
     };
   } catch (err) {
-    console.error("HealthGuardian: checkSyncQueueAge failed", err);
+    logger.error("[HealthGuardian] checkSyncQueueAge failed", { error: err });
     return null;
   }
 }

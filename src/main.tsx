@@ -5,7 +5,7 @@ import './index.css';
 import { registerSW } from 'virtual:pwa-register';
 import { DIContainer } from '@infrastructure/di/Container';
 import { useUIStore } from './shared/store/useUIStore';
-import { initGlobalErrorHandlers } from './lib/logger';
+import { initGlobalErrorHandlers, logger } from './lib/logger';
 
 // BACKLOG-03: Inisialisasi global error handlers — WAJIB dipanggil pertama
 // Menangkap unhandledrejection dan uncaughtError yang sebelumnya hilang secara senyap.
@@ -16,9 +16,9 @@ if (navigator.storage && navigator.storage.persist) {
   navigator.storage.persist().then(granted => {
     useUIStore.getState().setStoragePersisted(granted);
     if (granted) {
-      console.log("Storage will not be cleared except by explicit user action");
+      logger.info("[main] Persistent storage granted — data tidak akan dihapus browser");
     } else {
-      console.warn("Storage may be cleared by the UA under storage pressure.");
+      logger.warn("[main] Persistent storage NOT granted — data mungkin dihapus browser saat storage pressure");
     }
   });
 }
@@ -38,7 +38,7 @@ registerSW({
           });
           if (resp?.status === 200) await r.update();
         } catch (err) {
-          console.error('SW update check failed', err);
+          logger.error('[main] SW update check failed', { error: err });
         }
       }, 60 * 60 * 1000);
     }

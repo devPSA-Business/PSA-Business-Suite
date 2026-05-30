@@ -75,13 +75,13 @@ async function runFraudWatchdogScanner(startDateMs: number, endDateMs: number) {
 
       // Aturan 1: Total 0 secara tidak wajar (Bukan Trade In Biasa)
       if (tx.total === 0 && Array.isArray(tx.items) && tx.items.length > 0) {
-         score += 80;
+         score += 80; // UI-only: integer anomaly score (0–100), not financial data
          rulesTriggered.push("TOTAL_IS_ZERO_POTENTIAL_THEFT");
       }
 
       // Aturan 2: Nota VOID atau REFUNDED
       if (tx.status === 'VOIDED' || tx.isVoided) {
-         score += 70;
+         score += 70; // UI-only: integer anomaly score (0–100), not financial data
          rulesTriggered.push("NOTE_VOIDED");
       }
 
@@ -89,7 +89,7 @@ async function runFraudWatchdogScanner(startDateMs: number, endDateMs: number) {
       if (tx.manualDiscountAmount && tx.total > 0) {
           const discountRatio = tx.manualDiscountAmount / (tx.total + tx.manualDiscountAmount);
           if (discountRatio > 0.15) {
-             score += 40;
+             score += 40; // UI-only: integer anomaly score (0–100), not financial data
              rulesTriggered.push("HIGH_MANUAL_DISCOUNT");
           }
       }
@@ -104,21 +104,21 @@ async function runFraudWatchdogScanner(startDateMs: number, endDateMs: number) {
           });
       }
       if (isUnderCost) {
-         score += 90;
+         score += 90; // UI-only: integer anomaly score (0–100), not financial data
          rulesTriggered.push("PRICE_BELOW_COST_ANOMALY");
       }
 
       // Aturan 5: Time of Day Anomalies (Misal transaksi di luar jam operasional 08:00 - 22:00)
       const txHour = new Date(tx.date).getHours();
       if (txHour < 8 || txHour > 22) {
-         score += 30;
+         score += 30; // UI-only: integer anomaly score (0–100), not financial data
          rulesTriggered.push("TIME_OF_DAY_ANOMALY");
       }
 
       // Aturan 6: Sequence Detection (Repeated Voids in short window)
       const recentVoids = userSeq.filter(t => t.status === 'VOIDED' || t.isVoided).length;
       if (recentVoids >= 3) {
-         score += 60;
+         score += 60; // UI-only: integer anomaly score (0–100), not financial data
          rulesTriggered.push("MULTIPLE_VOIDS_IN_SEQUENCE");
       }
 
@@ -131,7 +131,7 @@ async function runFraudWatchdogScanner(startDateMs: number, endDateMs: number) {
              id: crypto.randomUUID(),
              txId: tx.id,
              cashierId: tx.user,
-             score: Math.min(100, score),
+             score: Math.min(100, score), // UI-only: cap integer score (0–100), not financial data
              severity,
              rulesTriggered,
              status: 'OPEN',
@@ -174,7 +174,7 @@ async function calculateDailyMetrics(startDateMs: number, endDateMs: number) {
     }
     
     const metric = metricsMap.get(dateStr)!;
-    metric.txCount += 1;
+    metric.txCount += 1; // UI-only: integer transaction counter, not financial data
     metric.omzetTotal = MathUtils.add(metric.omzetTotal, tx.total);
 
     let txTotalCost = 0;
@@ -326,8 +326,8 @@ async function calculateProductRanking(startDateMs: number, endDateMs: number) {
       const cat = m.stockCategory || 'ACCESSORIES';
       if (!categoryQtyMap.has(cat)) categoryQtyMap.set(cat, { totalQty: 0, count: 0 });
       const entry = categoryQtyMap.get(cat)!;
-      entry.totalQty += m.qtySold;
-      entry.count += 1;
+      entry.totalQty += m.qtySold; // UI-only: integer product ranking qty, not financial Rupiah
+      entry.count += 1; // UI-only: integer counter, not financial data
   });
 
   const categorized = metrics.map(p => {
@@ -355,12 +355,13 @@ async function calculateProductRanking(startDateMs: number, endDateMs: number) {
 async function buildNlqContext(startDateMs: number, endDateMs: number) {
   // 1. Get raw metrics
   const dailyMetrics = await calculateDailyMetrics(startDateMs, endDateMs);
+  // P0-FINANCIAL: akumulasi Rupiah wajib MathUtils.add (Decimal.js), bukan +=
   let totalOmzet = 0;
   let totalProfit = 0;
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   dailyMetrics.forEach((d: any) => {
-    totalOmzet  += d.omzetTotal;       // FIX BUG-02: field konsisten dengan calculateDailyMetrics()
-    totalProfit += d.grossProfitTotal; // FIX BUG-02: field konsisten dengan calculateDailyMetrics()
+    totalOmzet  = MathUtils.add(totalOmzet, d.omzetTotal);       // FIX BUG-02: field konsisten dengan calculateDailyMetrics()
+    totalProfit = MathUtils.add(totalProfit, d.grossProfitTotal); // FIX BUG-02: field konsisten dengan calculateDailyMetrics()
   });
 
   // 2. Get top product metrics

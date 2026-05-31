@@ -41,6 +41,11 @@ concurrency:
   group: apk-build-${{ github.ref }}
   cancel-in-progress: true
 
+permissions:
+  contents: read
+  actions: read
+  packages: read
+
 jobs:
   build_apk:
     name: Build TWA APK

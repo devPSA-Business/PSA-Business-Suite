@@ -239,3 +239,87 @@ Catatan perubahan besar untuk PSA Business Suite v1.4+.
 | Recovery Key UI belum ada tombol "Generate" di Settings | Menengah | P2 Sprint berikutnya |
 | Stress test (`test:stress`) belum ada file | Menengah | P2 Sprint berikutnya |
 | `DatabaseAdminServiceImpl` — scope export/import sempit (4 tabel saja) | Rendah | Untuk full export perlu expand scope |
+
+| 2026-05-31 | **FULL REPO AUDIT & REMEDIATION v1.5.1 — PSA IT Team (Claude)** | Selesai | Tinggi |
+
+## 🏗️ Detail: Full Repo Audit & Remediation 2026-05-31
+
+**Eksekutor:** PSA AI Engineer (Claude Sonnet 4.6)
+**Scope:** GitHub repository structure, GitHub Actions CI/CD, code quality, security, repo settings
+**Test State SEBELUM:** Klaim handoff 13 failing — **AKTUAL: 173/173 PASS ✅** (semua sudah diperbaiki commit 04572d6)
+
+### Temuan Audit (Root Cause Analysis)
+
+| Temuan | Severity | Status |
+|--------|----------|--------|
+| 3 binary files di-track git (1MB+, tidak ada nilai code) | High | ✅ Fixed |
+| `audit_logs/` runtime directory di-track git | Medium | ✅ Fixed |
+| `metadata.json` (AI Studio artifact) di-track git | Low | ✅ Fixed |
+| `.gitignore` tidak cover *.zip, audit_logs/, metadata.json | Medium | ✅ Fixed |
+| `api/index.ts` deprecated Express server: console.error violations | Medium | ✅ Fixed |
+| Branch protection TIDAK AKTIF → push langsung ke main bisa tanpa CI | Critical | ✅ Fixed via GitHub Rulesets API |
+| Repo settings: allow_merge_commit=true, allow_rebase=true (seharusnya squash-only) | Medium | ✅ Fixed via GitHub API |
+| CI startup_failure: `setup-node@48b55a...` (v6.4.0) SHA berbeda dari deploy.yml yang sukses | Critical | ✅ Fixed |
+| CI: `actions/cache` step menyebabkan inkonsistensi dengan deploy.yml | Medium | ✅ Fixed (dihapus) |
+| CodeQL: language 'actions' membutuhkan GHAS (berbayar), menyebabkan startup_failure | High | ✅ Fixed (dihapus dari matrix) |
+| Version comment salah di ci.yml: v6.0.2 padahal SHA = v4.2.2 | Low | ✅ Fixed |
+| Deploy.yml failure: kemungkinan secrets belum di-set di GitHub repo | High | Perlu manual: Set secrets di repo Settings |
+
+### Perubahan File
+
+| File | Perubahan | Status |
+|------|-----------|--------|
+| `.gitignore` | Tambah: *.zip, *.tar.gz, metadata.json, audit_logs/, secrets-checklist.md | ✅ |
+| `api/index.ts` | Hapus semua implementasi aktif + console.error, ganti dengan dead-code notice | ✅ |
+| `AI_TRACK_RECORD.md` | Update dengan audit ini | ✅ |
+| `.github/workflows/ci.yml` | Fix SHA setup-node (v4.1.0), hapus cache step, fix version comment | ✅ |
+| `.github/workflows/codeql.yml` | Hapus language 'actions', simplify ke javascript-typescript only | ✅ |
+
+### File Dihapus dari Git Tracking (tapi tetap ada di working tree)
+- `PSA_Business_Suite_Backup.zip` (1.04MB binary backup)
+- `PSA_Audit_Fixes.zip` (37KB)
+- `Audit file` (text file tanpa extension)
+- `audit_logs/audit_session_1778772704218.json`
+- `metadata.json`
+
+### GitHub API Actions
+- ✅ Branch Ruleset dibuat: "PSA Main Branch Protection" (ID: 17080153)
+  - Blokir: deletion, force push, non-fast-forward push
+  - Wajib: linear history (squash only)
+  - Wajib: pull request review sebelum merge
+- ✅ Repo settings: squash-only merge (allow_merge_commit=false, allow_rebase=false)
+
+### Action Items untuk Owner (Manual)
+
+> **🔴 WAJIB DILAKUKAN OWNER untuk Deploy berfungsi:**
+
+1. **Set GitHub Secrets** di: `https://github.com/devPSA-Business/PSA-Business-Suite/settings/secrets/actions`
+   - `VITE_FIREBASE_API_KEY` — dari Firebase Console → Project Settings → Web App
+   - `VITE_FIREBASE_AUTH_DOMAIN` — biasanya: `psa-business-suite.firebaseapp.com`
+   - `VITE_FIREBASE_PROJECT_ID` — `psa-business-suite`
+   - `VITE_FIREBASE_STORAGE_BUCKET` — `psa-business-suite.appspot.com`
+   - `VITE_FIREBASE_MESSAGING_SENDER_ID` — dari Firebase Console
+   - `VITE_FIREBASE_APP_ID` — dari Firebase Console
+   - `FIREBASE_SERVICE_ACCOUNT` — JSON dari Firebase Console → Service Accounts → Generate key
+   - `FIREBASE_PROJECT_ID` — `psa-business-suite`
+   - `FIREBASE_DEPLOY_TOKEN` — dari: `firebase login:ci`
+   - `VITE_CRYPTO_PEPPER` — string rahasia yang sudah Anda set sebelumnya
+
+2. **Deploy Cloudflare Worker** (untuk Gemini AI):
+   ```bash
+   cd workers/gemini-proxy
+   npm install -g wrangler
+   wrangler login
+   wrangler secret set GEMINI_API_KEY
+   wrangler deploy
+   # Copy URL worker → set sebagai VITE_GEMINI_PROXY_URL di GitHub Secrets
+   ```
+
+### Risiko Sisa
+
+| Risiko | Level | Mitigasi |
+|--------|-------|---------|
+| Deploy masih akan gagal sampai GitHub Secrets di-set | High | Owner harus set secrets (lihat Action Items) |
+| VITE_CRYPTO_PEPPER di client bundle (BUG-03) | Medium | Trade-off diterima: komentar justifikasi sudah ada, PBKDF2 600K tetap kuat |
+| 52 `as any` di infrastructure layer | Rendah | P3 Backlog |
+| Recovery Key UI: belum ada tombol "Generate" di Settings | Menengah | P2 Sprint berikutnya |

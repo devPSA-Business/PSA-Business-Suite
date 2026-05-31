@@ -16,3 +16,19 @@ firebase-applet-config.json
 # Arsip tersimpan di functions/ untuk referensi. Hapus manual jika tidak diperlukan.
 functions/lib/
 functions/node_modules/
+
+# === TAMBAHAN REMEDIATION 2026-05-31 ===
+# Binary backup files — JANGAN DI-TRACK (besar, tidak punya value sebagai code)
+*.zip
+*.tar.gz
+*.gz
+
+# AI Studio / Firebase artifacts
+metadata.json
+firebase-applet-config.json
+
+# Audit logs runtime — hanya ada untuk referensi dev, bukan source code
+audit_logs/
+
+# Secrets checklist yang mungkin berisi info sensitif
+secrets-checklist.md

@@ -1,8 +1,0 @@
-{
-  "name": "PSA Business Suite",
-  "description": "v1.4.0  -stable-enterprise: Offline-First POS & CRM for PSA Jewellery with Enterprise Hardening",
-  "requestFramePermissions": [
-    "camera"
-  ],
-  "majorCapabilities": []
-}

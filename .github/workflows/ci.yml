@@ -16,6 +16,9 @@ jobs:
     name: Lint · TypeCheck · Test · Coverage
     runs-on: ubuntu-latest
     timeout-minutes: 20
+    permissions:
+      contents: read
+      pull-requests: write  # Diperlukan untuk Coverage Summary Comment di PR
 
     steps:
       # SHA diverifikasi dari repo resmi actions/checkout (sama dengan deploy.yml)

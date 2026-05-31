@@ -290,35 +290,26 @@ describe('SyncServiceImpl', () => {
     it('returns early if real connectivity check fails due to timeout', async () => {
       mockOnline.mockReturnValue(true);
       (db.sync_events.where as any).mockClear();
-      vi.useFakeTimers();
-      
-      // Spy on fetch and provide a implementation that hangs until we advance time
-      const fetchSpy = vi.spyOn(global, 'fetch').mockImplementation((url, options) => {
-        return new Promise((resolve, reject) => {
-          const timeout = setTimeout(() => {
-            resolve({ ok: true } as any);
-          }, 10000);
-          
-          if (options?.signal) {
-            options.signal.addEventListener('abort', () => {
-              clearTimeout(timeout);
-              reject(new Error('AbortError'));
-            });
-          }
-        });
-      });
 
-      const syncPromise = syncService.processSyncQueue();
-      
-      // Advance to trigger the 3s timeout in checkRealConnectivity
-      await vi.advanceTimersByTimeAsync(3500);
-      
-      await syncPromise;
-      
-      // Since checkRealConnectivity returns false on timeout, processSyncQueue should abort
+      // Spy langsung pada SyncConnectivityChecker.prototype.isFirestoreReachable.
+      // Alasan: test ini memverifikasi behavior processSyncQueue (abort saat connectivity false),
+      // BUKAN internal timeout mechanism SyncConnectivityChecker (yang diuji di unit test tersendiri).
+      // Pendekatan vi.useFakeTimers() konflik dengan beforeEach processSyncQueue yang mengganti
+      // global.setTimeout dengan IMMEDIATE_FN, menyebabkan @sinonjs/fake-timers menyimpan
+      // IMMEDIATE_FN sebagai "native" dan merusak urutan timer t=3000→abort→return.
+      const { SyncConnectivityChecker } = await import(
+        '../../../src/infrastructure/services/sync/SyncConnectivityChecker'
+      );
+      const reachableSpy = vi
+        .spyOn(SyncConnectivityChecker.prototype, 'isFirestoreReachable')
+        .mockResolvedValue(false); // simulasi: timeout → tidak reachable
+
+      await syncService.processSyncQueue();
+
+      // processSyncQueue wajib abort sebelum memanggil getExecutableEvents()
       expect(db.sync_events.where).toHaveBeenCalledTimes(0);
-      
-      fetchSpy.mockRestore();
+
+      reachableSpy.mockRestore();
     });
     
     it('processes generic chunk of pending events', async () => {
@@ -475,11 +466,18 @@ describe('SyncServiceImpl', () => {
     global.fetch = vi.fn().mockResolvedValue({ ok: true } as any);
 
     const events = [{ id: 1, entity_type: 'stock', action: 'INSERT', payload: { client_txn_id: '123' }, status: 'PENDING' }];
-    const query = createQueryMock();
-    query.toArray.mockResolvedValue(events);
+    // Gunakan pola inline (bukan createQueryMock()) agar chain anyOf → toArray terpisah.
+    // createQueryMock() mengembalikan self-reference via closure yang bisa terganggu
+    // oleh vi.resetAllMocks() pada siklus beforeEach sebelumnya.
+    const query = {
+      anyOf: vi.fn().mockReturnValue({ toArray: vi.fn().mockResolvedValue(events) }),
+    };
     (db.sync_events.where as any).mockReturnValue(query);
 
-    const commitMock = vi.fn().mockRejectedValue({ code: 'permission-denied' });
+    // SyncUploaderService.onAuthError() hanya dipanggil untuk code 'unauthenticated'.
+    // 'permission-denied' → DLQ path (by design, lihat ARCH comment di SyncUploaderService).
+    // Test ini memverifikasi code path 'unauthenticated' → psa:auth-error event.
+    const commitMock = vi.fn().mockRejectedValue({ code: 'unauthenticated' });
     const batchMock = { commit: commitMock, set: vi.fn(), update: vi.fn(), delete: vi.fn() };
     const firestore = await import('firebase/firestore');
     (firestore.writeBatch as any).mockReturnValue(batchMock);

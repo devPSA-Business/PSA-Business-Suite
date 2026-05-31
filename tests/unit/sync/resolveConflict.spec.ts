@@ -8,6 +8,31 @@ import { db } from '../../../src/shared/api/db';
  * Unit test for SyncServiceImpl.resolveConflict (SERVER mode).
  */
 
+// Mock firebase agar safeFirestoreCall tidak throw "API Key not configured"
+// saat SyncConflictHandler._applyServerPayloadLocally() dieksekusi.
+vi.mock('../../../src/shared/api/firebase', () => ({
+  firestoreDb: {},
+  isConfigValid: true,
+  // safeFirestoreCall: bypass guard, langsung jalankan callback
+  safeFirestoreCall: vi.fn(async (cb: () => Promise<unknown>) => await cb()),
+}));
+
+// Mock firebase/firestore untuk mencegah network call nyata
+vi.mock('firebase/firestore', () => ({
+  collection: vi.fn(),
+  doc: vi.fn(),
+  getDoc: vi.fn().mockResolvedValue({ exists: () => false, data: () => ({}) }),
+  writeBatch: vi.fn().mockReturnValue({
+    set: vi.fn(),
+    update: vi.fn(),
+    delete: vi.fn(),
+    commit: vi.fn().mockResolvedValue(undefined),
+  }),
+  setDoc: vi.fn().mockResolvedValue(undefined),
+  updateDoc: vi.fn().mockResolvedValue(undefined),
+  deleteDoc: vi.fn().mockResolvedValue(undefined),
+}));
+
 vi.mock('../../../src/shared/api/db', () => ({
   db: {
     sync_events: { get: vi.fn(), delete: vi.fn(), update: vi.fn() },

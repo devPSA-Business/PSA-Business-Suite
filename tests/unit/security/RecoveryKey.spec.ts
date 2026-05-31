@@ -44,7 +44,11 @@ vi.mock('@shared/api/db', () => ({
   },
 }));
 
-const mockDeviceKey = { type: 'secret', algorithm: { name: 'AES-GCM' } } as unknown as CryptoKey;
+// vi.hoisted() memastikan mockDeviceKey tersedia saat vi.mock factory dieksekusi
+// oleh Vitest compiler (factory di-hoist ke TOP file, const biasa tidak di-hoist).
+const { mockDeviceKey } = vi.hoisted(() => ({
+  mockDeviceKey: { type: 'secret', algorithm: { name: 'AES-GCM' } } as unknown as CryptoKey,
+}));
 
 vi.mock('@lib/cryptoIndexedDB', () => ({
   cryptoDB: {

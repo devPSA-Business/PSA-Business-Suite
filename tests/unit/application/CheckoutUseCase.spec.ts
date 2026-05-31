@@ -1,5 +1,6 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
-import { CheckoutUseCase, CheckoutRequestDTO } from '../../../src/features/pos/usecases/CheckoutUseCase';
+import { CheckoutUseCase } from '../../../src/features/pos/usecases/CheckoutUseCase';
+import { CheckoutRequestDTO } from '../../../src/features/pos/dto/CheckoutRequestDTO';
 import { IRetailRepository } from '../../../src/domain/repositories/IRetailRepository';
 import { IStockRepository } from '../../../src/domain/repositories/IStockRepository';
 import { IShiftRepository } from '../../../src/domain/repositories/IShiftRepository';
@@ -68,6 +69,7 @@ describe('CheckoutUseCase', () => {
     vi.mocked(mockShiftRepo.hasOpenShift).mockResolvedValue(false);
 
     const request: CheckoutRequestDTO = {
+      subtotal: 1000,
       total: 1000,
       paymentMethod: 'CASH',
       items: [
@@ -93,6 +95,7 @@ describe('CheckoutUseCase', () => {
     vi.mocked(mockStockRepo.findById).mockResolvedValue(stockItem);
 
     const request: CheckoutRequestDTO = {
+      subtotal: 10000,
       total: 10000,
       paymentMethod: 'CASH',
       items: [
@@ -118,6 +121,7 @@ describe('CheckoutUseCase', () => {
     vi.mocked(mockStockRepo.findById).mockResolvedValue(stockItem);
 
     const request: CheckoutRequestDTO = {
+      subtotal: 10000,
       total: 10000,
       paymentMethod: 'CASH',
       items: [
@@ -158,6 +162,7 @@ describe('CheckoutUseCase', () => {
     vi.mocked(mockRetailRepo.save).mockRejectedValue(new Error('Database error'));
 
     const request: CheckoutRequestDTO = {
+      subtotal: 10000,
       total: 10000,
       paymentMethod: 'CASH',
       items: [

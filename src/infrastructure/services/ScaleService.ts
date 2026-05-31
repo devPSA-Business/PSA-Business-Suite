@@ -6,10 +6,11 @@ import { logger } from '../../lib/logger';
  * @description Integrasi Timbangan Digital via WebSerial API
  */
 export class ScaleService {
+  // navigator.serial (SerialPort) tidak ada @types resmi di package.json — any justified.
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   private port: any = null;
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  private reader: any = null;
+  // ReadableStreamDefaultReader<string> dari TextDecoderStream.readable.getReader() — built-in TS type.
+  private reader: ReadableStreamDefaultReader<string> | null = null;
 
   async connect(): Promise<void> {
     if (!('serial' in navigator)) {

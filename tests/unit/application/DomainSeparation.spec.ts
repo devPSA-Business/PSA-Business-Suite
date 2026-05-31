@@ -124,6 +124,7 @@ describe('Domain Separation: Retail vs Gold Asset Trading', () => {
     vi.mocked(mockStockRepo.findById).mockResolvedValue(stockItem);
 
     await checkout.execute({
+      subtotal: 5000000,   // pre-discount total untuk anti-tampering validation
       total: 5000000,
       paymentMethod: 'CASH',
       items: [{ stockId: stockItem.id, name: 'Gold Ring', quantity: 1, price: 5000000, subtotal: 5000000 }],

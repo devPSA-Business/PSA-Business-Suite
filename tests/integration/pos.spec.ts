@@ -138,6 +138,7 @@ describe('POS Integration Flow', () => {
 
     // 3. Checkout
     const transactionId = await checkout.execute({
+      subtotal: 20000,   // pre-discount total untuk anti-tampering validation
       total: 20000,
       paymentMethod: 'CASH',
       items: [

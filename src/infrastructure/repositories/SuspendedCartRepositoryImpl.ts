@@ -1,6 +1,6 @@
 import { ISuspendedCartRepository } from '@domain/repositories/ISuspendedCartRepository';
 import { SuspendedCart } from '@domain/models/SuspendedCart';
-import { db } from '../../shared/api/db';
+import { db, SuspendedCart as SuspendedCartRecord } from '../../shared/api/db';
 
 export class SuspendedCartRepositoryImpl implements ISuspendedCartRepository {
   async save(cart: SuspendedCart): Promise<void> {
@@ -16,8 +16,7 @@ export class SuspendedCartRepositoryImpl implements ISuspendedCartRepository {
 
   async getAll(): Promise<SuspendedCart[]> {
     const records = await db.suspended_carts.toArray();
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    return records.map((record: any) => SuspendedCart.create({
+    return records.map((record: SuspendedCartRecord) => SuspendedCart.create({
       name: record.name,
       items: record.items,
       total: record.total,

@@ -13,10 +13,10 @@ import { db, SyncEvent, StockItem, Customer, RepairService, GoldBuyback, Shift, 
 
 /**
  * Union type dari semua entitas yang bisa ada di server_payload conflict resolution.
- * Prefix _ = intentionally defined untuk dokumentasi tipe, meski belum dipakai secara eksplisit.
- * @see _applyServerPayloadLocally
+ * Digunakan untuk menghilangkan `as any` pada _applyServerPayloadLocally.
+ * Di-export agar tersedia untuk test dan tipe eksplisit di SyncUploaderService.
  */
-type _ConflictPayload =
+export type ConflictPayload =
   | StockItem
   | Customer
   | RepairService

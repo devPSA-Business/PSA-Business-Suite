@@ -2,7 +2,7 @@ name: "CodeQL Advanced"
 
 # @ai_context: SAST scan otomatis — mencari vulnerabilitas keamanan di TypeScript.
 # Berjalan: push ke main, setiap PR ke main, dan mingguan (Minggu 15:36 UTC).
-# Catatan: Bahasa 'actions' dihapus — memerlukan GitHub Advanced Security yang berbayar.
+# Semua actions di-pin ke commit SHA (sha_pinning_required: true di repo ini).
 
 on:
   push:
@@ -27,15 +27,15 @@ jobs:
         uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v4.2.2
 
       - name: Initialize CodeQL
-        uses: github/codeql-action/init@v3
+        uses: github/codeql-action/init@7211b7c8077ea37d8641b6271f6a365a22a5fbfa # v4.36.0
         with:
           languages: javascript-typescript
           queries: security-and-quality
 
       - name: Autobuild
-        uses: github/codeql-action/autobuild@v3
+        uses: github/codeql-action/autobuild@7211b7c8077ea37d8641b6271f6a365a22a5fbfa # v4.36.0
 
       - name: Perform CodeQL Analysis
-        uses: github/codeql-action/analyze@v3
+        uses: github/codeql-action/analyze@7211b7c8077ea37d8641b6271f6a365a22a5fbfa # v4.36.0
         with:
           category: '/language:javascript-typescript'

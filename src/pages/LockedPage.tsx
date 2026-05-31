@@ -9,6 +9,7 @@
  *   2026-05-20 — Tambah "Lupa PIN? Gunakan Recovery Key" flow (P1 Remediation)
  */
 import React, { useState, useEffect, useCallback } from 'react';
+import { logger } from '../lib/logger';
 import { useNavigate, useSearch } from '@tanstack/react-router';
 import { Lock, ArrowLeft, User as UserIcon, ChevronRight, AlertTriangle, Beaker, RotateCcw, KeyRound, Eye, EyeOff } from 'lucide-react';
 import { useSecurityStore, hashPin } from '../shared/store/useSecurityStore';
@@ -53,7 +54,7 @@ export function LockedPage() {
         const activeUsers = await db.users.where('status').equals('ACTIVE').toArray();
         setUsers(activeUsers);
       } catch (err) {
-        console.error('Failed to fetch users:', err);
+        logger.error('[LockedPage] Failed to fetch users', { error: err });
       } finally {
         setIsLoading(false);
       }
@@ -130,7 +131,7 @@ export function LockedPage() {
       setNewPin('');
       setConfirmNewPin('');
     } catch (err) {
-      console.error('Failed to update PIN:', err);
+      logger.error('[LockedPage] Failed to update PIN', { error: err });
       setPinChangeError('Gagal memperbarui PIN. Silakan coba lagi.');
     }
   };
@@ -278,7 +279,7 @@ export function LockedPage() {
 
       window.location.replace('/');
     } catch (err) {
-      console.error('[LockedPage] Gagal Reset Database:', err);
+      logger.error('[LockedPage] Gagal Reset Database', { error: err });
       addToast('Terjadi kesalahan saat mereset: ' + (err instanceof Error ? err.message : String(err)), 'error');
       setActiveView('enter_pin');
     }

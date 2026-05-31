@@ -8,6 +8,7 @@ import { ConfirmActionDialog } from '../../../shared/components/ConfirmActionDia
 import { DIContainer } from '@infrastructure/di/Container';
 import { logger } from '@lib/logger';
 import { useAuthStore } from '../../../shared/store/authStore';
+import { MathUtils } from '../../../shared/utils/decimalUtils';
 
 const CartItemRow = React.memo(({ item, onUpdateQuantity, onRemove }: {
   item: TransactionItem;
@@ -150,7 +151,9 @@ export function CartDisplay() {
     );
   }
 
-  const finalTotal = Math.max(0, totalPrice - manualDiscountAmount);
+  // P0-FINANCIAL: Dilarang Math.max untuk nilai Rupiah — clamp manual setelah MathUtils.sub
+  const rawTotal = MathUtils.sub(totalPrice, manualDiscountAmount);
+  const finalTotal = rawTotal < 0 ? 0 : MathUtils.roundInt(rawTotal);
 
   return (
     <>

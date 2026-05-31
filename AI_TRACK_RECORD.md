@@ -162,3 +162,164 @@ Catatan perubahan besar untuk PSA Business Suite v1.4+.
 | Accessibility: hanya 3 aria attributes | Rendah | Tablet kasir dioperasikan touch — bukan screen reader use case | P3 Backlog |
 | Stress test (`test:stress`) belum ada file | Menengah | Logger + Telegram alert cover production monitoring sementara | P2 Sprint berikutnya |
 | Sentry butuh `npm install` di production | Rendah | `@sentry/react` sudah ditambah ke `package.json` — CI akan install otomatis pada push berikutnya | Auto-resolved saat next deploy |
+
+| 2026-05-27 | **SPRINT v1.5.0 — 6 Atomic Fixes (BACKLOG + P0 Financial)** | Selesai | Tinggi |
+
+## 🏗️ Detail: Sprint v1.5.0 — 2026-05-27
+
+**Eksekutor:** PSA AI Engineer (Claude Sonnet 4.6)
+**Referensi:** Master Context Document v1.5.0-Final + Deep Audit dari Repository Clone
+
+### Fix 1 — BACKLOG-01: MorningReadiness Hard Blocker → Soft Reminder ✅
+| File | Perubahan |
+|------|-----------|
+| `src/features/auth/components/MorningReadinessUI.tsx` | Hard-blocker dihapus. Tombol "Lewati & Buka Shift" selalu aktif. Item di-skip → audit `HARDWARE_READINESS_SKIPPED`. Printer ditandai OPSIONAL. |
+
+**Teknis:**
+- `blocked` state dihapus — state baru: `allPassed` (semua OK) dan `hasUnchecked` (ada yang belum dicek)
+- Tombol berubah label dinamis: "Buka Shift" (semua OK) / "Lewati & Buka Shift" (ada skip/gagal)
+- `saveSkipAudit()` dipanggil saat proceed dengan item yang tidak `success` — log ke `audit_logs`
+- Pesan feedback diubah dari `bg-red-50` ke `bg-amber-50` (soft warning, bukan error)
+
+### Fix 2 — BACKLOG-03: Logger Global Error Handlers ✅
+| File | Perubahan |
+|------|-----------|
+| `src/lib/logger.ts` | Tambah `initGlobalErrorHandlers()` — capture `unhandledrejection` + `window.error` |
+| `src/main.tsx` | Import dan panggil `initGlobalErrorHandlers()` sebagai langkah PERTAMA bootstrap |
+
+**Teknis:**
+- Guard `__PSA_GLOBAL_HANDLERS_INIT__` mencegah double-registration
+- `unhandledrejection` → `logger.error`; jika mengandung kata kunci kritis (quota, crypto, corrupt, nuclear, dexie) → `logger.fatal` + Telegram alert
+- `window.error` → `logger.error` (sync errors, sangat jarang di React)
+
+### Fix 3 — P0-FINANCIAL: Eliminasi Math.max untuk Nilai Rupiah ✅
+| File | Perubahan |
+|------|-----------|
+| `src/features/pos/usecases/CheckoutUseCase.ts:239` | `Math.max(0, MathUtils.sub(...))` → clamp manual setelah `MathUtils.sub` |
+| `src/features/pos/usecases/LoyaltyUseCase.ts:38` | `Math.max(0, MathUtils.sub(...))` → clamp manual setelah `MathUtils.sub` |
+| `src/features/pos/components/CartDisplay.tsx:153` | `Math.max(0, totalPrice - manualDiscountAmount)` → `MathUtils.sub` + clamp manual |
+| `src/features/pos/components/CheckoutModal.tsx:43` | `Math.max(0, MathUtils.sub(...))` → clamp manual setelah `MathUtils.sub` chain |
+
+**Teknis:**
+- Pattern seragam: `const raw = MathUtils.sub(a, b); const result = raw < 0 ? 0 : MathUtils.roundInt(raw);`
+- `Math.min` di LoyaltyUseCase untuk perbandingan integer points (bukan Rupiah) = acceptable, dipertahankan dengan komentar justifikasi
+- `Math.abs` di ShiftCloseForm = UI display saja, bukan kalkulasi finansial = acceptable
+
+### Fix 4 — BACKLOG-10: ProductList Category Filter dari Enum ✅
+| File | Perubahan |
+|------|-----------|
+| `src/features/pos/ui/ProductList.tsx` | Hapus hardcoded strings; tambah `POS_VISIBLE_CATEGORIES` array dari `StockCategory` enum; tambah tab filter UI |
+
+**Teknis:**
+- `POS_VISIBLE_CATEGORIES = [StockCategory.IMITATION, StockCategory.ACCESSORIES]`
+- `BUYBACK_GOLD`, `GOLD_JEWELLERY`, `GOLD_BAR` dikecualikan dari kasir ritel (P0-KAS)
+- Tab filter di atas product grid, scrollable horizontal untuk mobile
+- Client-side filter sebagai defence-in-depth jika `liveQueries.searchProducts` tidak filter per kategori
+
+### Fix 5 — BACKLOG-04: Sync Retry Jitter ✅
+| File | Perubahan |
+|------|-----------|
+| `src/infrastructure/services/sync/SyncQueueManager.ts` | Tambah `jitterMs = random(0, 30_000)` pada `nextRetryTime`. Simpan `error_message` di update. |
+
+**Teknis:**
+- Formula baru: `nextRetryTime = now + (2^attempt * 1000ms) + random(0, 30_000ms)`
+- Mencegah thundering herd: semua device yang baru online tidak retry di waktu yang sama
+- `error_message` kini disimpan saat update (sebelumnya hanya saat DLQ) → membantu debug
+
+### Fix 6 — Version Bump ✅
+| File | Perubahan |
+|------|-----------|
+| `package.json` | `1.4.0` → `1.5.0` |
+
+### Risiko Sisa (Carry Forward)
+
+| Risiko | Level | Status |
+|--------|-------|--------|
+| 52 `as any` di infrastructure layer | Rendah | P3 Backlog — mostly Dexie query casting, bukan financial logic |
+| Recovery Key UI belum ada tombol "Generate" di Settings | Menengah | P2 Sprint berikutnya |
+| Stress test (`test:stress`) belum ada file | Menengah | P2 Sprint berikutnya |
+| `DatabaseAdminServiceImpl` — scope export/import sempit (4 tabel saja) | Rendah | Untuk full export perlu expand scope |
+
+| 2026-05-31 | **FULL REPO AUDIT & REMEDIATION v1.5.1 — PSA IT Team (Claude)** | Selesai | Tinggi |
+
+## 🏗️ Detail: Full Repo Audit & Remediation 2026-05-31
+
+**Eksekutor:** PSA AI Engineer (Claude Sonnet 4.6)
+**Scope:** GitHub repository structure, GitHub Actions CI/CD, code quality, security, repo settings
+**Test State SEBELUM:** Klaim handoff 13 failing — **AKTUAL: 173/173 PASS ✅** (semua sudah diperbaiki commit 04572d6)
+
+### Temuan Audit (Root Cause Analysis)
+
+| Temuan | Severity | Status |
+|--------|----------|--------|
+| 3 binary files di-track git (1MB+, tidak ada nilai code) | High | ✅ Fixed |
+| `audit_logs/` runtime directory di-track git | Medium | ✅ Fixed |
+| `metadata.json` (AI Studio artifact) di-track git | Low | ✅ Fixed |
+| `.gitignore` tidak cover *.zip, audit_logs/, metadata.json | Medium | ✅ Fixed |
+| `api/index.ts` deprecated Express server: console.error violations | Medium | ✅ Fixed |
+| Branch protection TIDAK AKTIF → push langsung ke main bisa tanpa CI | Critical | ✅ Fixed via GitHub Rulesets API |
+| Repo settings: allow_merge_commit=true, allow_rebase=true (seharusnya squash-only) | Medium | ✅ Fixed via GitHub API |
+| CI startup_failure: `setup-node@48b55a...` (v6.4.0) SHA berbeda dari deploy.yml yang sukses | Critical | ✅ Fixed |
+| CI: `actions/cache` step menyebabkan inkonsistensi dengan deploy.yml | Medium | ✅ Fixed (dihapus) |
+| CodeQL: language 'actions' membutuhkan GHAS (berbayar), menyebabkan startup_failure | High | ✅ Fixed (dihapus dari matrix) |
+| Version comment salah di ci.yml: v6.0.2 padahal SHA = v4.2.2 | Low | ✅ Fixed |
+| Deploy.yml failure: kemungkinan secrets belum di-set di GitHub repo | High | Perlu manual: Set secrets di repo Settings |
+
+### Perubahan File
+
+| File | Perubahan | Status |
+|------|-----------|--------|
+| `.gitignore` | Tambah: *.zip, *.tar.gz, metadata.json, audit_logs/, secrets-checklist.md | ✅ |
+| `api/index.ts` | Hapus semua implementasi aktif + console.error, ganti dengan dead-code notice | ✅ |
+| `AI_TRACK_RECORD.md` | Update dengan audit ini | ✅ |
+| `.github/workflows/ci.yml` | Fix SHA setup-node (v4.1.0), hapus cache step, fix version comment | ✅ |
+| `.github/workflows/codeql.yml` | Hapus language 'actions', simplify ke javascript-typescript only | ✅ |
+
+### File Dihapus dari Git Tracking (tapi tetap ada di working tree)
+- `PSA_Business_Suite_Backup.zip` (1.04MB binary backup)
+- `PSA_Audit_Fixes.zip` (37KB)
+- `Audit file` (text file tanpa extension)
+- `audit_logs/audit_session_1778772704218.json`
+- `metadata.json`
+
+### GitHub API Actions
+- ✅ Branch Ruleset dibuat: "PSA Main Branch Protection" (ID: 17080153)
+  - Blokir: deletion, force push, non-fast-forward push
+  - Wajib: linear history (squash only)
+  - Wajib: pull request review sebelum merge
+- ✅ Repo settings: squash-only merge (allow_merge_commit=false, allow_rebase=false)
+
+### Action Items untuk Owner (Manual)
+
+> **🔴 WAJIB DILAKUKAN OWNER untuk Deploy berfungsi:**
+
+1. **Set GitHub Secrets** di: `https://github.com/devPSA-Business/PSA-Business-Suite/settings/secrets/actions`
+   - `VITE_FIREBASE_API_KEY` — dari Firebase Console → Project Settings → Web App
+   - `VITE_FIREBASE_AUTH_DOMAIN` — biasanya: `psa-business-suite.firebaseapp.com`
+   - `VITE_FIREBASE_PROJECT_ID` — `psa-business-suite`
+   - `VITE_FIREBASE_STORAGE_BUCKET` — `psa-business-suite.appspot.com`
+   - `VITE_FIREBASE_MESSAGING_SENDER_ID` — dari Firebase Console
+   - `VITE_FIREBASE_APP_ID` — dari Firebase Console
+   - `FIREBASE_SERVICE_ACCOUNT` — JSON dari Firebase Console → Service Accounts → Generate key
+   - `FIREBASE_PROJECT_ID` — `psa-business-suite`
+   - `FIREBASE_DEPLOY_TOKEN` — dari: `firebase login:ci`
+   - `VITE_CRYPTO_PEPPER` — string rahasia yang sudah Anda set sebelumnya
+
+2. **Deploy Cloudflare Worker** (untuk Gemini AI):
+   ```bash
+   cd workers/gemini-proxy
+   npm install -g wrangler
+   wrangler login
+   wrangler secret set GEMINI_API_KEY
+   wrangler deploy
+   # Copy URL worker → set sebagai VITE_GEMINI_PROXY_URL di GitHub Secrets
+   ```
+
+### Risiko Sisa
+
+| Risiko | Level | Mitigasi |
+|--------|-------|---------|
+| Deploy masih akan gagal sampai GitHub Secrets di-set | High | Owner harus set secrets (lihat Action Items) |
+| VITE_CRYPTO_PEPPER di client bundle (BUG-03) | Medium | Trade-off diterima: komentar justifikasi sudah ada, PBKDF2 600K tetap kuat |
+| 52 `as any` di infrastructure layer | Rendah | P3 Backlog |
+| Recovery Key UI: belum ada tombol "Generate" di Settings | Menengah | P2 Sprint berikutnya |

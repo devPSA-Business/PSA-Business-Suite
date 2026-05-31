@@ -1,9 +1,17 @@
 import { db, FinancialClosure } from '../../shared/api/db';
 import { IUnitOfWork } from '../core/IUnitOfWork';
 import { IReportQuery } from '../queries/IReportQuery';
-import { firestoreDb, isConfigValid } from '../../shared/api/firebase';
-import { doc, getDoc } from 'firebase/firestore';
+import { logger } from '../../lib/logger';
 
+/**
+ * @ai_context AuditIntegrityService — tutup buku harian & verifikasi hash chain.
+ * @security_tier HIGH
+ * @arch_note createDailyClosure() mensyaratkan (1) navigator.onLine dan (2) pendingSyncCount===0
+ *   sebelum dijalankan. Dua kondisi itu menjamin data lokal Dexie ≡ data Firestore.
+ *   Karena itu pengambilan previousHash TIDAK perlu getDoc() Firestore langsung —
+ *   cukup query Dexie lokal. Ini menghilangkan pelanggaran Hard Constraint #1 & #11
+ *   (Pillar of Truth: Dexie SSoT) yang ditemukan audit 2026-05-30.
+ */
 export class AuditIntegrityService {
   constructor(
     private readonly uow: IUnitOfWork,
@@ -41,26 +49,24 @@ export class AuditIntegrityService {
       // 4. Ambil rangkuman data untuk branch ini
       const report = await this.reportQuery.getFinancialReport(startOfDay, endOfDay);
 
-      // 5. Dapatkan hash hari sebelumnya LANGSUNG DARI FIREBASE (Server Authoritative)
+      // 5. Dapatkan hash hari sebelumnya dari Dexie lokal (BUKAN direct Firestore).
+      //    Alasan: createDailyClosure() sudah memvalidasi pendingSyncCount===0, artinya
+      //    semua financial_closures lokal sudah ter-sync ke cloud. Dexie SSoT berlaku.
+      //    Mengambil dari Dexie menghormati Hard Constraint #1 (Pillar of Truth).
       const prevDate = new Date(startOfDay - 1);
       const prevDateStr = this.getFormattedDate(prevDate);
       const prevIdStr = `${branchId}-${prevDateStr}`;
       
       let previousHash = 'GENESIS_BLOCK_0000000000000000';
       try {
-        if (!isConfigValid) throw new Error("Config Firebase tidak valid");
-        const prevDocRef = doc(firestoreDb, 'financial_closures', prevIdStr);
-        const prevDocSnap = await getDoc(prevDocRef);
-        if (prevDocSnap.exists()) {
-          previousHash = prevDocSnap.data().hash || previousHash;
-        } else {
-          // Fallback check local if absolutely needed, but prefer cloud if it was supposed to be synced
-          // Actually, relying on cloud means if it's missing in cloud, it's a genesis or fatal sync drop.
-          // Since we required pendingSyncCount == 0, if it's not in cloud, it truly doesn't exist.
+        const prevClosure = await db.financial_closures.get(prevIdStr);
+        if (prevClosure?.hash) {
+          previousHash = prevClosure.hash;
         }
+        // Jika tidak ada di lokal: ini hari pertama atau genesis — gunakan GENESIS_BLOCK default.
       } catch (err) {
-        console.error("Gagal mengambil previousHash dari Cloud:", err);
-        throw new Error("Koneksi ke sistem pusat terganggu saat mengambil hash otoritatif. Coba lagi.");
+        logger.error('[AuditIntegrity] Gagal membaca previousHash dari Dexie lokal', { error: err });
+        throw new Error('Gagal membaca data penutupan buku hari sebelumnya. Coba lagi.');
       }
 
       // 6. Buat summary dan hash

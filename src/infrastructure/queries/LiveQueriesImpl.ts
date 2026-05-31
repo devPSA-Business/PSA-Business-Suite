@@ -2,6 +2,8 @@ import { db, StockItem, RepairService, Handover, AuditLog, SuspendedCart, StockH
 import { ILiveQueries, InventoryListFilter, InventoryListResult } from '../../application/queries/ILiveQueries';
 import { PromiseExtended, liveQuery } from 'dexie';
 import { cryptoDB } from '../../lib/cryptoIndexedDB';
+import { MathUtils } from '../../shared/utils/decimalUtils';
+import { logger } from '../../lib/logger';
 
 export class LiveQueriesImpl implements ILiveQueries {
   private async decryptAuditLog(log: AuditLog): Promise<AuditLog> {
@@ -10,7 +12,7 @@ export class LiveQueriesImpl implements ILiveQueries {
         const decrypted = await cryptoDB.decryptRecord<Record<string, unknown>>(JSON.parse(log.secureData));
         return { ...log, details: String(decrypted.details || '') };
       } catch (err) {
-        console.error('Failed to decrypt audit log', err);
+        logger.error('[LiveQueries] Failed to decrypt audit log', { error: err });
         return { ...log, details: '' };
       }
     }
@@ -198,24 +200,24 @@ export class LiveQueriesImpl implements ILiveQueries {
       await db.transactions
         .where('date').aboveOrEqual(startTime)
         .filter(t => t.status === 'SUCCESS' && t.paymentMethod === 'CASH')
-        .each(tx => { cashIn += tx.total; });
+        .each(tx => { cashIn = MathUtils.add(cashIn, tx.total); });
 
       // Aggregasi servis reparasi cash via cursor
       await db.repair_services
         .where('date').aboveOrEqual(startTime)
         .filter(r => (r.status === 'COMPLETED' || r.status === 'DELIVERED') && r.paymentMethod === 'CASH')
-        .each(r => { cashIn += r.price; });
+        .each(r => { cashIn = MathUtils.add(cashIn, r.price); });
 
       // Aggregasi kas kecil (pengeluaran) via cursor
       await db.petty_cash
         .where('date').aboveOrEqual(startTime)
-        .each(pc => { cashOut += pc.amount; });
+        .each(pc => { cashOut = MathUtils.add(cashOut, pc.amount); });
 
       // Aggregasi pembelian emas (pengeluaran) via cursor
       await db.gold_buyback
         .where('date').aboveOrEqual(startTime)
         .filter(b => b.paymentMethod === 'CASH')
-        .each(b => { cashOut += b.buybackPrice; });
+        .each(b => { cashOut = MathUtils.add(cashOut, b.buybackPrice); });
 
       return { cashIn, cashOut };
     // eslint-disable-next-line @typescript-eslint/no-explicit-any

@@ -1,6 +1,7 @@
 import { useState, useCallback, useEffect } from 'react';
 import { DIContainer } from '@infrastructure/di/Container';
 import { Transaction } from '../../../shared/api/db';
+import { logger } from '../../../lib/logger';
 
 export const useTransactions = (startTimestamp: number, endTimestamp: number, cashier: string, paymentMethod: string) => {
   const [transactions, setTransactions] = useState<Transaction[] | null>(null);
@@ -20,7 +21,7 @@ export const useTransactions = (startTimestamp: number, endTimestamp: number, ca
       });
       setTransactions(filteredTxs);
     } catch (e) {
-      console.error("Failed to fetch transactions", e);
+      logger.error("[useTransactions] Failed to fetch transactions", { error: e });
     }
   }, [startTimestamp, endTimestamp, cashier, paymentMethod]);
 

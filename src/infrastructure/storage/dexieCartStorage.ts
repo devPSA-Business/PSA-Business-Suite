@@ -1,5 +1,6 @@
 import { StateStorage } from 'zustand/middleware';
 import { db } from '../../shared/api/db';
+import { logger } from '../../lib/logger';
 
 const DEBOUNCE_MS = 300; // Konstanta untuk debounce
 let debounceTimer: NodeJS.Timeout | null = null;
@@ -19,7 +20,7 @@ const flush = async () => {
     try {
       await db.keyval.put({ key: 'pos-cart-storage', value: stateToSave });
     } catch (error) {
-      console.error("Failed to flush cart state to Dexie:", error);
+      logger.error("[CartStorage] Failed to flush cart state to Dexie", { error });
       if (!pendingState) pendingState = stateToSave; // Restore if failed
     }
   }
@@ -66,14 +67,14 @@ export const dexieCartStorage: StateStorage = {
       if (debounceTimer) clearTimeout(debounceTimer);
       debounceTimer = setTimeout(flush, DEBOUNCE_MS);
     } catch (error) {
-      console.error("Failed to setItem in dexieCartStorage:", error);
+      logger.error("[CartStorage] Failed to setItem", { error });
     }
   },
   removeItem: async (name: string): Promise<void> => {
     try {
       await db.keyval.delete(name);
     } catch (error) {
-      console.error("Failed to removeItem in dexieCartStorage:", error);
+      logger.error("[CartStorage] Failed to removeItem", { error });
     }
   },
 };

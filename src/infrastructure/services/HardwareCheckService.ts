@@ -1,4 +1,5 @@
 import { IPrintService } from '../../application/services/IPrintService';
+import { logger } from '../../lib/logger';
 
 export class HardwareCheckService {
   constructor(private readonly printService: IPrintService) {}
@@ -8,7 +9,7 @@ export class HardwareCheckService {
     try {
       return await this.printService.testConnection();
     } catch (error) {
-      console.error('Printer check failed:', error);
+      logger.error('[HardwareCheck] Printer check failed', { error });
       return false;
     }
   }
@@ -17,7 +18,7 @@ export class HardwareCheckService {
     try {
       return await this.printService.testConnection();
     } catch (error) {
-      console.error('Drawer check failed:', error);
+      logger.error('[HardwareCheck] Drawer check failed', { error });
       return false;
     }
   }
@@ -32,7 +33,7 @@ export class HardwareCheckService {
       }
       return true;
     } catch (error) {
-      console.error('Scale check failed:', error);
+      logger.error('[HardwareCheck] Scale check failed', { error });
       return false;
     }
   }

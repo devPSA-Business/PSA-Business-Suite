@@ -1,6 +1,6 @@
 import { IHandoverRepository } from '@domain/repositories/IHandoverRepository';
 import { Handover } from '@domain/models/Handover';
-import { db } from '../../shared/api/db';
+import { db, Handover as HandoverRecord } from '../../shared/api/db';
 
 export class HandoverRepositoryImpl implements IHandoverRepository {
   async save(handover: Handover): Promise<void> {
@@ -15,8 +15,7 @@ export class HandoverRepositoryImpl implements IHandoverRepository {
 
   async getAll(): Promise<Handover[]> {
     const records = await db.handovers.toArray();
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    return records.map((record: any) => Handover.create({
+    return records.map((record: HandoverRecord) => Handover.create({
       timestamp: record.timestamp,
       category: record.category,
       message: record.message,

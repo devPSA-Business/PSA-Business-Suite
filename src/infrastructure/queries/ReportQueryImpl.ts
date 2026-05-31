@@ -10,6 +10,7 @@ import {
   CustomerRevenue
 } from '@application/queries/IReportQuery';
 import { db, Transaction, AuditLog } from '../../shared/api/db';
+import { logger } from '../../lib/logger';
 import { StockItem } from '../../domain/models/StockItem';
 import { cryptoDB } from '../../lib/cryptoIndexedDB';
 
@@ -23,7 +24,7 @@ export class ReportQueryImpl implements IReportQuery {
         const decrypted = await cryptoDB.decryptRecord<TxSecurePayload>(JSON.parse(tx.secureData));
         return { ...tx, items: decrypted.items ?? [], manualDiscountNote: decrypted.manualDiscountNote };
       } catch (err) {
-        console.error('Failed to decrypt transaction in report', err);
+        logger.error('[ReportQuery] Failed to decrypt transaction in report', { error: err });
         return { ...tx, items: [] };
       }
     }
@@ -286,11 +287,11 @@ export class ReportQueryImpl implements IReportQuery {
 
     let goldRevenue = 0;
     goldSold.forEach(tx => {
-      goldRevenue += (tx.soldPrice || 0);
+      goldRevenue = MathUtils.add(goldRevenue, tx.soldPrice || 0);
     });
 
     if (goldRevenue > 0) {
-      categoryMap.set('Emas (Treasury)', (categoryMap.get('Emas (Treasury)') || 0) + goldRevenue);
+      categoryMap.set('Emas (Treasury)', MathUtils.add(categoryMap.get('Emas (Treasury)') || 0, goldRevenue));
     }
 
     return Array.from(categoryMap.entries()).map(([category, revenue]) => ({ category, revenue }));
@@ -353,13 +354,13 @@ export class ReportQueryImpl implements IReportQuery {
       const revenue = customerRevenueMap.get(customer.id) || 0;
       if (revenue >= thresholds.vip) {
         vipCount++;
-        vipRevenue += revenue;
+        vipRevenue = MathUtils.add(vipRevenue, revenue);
       } else if (revenue >= thresholds.loyal) {
         loyalCount++;
-        loyalRevenue += revenue;
+        loyalRevenue = MathUtils.add(loyalRevenue, revenue);
       } else {
         regularCount++;
-        regularRevenue += revenue;
+        regularRevenue = MathUtils.add(regularRevenue, revenue);
       }
     });
 

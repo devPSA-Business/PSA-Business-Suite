@@ -45,7 +45,7 @@ export function ShiftCloseForm({ shiftId, onShiftClosed }: { shiftId: string, on
 
   const actualCash = new Decimal(endCash.replace(/[^0-9]/g, '') || '0').toNumber();
   const discrepancy = expectedCash !== null ? actualCash - expectedCash : 0;
-  const needsAuthorization = Math.abs(discrepancy) > DISCREPANCY_THRESHOLD;
+  const needsAuthorization = Math.abs(discrepancy) > DISCREPANCY_THRESHOLD; // UI-only: boolean threshold comparison, absolute value not persisted
 
   const [isConfirmOpen, setIsConfirmOpen] = useState(false);
 

@@ -1,8 +1,20 @@
 import { logger } from '@lib/logger';
 import React, { useEffect, useState } from 'react';
-import { Printer, MonitorSmartphone, Scale, CheckCircle2, XCircle, Loader2, AlertTriangle } from 'lucide-react';
+import { Printer, MonitorSmartphone, Scale, CheckCircle2, XCircle, Loader2, AlertTriangle, SkipForward } from 'lucide-react';
 import { useAuthStore } from '../../../shared/store/authStore';
 import { DIContainer } from '../../../infrastructure/di/Container';
+
+/**
+ * @ai_context Morning Readiness — SOFT BLOCKER (bukan hard gate).
+ * @business_rule Pengecekan hardware adalah disiplin psikologis, bukan mandatory gate.
+ *   - Kasir SELALU bisa lewati semua pengecekan dengan tombol "Lewati & Buka Shift".
+ *   - Printer Bluetooth bersifat OPSIONAL — tidak pernah memblokir operasional.
+ *   - Semua hasil cek (termasuk yang di-skip) di-log ke audit trail.
+ * @changelog 2026-05-27 BACKLOG-01: Ubah dari hard-blocker menjadi soft-reminder.
+ *   Tombol "Lewati & Buka Shift" selalu aktif.
+ *   Audit log HARDWARE_READINESS_SKIPPED dikirim jika ada item yang tidak dicek.
+ * @security_tier LOW — tidak mengandung logika keuangan atau kriptografi.
+ */
 
 type CheckResult = 'idle' | 'pending' | 'success' | 'failed';
 
@@ -18,13 +30,21 @@ export const MorningReadinessUI: React.FC<MorningReadinessUIProps> = ({ onSucces
   const [drawer, setDrawer] = useState<CheckResult>('idle');
   const [scale, setScale] = useState<CheckResult>('idle');
   
-  const [blocked, setBlocked] = useState(true);
   const [message, setMessage] = useState<string | null>(null);
   const [running, setRunning] = useState(false);
 
+  // Derived: apakah semua cek sudah sukses
+  const allPassed = printer === 'success' && drawer === 'success' && scale === 'success';
+  // Derived: apakah ada item yang belum dicek sama sekali (masih idle)
+  const hasUnchecked = printer === 'idle' || drawer === 'idle' || scale === 'idle';
+
   useEffect(() => {
-    setBlocked(!(printer === 'success' && drawer === 'success' && scale === 'success'));
-  }, [printer, drawer, scale]);
+    // Auto-dismiss message setelah 5 detik
+    if (message) {
+      const timer = setTimeout(() => setMessage(null), 5000);
+      return () => clearTimeout(timer);
+    }
+  }, [message]);
 
   const saveAudit = async (checkType: string, isSuccess: boolean, errorMsg?: string) => {
     try {
@@ -34,15 +54,41 @@ export const MorningReadinessUI: React.FC<MorningReadinessUIProps> = ({ onSucces
         error: errorMsg,
         flag: 'READINESS_RESULT'
       });
-      
-      // Menggunakan UnitOfWork untuk memastikan Cryptographic Chaining tetap terjaga
       await DIContainer.unitOfWork.registerAudit(
         'HARDWARE_READINESS_CHECK',
         user?.name || 'UNKNOWN',
         details
       );
     } catch (err) {
-      logger.error('Failed to save audit log for readiness check', { error: err instanceof Error ? err.message : String(err) });
+      logger.error('Failed to save audit log for readiness check', {
+        error: err instanceof Error ? err.message : String(err)
+      });
+    }
+  };
+
+  const saveSkipAudit = async () => {
+    const skippedItems: string[] = [];
+    if (printer !== 'success') skippedItems.push('printer');
+    if (drawer !== 'success') skippedItems.push('drawer');
+    if (scale !== 'success') skippedItems.push('scale');
+    
+    if (skippedItems.length === 0) return; // Semua sukses, tidak perlu log skip
+    
+    try {
+      const details = JSON.stringify({
+        skippedItems,
+        results: { printer, drawer, scale },
+        flag: 'HARDWARE_READINESS_SKIPPED'
+      });
+      await DIContainer.unitOfWork.registerAudit(
+        'HARDWARE_READINESS_SKIPPED',
+        user?.name || 'UNKNOWN',
+        details
+      );
+    } catch (err) {
+      logger.error('Failed to save skip audit log', {
+        error: err instanceof Error ? err.message : String(err)
+      });
     }
   };
 
@@ -61,20 +107,19 @@ export const MorningReadinessUI: React.FC<MorningReadinessUIProps> = ({ onSucces
       setter(ok ? 'success' : 'failed');
       await saveAudit(type, ok);
 
-      if (!ok) setMessage('Salah satu perangkat gagal. Periksa koneksi kabel dan coba lagi.');
+      if (!ok) setMessage('Pengecekan gagal. Periksa koneksi dan coba lagi, atau lewati jika tidak tersedia.');
     } catch (err) {
       setter('failed');
-      setMessage('Terjadi kesalahan sistem saat melakukan pengecekan hardware.');
+      setMessage('Terjadi kesalahan sistem saat pengecekan hardware.');
       await saveAudit(type, false, String(err));
     } finally {
       setRunning(false);
     }
   };
 
-  const handleOpenShift = () => {
-    if (!blocked) {
-      onSuccess();
-    }
+  const handleProceed = async () => {
+    await saveSkipAudit();
+    onSuccess();
   };
 
   return (
@@ -84,7 +129,9 @@ export const MorningReadinessUI: React.FC<MorningReadinessUIProps> = ({ onSucces
           <div className="flex justify-between items-start mb-6">
             <div>
               <h2 className="text-2xl font-bold text-brand-900">Morning Readiness</h2>
-              <p className="text-stone-500 text-sm mt-1">Selesaikan tes hardware sebelum membuka shift.</p>
+              <p className="text-stone-500 text-sm mt-1">
+                Cek hardware sebelum membuka shift. Bisa dilewati jika tidak tersedia.
+              </p>
             </div>
             <button onClick={onCancel} className="text-stone-400 hover:text-stone-600 transition-colors">
               <XCircle size={24} />
@@ -92,13 +139,15 @@ export const MorningReadinessUI: React.FC<MorningReadinessUIProps> = ({ onSucces
           </div>
 
           <div className="space-y-4">
+            {/* Printer — ditandai OPSIONAL */}
             <CheckRow
               icon={<Printer size={20} />}
               label="Printer Thermal"
-              description="Tes koneksi & cetak struk"
+              description="Tes koneksi & cetak struk (Opsional)"
               status={printer}
               onTest={() => runCheck('printer')}
               disabled={printer === 'pending' || running}
+              isOptional
             />
 
             <CheckRow
@@ -113,30 +162,49 @@ export const MorningReadinessUI: React.FC<MorningReadinessUIProps> = ({ onSucces
             <CheckRow
               icon={<Scale size={20} />}
               label="Timbangan Digital"
-              description="Tes koneksi WebSerial"
+              description="Tes koneksi WebSerial (Wajib untuk Buyback Emas)"
               status={scale}
               onTest={() => runCheck('scale')}
               disabled={scale === 'pending' || running}
             />
 
             {message && (
-              <div className="mt-4 p-3 bg-red-50 border border-red-200 rounded-lg flex items-start gap-3 text-red-700 text-sm">
+              <div className="mt-4 p-3 bg-amber-50 border border-amber-200 rounded-lg flex items-start gap-3 text-amber-700 text-sm">
                 <AlertTriangle size={18} className="shrink-0 mt-0.5" />
                 <p>{message}</p>
               </div>
             )}
 
-            <div className="pt-6 mt-6 border-t border-stone-100">
+            <div className="pt-6 mt-6 border-t border-stone-100 space-y-3">
+              {/* Tombol Utama — selalu aktif */}
               <button
-                className="w-full py-3.5 bg-brand-900 text-white font-bold rounded-xl hover:bg-brand-800 disabled:opacity-50 disabled:cursor-not-allowed transition-colors flex items-center justify-center gap-2"
-                disabled={blocked}
-                onClick={handleOpenShift}
+                className={`w-full py-3.5 font-bold rounded-xl transition-colors flex items-center justify-center gap-2 ${
+                  allPassed
+                    ? 'bg-brand-900 text-white hover:bg-brand-800'
+                    : 'bg-stone-800 text-white hover:bg-stone-700'
+                }`}
+                onClick={handleProceed}
+                disabled={running}
               >
-                Lanjutkan Buka Shift
+                {allPassed ? (
+                  <>
+                    <CheckCircle2 size={18} />
+                    Buka Shift
+                  </>
+                ) : (
+                  <>
+                    <SkipForward size={18} />
+                    {hasUnchecked ? 'Lewati & Buka Shift' : 'Buka Shift (Ada Cek Gagal)'}
+                  </>
+                )}
               </button>
-              {blocked && (
-                <p className="text-center text-xs text-stone-500 mt-3">
-                  * Semua indikator harus berwarna hijau (SUCCESS) untuk melanjutkan.
+
+              {/* Notifikasi soft jika ada yang belum dicek */}
+              {!allPassed && (
+                <p className="text-center text-xs text-stone-500">
+                  {hasUnchecked
+                    ? '⚠ Ada pengecekan yang belum dilakukan — akan dicatat di audit trail.'
+                    : '⚠ Ada pengecekan yang gagal — akan dicatat di audit trail.'}
                 </p>
               )}
             </div>
@@ -154,9 +222,12 @@ type CheckRowProps = {
   status: CheckResult;
   onTest: () => void;
   disabled?: boolean;
+  isOptional?: boolean;
 };
 
-const CheckRow: React.FC<CheckRowProps> = ({ icon, label, description, status, onTest, disabled }) => {
+const CheckRow: React.FC<CheckRowProps> = ({
+  icon, label, description, status, onTest, disabled, isOptional
+}) => {
   return (
     <div className="flex items-center justify-between p-4 bg-stone-50 rounded-xl border border-stone-200">
       <div className="flex items-center gap-3">
@@ -164,7 +235,14 @@ const CheckRow: React.FC<CheckRowProps> = ({ icon, label, description, status, o
           {icon}
         </div>
         <div>
-          <div className="font-bold text-stone-800">{label}</div>
+          <div className="font-bold text-stone-800 flex items-center gap-2">
+            {label}
+            {isOptional && (
+              <span className="text-[10px] font-normal text-stone-400 bg-stone-200 px-1.5 py-0.5 rounded-full">
+                Opsional
+              </span>
+            )}
+          </div>
           <div className="text-xs text-stone-500">{description}</div>
         </div>
       </div>

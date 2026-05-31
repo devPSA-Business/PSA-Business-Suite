@@ -89,6 +89,7 @@ describe('Enterprise Integrity: Checkout Integration', () => {
     await stockRepo.save(stock);
 
     await checkoutUseCase.execute({
+      subtotal: 15000000,   // pre-discount total untuk anti-tampering validation
       total: 15000000,
       paymentMethod: 'TRANSFER',
       items: [{ stockId: stock.id, name: stock.name, quantity: 1, price: 15000000, subtotal: 15000000 }],
@@ -125,6 +126,7 @@ describe('Enterprise Integrity: Checkout Integration', () => {
     await stockRepo.save(stock);
 
     await checkoutUseCase.execute({
+      subtotal: 100000,   // pre-discount total untuk anti-tampering validation
       total: 100000, // Rounding input manual
       paymentMethod: 'CASH',
       items: [{ stockId: stock.id, name: stock.name, quantity: 1, price: 100000.33, subtotal: 100000.33 }],
@@ -151,6 +153,7 @@ describe('Enterprise Integrity: Checkout Integration', () => {
     await stockRepo.save(stock);
 
     await expect(checkoutUseCase.execute({
+      subtotal: 0,   // pre-discount total untuk anti-tampering validation
       total: 0,
       paymentMethod: 'CASH',
       items: [{ stockId: stock.id, name: stock.name, quantity: 1, price: 0, subtotal: 0 }],
@@ -173,6 +176,7 @@ describe('Enterprise Integrity: Checkout Integration', () => {
     await stockRepo.save(stock);
 
     const request = {
+      subtotal: 10000000,   // pre-discount total untuk anti-tampering validation
       total: 10000000,
       paymentMethod: 'CASH' as const,
       items: [{ stockId: stock.id, name: stock.name, quantity: 1, price: 10000000, subtotal: 10000000 }],

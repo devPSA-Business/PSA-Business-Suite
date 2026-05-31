@@ -1,4 +1,5 @@
 import { useState, useMemo, useEffect } from 'react';
+import { logger } from '../../lib/logger';
 import { useLiveQuery } from 'dexie-react-hooks';
 import { Wifi, WifiOff, Loader2, AlertTriangle, RefreshCw, Database, Play, AlertCircle } from 'lucide-react';
 import { db } from '../../shared/api/db';
@@ -28,7 +29,7 @@ export function SyncStatusPage() {
       await DIContainer.syncService.processSyncQueue();
       addToast('Sinkronisasi manual selesai.', 'success');
     } catch (_error) {
-      console.error('Manual sync failed:', _error);
+      logger.error('[SyncStatus] Manual sync failed', { error: _error });
       addToast('Terjadi kesalahan saat sinkronisasi manual.', 'error');
     } finally {
       setIsSyncing(false);

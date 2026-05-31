@@ -48,7 +48,7 @@ export function InventoryPage() {
 
   // Pagination logic
   const totalItems = queryResult?.count || 0;
-  const totalPages = Math.ceil(totalItems / itemsPerPage);
+  const totalPages = Math.ceil(totalItems / itemsPerPage); // UI-only: integer pagination, not financial data
   const paginatedProducts = queryResult?.items || [];
 
   // Reset page when filters change
@@ -305,7 +305,7 @@ export function InventoryPage() {
       {totalPages > 1 && (
         <div className="flex items-center justify-center gap-2 mt-8">
           <button
-            onClick={() => setCurrentPage(p => Math.max(1, p - 1))}
+            onClick={() => setCurrentPage(p => Math.max(1, p - 1))} /* UI-only: integer pagination counter */
             disabled={currentPage === 1}
             className="px-4 py-2 bg-white border border-stone-200 rounded-xl text-stone-600 disabled:opacity-50 hover:bg-stone-50 transition-colors"
           >
@@ -315,7 +315,7 @@ export function InventoryPage() {
             Halaman {currentPage} dari {totalPages}
           </span>
           <button
-            onClick={() => setCurrentPage(p => Math.min(totalPages, p + 1))}
+            onClick={() => setCurrentPage(p => Math.min(totalPages, p + 1))} /* UI-only: integer pagination counter */
             disabled={currentPage === totalPages}
             className="px-4 py-2 bg-white border border-stone-200 rounded-xl text-stone-600 disabled:opacity-50 hover:bg-stone-50 transition-colors"
           >

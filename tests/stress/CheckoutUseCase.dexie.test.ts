@@ -5,7 +5,8 @@ import { UnitOfWorkImpl } from '../../src/infrastructure/uow/UnitOfWorkImpl';
 import { StockRepositoryImpl } from '../../src/infrastructure/repositories/StockRepositoryImpl';
 import { RetailRepositoryImpl } from '../../src/infrastructure/repositories/RetailRepositoryImpl';
 import { ShiftRepositoryImpl } from '../../src/infrastructure/repositories/ShiftRepositoryImpl';
-import { CheckoutUseCase, CheckoutRequestDTO } from '../../src/features/pos/usecases/CheckoutUseCase';
+import { CheckoutUseCase, } from '../../src/features/pos/usecases/CheckoutUseCase';
+import { CheckoutRequestDTO } from '../../src/features/pos/dto/CheckoutRequestDTO';
 import { SyncServiceImpl } from '../../src/infrastructure/services/SyncServiceImpl';
 import { LoyaltyUseCase } from '../../src/features/pos/usecases/LoyaltyUseCase';
 import { CustomerRepositoryImpl } from '../../src/infrastructure/repositories/CustomerRepositoryImpl';
@@ -89,6 +90,7 @@ describe('CheckoutUseCase Stress Test with Dexie', () => {
 
     const promises = Array.from({ length: 5 }).map((_, idx) => {
       const request: CheckoutRequestDTO = {
+        subtotal: 5000000,   // pre-discount total untuk anti-tampering validation
         total: 5000000,
         paymentMethod: 'CASH',
         items: [{ stockId: stockItem.id, name: 'High Demand Phone', quantity: 1, price: 5000000, subtotal: 5000000 }],

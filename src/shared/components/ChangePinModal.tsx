@@ -1,4 +1,5 @@
 import React, { useState } from 'react';
+import { logger } from '../../lib/logger';
 import { X, ShieldCheck } from 'lucide-react';
 import { useAuthStore } from '../store/authStore';
 import { hashPin } from '../store/useSecurityStore';
@@ -88,7 +89,7 @@ export const ChangePinModal: React.FC<ChangePinModalProps> = ({ isOpen, onClose 
       setConfirmNewPin('');
       onClose();
     } catch (err) {
-      console.error('Failed to change PIN:', err);
+      logger.error('[ChangePinModal] Failed to change PIN', { error: err });
       setError('Gagal memperbarui PIN. Silakan coba lagi.');
     } finally {
       setIsProcessing(false);

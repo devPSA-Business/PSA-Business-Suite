@@ -7,6 +7,7 @@ import { useAuthStore } from '../../../shared/store/authStore';
 import { useToastStore } from '../../../shared/store/toastStore';
 import { mapErrorToUser } from '../../../shared/utils/errorMapper';
 import { Customer } from '../../../domain/models/Customer';
+import { MathUtils } from '../../../shared/utils/decimalUtils';
 
 type PaymentMethod = 'CASH' | 'QRIS' | 'SPLIT';
 
@@ -75,9 +76,17 @@ export const useCheckoutStore = create<CheckoutState>((set, get) => ({
         throw new Error('Keranjang kosong, tidak dapat memproses transaksi.');
       }
 
+      // Hitung diskon loyalty: 1 poin = Rp 100 (mirror CheckoutModal line 41)
+      const loyaltyDiscountAmount = MathUtils.roundInt(MathUtils.mul(pointsToRedeem, 100));
+      const manualDiscount = cartState.manualDiscountAmount ?? 0;
+      // finalTotal = totalPrice - loyaltyDiscount - manualDiscount, minimal 0
+      const rawFinalTotal = MathUtils.sub(MathUtils.sub(totalPrice, loyaltyDiscountAmount), manualDiscount);
+      const finalTotal = MathUtils.roundInt(rawFinalTotal < 0 ? 0 : rawFinalTotal);
+
       // Execute Clean Architecture Use Case
       const transactionId = await DIContainer.checkoutUseCase.execute({
-        total: totalPrice,
+        subtotal: totalPrice,        // pre-discount, untuk validasi anti-tampering
+        total: finalTotal,           // post-discount, yang benar-benar dibayar pelanggan
         paymentMethod: paymentMethod,
         items: cartItems.map(item => ({
           stockId: item.stockId,
@@ -93,7 +102,8 @@ export const useCheckoutStore = create<CheckoutState>((set, get) => ({
         sessionId: openShift.id,
         customerId: customer?.id,
         pointsToRedeem: pointsToRedeem,
-        manualDiscountAmount: cartState.manualDiscountAmount,
+        loyaltyDiscountAmount: loyaltyDiscountAmount,
+        manualDiscountAmount: manualDiscount,
         manualDiscountNote: cartState.manualDiscountNote,
         authorizedBy: authorizedBy || undefined,
       });

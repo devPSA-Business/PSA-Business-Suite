@@ -132,7 +132,7 @@ export const useSecurityStore = create<SecurityState>()(
              set({ isSetupComplete: false });
           }
         } catch (error) {
-           console.error('[Security] Failed to fetch setup status:', error);
+           logger.error('[Security] Failed to fetch setup status', { error });
         }
       },
 
@@ -223,9 +223,9 @@ export const useSecurityStore = create<SecurityState>()(
             isSystemLocked: s.isSystemLocked || isSystemLocked
           }));
           
-          db.keyval.put({ key: 'absolute_failed_attempts', value: newAbsolute }).catch(console.error);
+          db.keyval.put({ key: 'absolute_failed_attempts', value: newAbsolute }).catch((e) => logger.fatal('[Security] KRITIS: Gagal persist absolute_failed_attempts', { error: e }));
           if (isSystemLocked) {
-             db.keyval.put({ key: 'is_system_locked', value: true }).catch(console.error);
+             db.keyval.put({ key: 'is_system_locked', value: true }).catch((e) => logger.fatal('[Security] KRITIS: Gagal persist is_system_locked — nuclear lockout mungkin tidak aktif', { error: e }));
           }
           return false;
         };
@@ -277,12 +277,12 @@ export const useSecurityStore = create<SecurityState>()(
           }
           
           set({ failedAttempts: 0, absoluteFailedAttempts: 0, isPinVerified: true });
-          db.keyval.delete('absolute_failed_attempts').catch(console.error);
+          db.keyval.delete('absolute_failed_attempts').catch((e) => logger.error('[Security] Gagal hapus absolute_failed_attempts setelah PIN valid', { error: e }));
           useAuthStore.getState().login({ id: user.id, name: user.name, role: user.role, branchId: user.branchId });
           
           return true;
         } catch (error) {
-          console.error('VERIFY PIN ERROR:', error);
+          logger.error('[Security] VERIFY PIN ERROR', { error });
           if (isOfflineVerification && error instanceof Error && error.message === 'PIN salah.') {
              return handleFailedAttempt(); // This was the catch for deferred offline verification
           }
@@ -438,15 +438,15 @@ export const useSecurityStore = create<SecurityState>()(
             isSystemLocked: s.isSystemLocked || isSystemLocked
           }));
 
-          db.keyval.put({ key: 'absolute_failed_attempts', value: newAbsolute }).catch(console.error);
+          db.keyval.put({ key: 'absolute_failed_attempts', value: newAbsolute }).catch((e) => logger.fatal('[Security] KRITIS: Gagal persist absolute_failed_attempts (admin path)', { error: e }));
           if (isSystemLocked) {
-             db.keyval.put({ key: 'is_system_locked', value: true }).catch(console.error);
+             db.keyval.put({ key: 'is_system_locked', value: true }).catch((e) => logger.fatal('[Security] KRITIS: Gagal persist is_system_locked — nuclear lockout mungkin tidak aktif (admin path)', { error: e }));
           }
           return false;
         }
         
         set({ adminFailedAttempts: 0, absoluteFailedAttempts: 0 });
-        db.keyval.delete('absolute_failed_attempts').catch(console.error);
+        db.keyval.delete('absolute_failed_attempts').catch((e) => logger.error('[Security] Gagal hapus absolute_failed_attempts setelah admin PIN valid', { error: e }));
         return true;
       },
 

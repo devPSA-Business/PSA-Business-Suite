@@ -9,7 +9,25 @@
  *   2026-05-20 — P2: Map permission-denied (stok negatif/CRDT reject) → sync_dlq dengan status CONFLICT
  *                    Mencegah retry loop pada operasi yang sah ditolak oleh Firestore rules
  */
-import { db, SyncEvent } from '../../../shared/api/db';
+import { db, SyncEvent, StockItem, Customer, RepairService, GoldBuyback, Shift, PettyCash, Transaction, GoldLiquidation, CustomOrder, Appointment, FinancialClosure } from '../../../shared/api/db';
+
+/**
+ * Union type dari semua entitas yang bisa ada di server_payload conflict resolution.
+ * Digunakan untuk menghilangkan `as any` pada _applyServerPayloadLocally.
+ * Di-export agar tersedia untuk test dan tipe eksplisit di SyncUploaderService.
+ */
+export type ConflictPayload =
+  | StockItem
+  | Customer
+  | RepairService
+  | GoldBuyback
+  | Shift
+  | PettyCash
+  | Transaction
+  | GoldLiquidation
+  | CustomOrder
+  | Appointment
+  | FinancialClosure;
 import {
   firestoreDb,
   safeFirestoreCall,
@@ -267,20 +285,21 @@ export class SyncConflictHandler {
   }
 
   private async _applyServerPayloadLocally(event: SyncEvent): Promise<void> {
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    const payload = event.server_payload as any;
+    // server_payload diverifikasi shape-nya secara runtime oleh entity_type di switch di bawah
+    // Double-cast (unknown → specific type) adalah idiom TS yang aman karena entity_type menjamin struktur
+    const payload = event.server_payload as unknown;
     switch (event.entity_type) {
-      case 'stock':               await db.stock.put(payload); break;
-      case 'customers':           await db.customers.put(payload); break;
-      case 'repair_services':     await db.repair_services.put(payload); break;
-      case 'gold_buyback':        await db.gold_buyback.put(payload); break;
-      case 'shifts':              await db.shifts.put(payload); break;
-      case 'petty_cash':          await db.petty_cash.put(payload); break;
-      case 'transactions':        await db.transactions.put(payload); break;
-      case 'gold_liquidations':   await db.gold_liquidations.put(payload); break;
-      case 'custom_orders':       await db.custom_orders.put(payload); break;
-      case 'appointments':        await db.appointments.put(payload); break;
-      case 'financial_closures':  await db.financial_closures.put(payload); break;
+      case 'stock':               await db.stock.put(payload as unknown as StockItem); break;
+      case 'customers':           await db.customers.put(payload as unknown as Customer); break;
+      case 'repair_services':     await db.repair_services.put(payload as unknown as RepairService); break;
+      case 'gold_buyback':        await db.gold_buyback.put(payload as unknown as GoldBuyback); break;
+      case 'shifts':              await db.shifts.put(payload as unknown as Shift); break;
+      case 'petty_cash':          await db.petty_cash.put(payload as unknown as PettyCash); break;
+      case 'transactions':        await db.transactions.put(payload as unknown as Transaction); break;
+      case 'gold_liquidations':   await db.gold_liquidations.put(payload as unknown as GoldLiquidation); break;
+      case 'custom_orders':       await db.custom_orders.put(payload as unknown as CustomOrder); break;
+      case 'appointments':        await db.appointments.put(payload as unknown as Appointment); break;
+      case 'financial_closures':  await db.financial_closures.put(payload as unknown as FinancialClosure); break;
       default:
         logger.error(`[SyncConflictHandler] unhandled entity_type "${event.entity_type}"`);
         await db.sync_dlq.add({

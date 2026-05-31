@@ -1,5 +1,6 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
-import { CheckoutUseCase, CheckoutRequestDTO } from '../../../src/features/pos/usecases/CheckoutUseCase';
+import { CheckoutUseCase } from '../../../src/features/pos/usecases/CheckoutUseCase';
+import { CheckoutRequestDTO } from '../../../src/features/pos/dto/CheckoutRequestDTO';
 import { IRetailRepository } from '../../../src/domain/repositories/IRetailRepository';
 import { IStockRepository } from '../../../src/domain/repositories/IStockRepository';
 import { IShiftRepository } from '../../../src/domain/repositories/IShiftRepository';
@@ -86,6 +87,7 @@ describe('CheckoutUseCase race condition', () => {
     });
 
     const requestA: CheckoutRequestDTO = {
+      subtotal: 1000,
       total: 1000,
       paymentMethod: 'CASH',
       items: [{ stockId: stockItem.id, name: 'Limited Product', quantity: 1, price: 1000, subtotal: 1000 }],
@@ -93,6 +95,7 @@ describe('CheckoutUseCase race condition', () => {
     };
 
     const requestB: CheckoutRequestDTO = {
+      subtotal: 1000,
       total: 1000,
       paymentMethod: 'CASH',
       items: [{ stockId: stockItem.id, name: 'Limited Product', quantity: 1, price: 1000, subtotal: 1000 }],

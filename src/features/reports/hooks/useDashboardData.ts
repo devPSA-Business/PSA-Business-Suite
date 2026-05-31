@@ -3,6 +3,7 @@ import { useState, useEffect, useCallback, useMemo } from 'react';
 import { DIContainer } from '../../../infrastructure/di/Container';
 import { Transaction } from '../../../shared/api/db';
 import { StockItem } from '../../../domain/models/StockItem';
+import { MathUtils } from '../../../shared/utils/decimalUtils';
 import { CategoryRevenue, PaymentMethodRevenue, DailyRevenueTrend, CustomerRevenue } from '../../../application/queries/IReportQuery';
 
 export function useDashboardData(startDate: string, endDate: string) {
@@ -60,13 +61,13 @@ export function useDashboardData(startDate: string, endDate: string) {
     recentTransactions.forEach(tx => {
       if (tx.status !== 'SUCCESS') return;
       if (tx.date >= todayStart && tx.date <= todayEnd) {
-        todayRevenue += tx.total;
+        todayRevenue = MathUtils.add(todayRevenue, tx.total);
       } else if (tx.date >= sevenDaysAgoStart && tx.date < todayStart) {
-        last7DaysRevenue += tx.total;
+        last7DaysRevenue = MathUtils.add(last7DaysRevenue, tx.total);
       }
     });
 
-    const avg7Days = last7DaysRevenue / 7;
+    const avg7Days = MathUtils.div(last7DaysRevenue, 7);
     
     if (avg7Days === 0) {
       return { message: "Belum ada data historis yang cukup untuk perbandingan.", type: 'neutral', todayRevenue, avg7Days };
@@ -88,7 +89,7 @@ export function useDashboardData(startDate: string, endDate: string) {
     if (!transactions) return { totalRevenue: 0, totalTransactions: 0 };
     return transactions.reduce((acc, tx) => {
       if (tx.status === 'SUCCESS') {
-        acc.totalRevenue += tx.total;
+        acc.totalRevenue = MathUtils.add(acc.totalRevenue, tx.total);
         acc.totalTransactions += 1;
       }
       return acc;
@@ -101,7 +102,7 @@ export function useDashboardData(startDate: string, endDate: string) {
     transactions.forEach(tx => {
       if (tx.status !== 'SUCCESS') return;
       const userName = tx.user || 'Sistem';
-      cashierMap.set(userName, (cashierMap.get(userName) || 0) + tx.total);
+      cashierMap.set(userName, MathUtils.add(cashierMap.get(userName) || 0, tx.total));
     });
     return Array.from(cashierMap.entries())
       .map(([name, total]) => ({ name, total }))

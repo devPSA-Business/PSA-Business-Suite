@@ -1,12 +1,35 @@
 import { logger } from '@lib/logger';
 import React, { useCallback, useState, useRef, useEffect } from 'react';
 import { StockItem } from '../../../shared/api/db';
+import { StockCategory, StockCategoryLabels } from '../../../domain/models/StockCategory';
 import { DIContainer } from '@infrastructure/di/Container';
 import { useCartStore } from '../store/useCartStore';
 import { useToastStore } from '../../../shared/store/toastStore';
 import { Plus, Search } from 'lucide-react';
-
 import { useAuthStore } from '../../../shared/store/authStore';
+
+/**
+ * @ai_context Halaman daftar produk kasir POS.
+ * @business_rule Filter kategori DILARANG hardcoded — wajib dari StockCategory enum.
+ *   - Tampilkan hanya kategori IMITATION dan ACCESSORIES di kasir ritel (bukan BUYBACK_GOLD).
+ *   - BUYBACK_GOLD tidak dijual eceran ke konsumen (P0-KAS).
+ * @changelog 2026-05-27 BACKLOG-10: Category filter dari enum, bukan string hardcoded.
+ * @security_tier LOW
+ */
+
+/**
+ * Kategori yang DITAMPILKAN di kasir ritel.
+ * BUYBACK_GOLD, GOLD_JEWELLERY, GOLD_BAR dikecualikan — tidak dijual eceran.
+ * @business_rule P0-KAS: emas tidak boleh dijual ke konsumen via kasir ritel.
+ */
+const POS_VISIBLE_CATEGORIES: StockCategory[] = [
+  StockCategory.IMITATION,
+  StockCategory.ACCESSORIES,
+];
+
+/** Label untuk tab "Semua" yang menampilkan seluruh kategori POS_VISIBLE_CATEGORIES */
+const ALL_TAB = 'ALL' as const;
+type CategoryTab = typeof ALL_TAB | StockCategory;
 
 const ProductItem = React.memo(({ product, onAdd }: { product: StockItem; onAdd: (p: StockItem) => void }) => {
   return (
@@ -45,27 +68,41 @@ const ProductItem = React.memo(({ product, onAdd }: { product: StockItem; onAdd:
 export function ProductList() {
   const [products, setProducts] = useState<StockItem[]>([]);
   const [isLoading, setIsLoading] = useState(true);
+  const [activeCategory, setActiveCategory] = useState<CategoryTab>(ALL_TAB);
   const addItem = useCartStore((state) => state.addItem);
   const user = useAuthStore((state) => state.user);
   const [searchQuery, setSearchQuery] = useState('');
   const searchInputRef = useRef<HTMLInputElement>(null);
 
-  // Debounced search
+  // Category filter query — pass ke liveQueries agar filter terjadi di DB level (efisien)
+  const categoryFilter: string = activeCategory === ALL_TAB ? 'ALL' : activeCategory;
+
+  // Debounced search + category-aware query
   useEffect(() => {
     const timer = setTimeout(() => {
       setIsLoading(true);
-      DIContainer.liveQueries.searchProducts(searchQuery, 'ALL', user?.branchId).then((data) => {
-        // Limit to 50 items to prevent DOM freeze
-        setProducts(data.slice(0, 50));
-        setIsLoading(false);
-      }).catch(err => {
-        logger.error("Failed to search products:", { error: err instanceof Error ? err.message : String(err) });
-        setIsLoading(false);
-      });
+      DIContainer.liveQueries.searchProducts(searchQuery, categoryFilter, user?.branchId)
+        .then((data) => {
+          // Client-side guard: filter agar hanya POS_VISIBLE_CATEGORIES tampil
+          // (defence-in-depth jika liveQueries tidak filter)
+          const filtered = data.filter(
+            (p) => activeCategory !== ALL_TAB
+              ? p.category === activeCategory
+              : POS_VISIBLE_CATEGORIES.includes(p.category as StockCategory)
+          );
+          setProducts(filtered.slice(0, 50)); // Limit 50 untuk performa DOM
+          setIsLoading(false);
+        })
+        .catch(err => {
+          logger.error('Failed to search products', {
+            error: err instanceof Error ? err.message : String(err),
+          });
+          setIsLoading(false);
+        });
     }, 300);
 
     return () => clearTimeout(timer);
-  }, [searchQuery, user?.branchId]);
+  }, [searchQuery, activeCategory, categoryFilter, user?.branchId]);
 
   // Global Barcode Scanner Listener (Zero-Click)
   useEffect(() => {
@@ -73,7 +110,6 @@ export function ProductList() {
     let timeoutId: NodeJS.Timeout | undefined;
 
     const handleGlobalKeyDown = (e: KeyboardEvent) => {
-      // Abaikan jika user sedang mengetik manual di input/textarea/select lain
       const activeTag = document.activeElement?.tagName.toLowerCase();
       if (activeTag === 'input' || activeTag === 'textarea' || activeTag === 'select') {
         if (document.activeElement?.id !== 'pos-search-input') return;
@@ -99,12 +135,9 @@ export function ProductList() {
         }
         barcodeBuffer = '';
       } else if (e.key.length === 1) {
-        // Scanner Speed detection: barcode scanners usually send characters within ~20ms of each other
-        // If a character comes after a long delay, it's likely manual typing, so we reset or ignore
         barcodeBuffer += e.key;
-        
         clearTimeout(timeoutId);
-        timeoutId = setTimeout(() => { barcodeBuffer = ''; }, 200); // 200ms threshold
+        timeoutId = setTimeout(() => { barcodeBuffer = ''; }, 200);
       }
     };
 
@@ -124,14 +157,10 @@ export function ProductList() {
 
   const handleAdd = useCallback((product: StockItem) => {
     addItem(product);
-    // Optional: clear search after adding if it was a barcode scan
-    // setSearchQuery('');
-    // searchInputRef.current?.focus();
   }, [addItem]);
 
   const handleSearchKeyDown = (e: React.KeyboardEvent<HTMLInputElement>) => {
     if (e.key === 'Enter' && products?.length === 1) {
-      // If only one product matches (e.g., exact barcode scan), add it automatically
       handleAdd(products[0]);
       setSearchQuery('');
     }
@@ -139,6 +168,7 @@ export function ProductList() {
 
   return (
     <div className="space-y-4">
+      {/* Search Bar */}
       <div className="relative">
         <div className="absolute inset-y-0 left-0 pl-4 flex items-center pointer-events-none">
           <Search className="h-5 w-5 text-stone-400" />
@@ -154,25 +184,53 @@ export function ProductList() {
           className="w-full pl-11 pr-4 py-4 sm:py-3 bg-white border border-stone-200 rounded-2xl focus:outline-none focus:ring-2 focus:ring-brand-500 focus:border-transparent transition-all shadow-sm text-base sm:text-sm"
         />
       </div>
+
+      {/* Category Tabs — dari StockCategory enum, bukan hardcoded string */}
+      <div className="flex gap-2 overflow-x-auto pb-1 scrollbar-hide">
+        <button
+          onClick={() => setActiveCategory(ALL_TAB)}
+          className={`shrink-0 px-4 py-2 rounded-xl text-sm font-semibold transition-colors ${
+            activeCategory === ALL_TAB
+              ? 'bg-brand-900 text-white'
+              : 'bg-white border border-stone-200 text-stone-600 hover:bg-stone-50'
+          }`}
+        >
+          Semua
+        </button>
+        {POS_VISIBLE_CATEGORIES.map((cat) => (
+          <button
+            key={cat}
+            onClick={() => setActiveCategory(cat)}
+            className={`shrink-0 px-4 py-2 rounded-xl text-sm font-semibold transition-colors ${
+              activeCategory === cat
+                ? 'bg-brand-900 text-white'
+                : 'bg-white border border-stone-200 text-stone-600 hover:bg-stone-50'
+            }`}
+          >
+            {StockCategoryLabels[cat]}
+          </button>
+        ))}
+      </div>
       
+      {/* Product Grid */}
       {isLoading ? (
-        <div className="space-y-6">
-          <div className="grid grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
-            {[1, 2, 3, 4, 5, 6, 7, 8].map((i) => (
-              <div key={i} className="bg-white p-4 rounded-2xl border border-stone-200 animate-pulse">
-                <div className="h-4 bg-stone-200 rounded w-3/4 mb-2"></div>
-                <div className="h-3 bg-stone-200 rounded w-1/2 mb-4"></div>
-                <div className="flex justify-between items-end mt-4">
-                  <div className="h-5 bg-stone-200 rounded w-24"></div>
-                  <div className="h-8 bg-stone-200 rounded-lg w-8"></div>
-                </div>
+        <div className="grid grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
+          {[1, 2, 3, 4, 5, 6, 7, 8].map((i) => (
+            <div key={i} className="bg-white p-4 rounded-2xl border border-stone-200 animate-pulse">
+              <div className="h-4 bg-stone-200 rounded w-3/4 mb-2"></div>
+              <div className="h-3 bg-stone-200 rounded w-1/2 mb-4"></div>
+              <div className="flex justify-between items-end mt-4">
+                <div className="h-5 bg-stone-200 rounded w-24"></div>
+                <div className="h-8 bg-stone-200 rounded-lg w-8"></div>
               </div>
-            ))}
-          </div>
+            </div>
+          ))}
         </div>
       ) : products.length === 0 ? (
         <div className="p-8 text-center text-stone-500 bg-white rounded-2xl border border-stone-100">
-          Produk tidak ditemukan.
+          {searchQuery
+            ? `Produk "${searchQuery}" tidak ditemukan.`
+            : 'Tidak ada produk di kategori ini.'}
         </div>
       ) : (
         <div className="grid grid-cols-2 md:grid-cols-3 xl:grid-cols-4 gap-4">

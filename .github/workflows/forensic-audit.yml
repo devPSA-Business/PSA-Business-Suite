@@ -54,10 +54,10 @@ jobs:
         run: |
           echo "Scanning for direct DB write operations in UI layer..."
 
-          # Cari mutasi langsung ke domain tables dari UI/components layer
-          # Allowed: useLiveQuery reads, db.keyval (UI state),
-          # db.store_profile (config), db.sync_events/sync_dlq (infra admin)
-          # Forbidden: await db.<domainTable>.(add|put|delete|update|bulk*)(
+          # Cari mutasi langsung ke domain tables dari UI/components layer.
+          # ALLOWED dari UI: useLiveQuery (reads only), db.keyval (UI ephemeral state),
+          # dan tabel infrastruktur non-domain (config dan sync queues).
+          # FORBIDDEN: direct write ke tabel domain dari UI layer.(
           VIOLATIONS=$(grep -rn             --include="*.ts" --include="*.tsx"             -E "await[[:space:]]+db\.(transactions|stock|customers|repair_services|gold_buybacks|shifts|financial_closures|audit_logs|staff_members)\.(add|put|delete|update|bulkAdd|bulkPut|bulkDelete|clear|modify)\("             src/features/*/ui/ src/features/*/components/             2>/dev/null || true)
 
           if [ -n "$VIOLATIONS" ]; then

@@ -101,6 +101,7 @@ export function CheckoutModal() {
     : true;
 
   const onConfirmCheckout = () => {
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
     const hasPhysicalItem = cartItems.some(item => !(item as any).isCustomItem);
     if (finalTotal <= 0 && hasPhysicalItem && !authorizedBy) {
       setAuthAction('ZERO_CHECKOUT');

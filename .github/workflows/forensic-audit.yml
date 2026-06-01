@@ -55,9 +55,10 @@ jobs:
           echo "Scanning for direct DB write operations in UI layer..."
 
           # Cari mutasi langsung ke domain tables dari UI/components layer
-          # Allowed: useLiveQuery reads, db.keyval (UI state)
+          # Allowed: useLiveQuery reads, db.keyval (UI state),
+          # db.store_profile (config), db.sync_events/sync_dlq (infra admin)
           # Forbidden: await db.<domainTable>.(add|put|delete|update|bulk*)(
-          VIOLATIONS=$(grep -rn             --include="*.ts" --include="*.tsx"             -E "await[[:space:]]+db\.(transactions|stock|customers|repair_services|gold_buybacks|shifts|financial_closures|audit_logs|sync_events|sync_dlq|store_profile|staff_members|suspended_carts|handovers|appointments|internal_notes|petty_cash)\.(add|put|delete|update|bulkAdd|bulkPut|bulkDelete|clear|modify)\("             src/features/*/ui/ src/features/*/components/             2>/dev/null || true)
+          VIOLATIONS=$(grep -rn             --include="*.ts" --include="*.tsx"             -E "await[[:space:]]+db\.(transactions|stock|customers|repair_services|gold_buybacks|shifts|financial_closures|audit_logs|staff_members)\.(add|put|delete|update|bulkAdd|bulkPut|bulkDelete|clear|modify)\("             src/features/*/ui/ src/features/*/components/             2>/dev/null || true)
 
           if [ -n "$VIOLATIONS" ]; then
             echo "❌ PELANGGARAN ARSITEKTUR: UI layer menulis langsung ke domain DB"

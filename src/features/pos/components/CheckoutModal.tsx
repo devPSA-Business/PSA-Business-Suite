@@ -36,7 +36,7 @@ export function CheckoutModal() {
   const [discountInput, setDiscountInput] = useState('');
   const [discountNote, setDiscountNote] = useState('');
   const [isAuthDialogOpen, setIsAuthDialogOpen] = useState(false);
-  const [authAction, setAuthAction] = useState<'DISCOUNT' | 'ZERO_CHECKOUT'>'DISCOUNT');
+  const [authAction, setAuthAction] = useState<'DISCOUNT' | 'ZERO_CHECKOUT'>('DISCOUNT');
 
   if (!isCheckoutModalOpen) return null;
 

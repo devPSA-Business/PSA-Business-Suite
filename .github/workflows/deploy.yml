@@ -42,7 +42,7 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 20
     permissions:
-      contents: read
+      contents: write   # Diupgrade untuk git tag pada step "Tag rilis produksi"
       id-token: write
 
     steps:
@@ -107,8 +107,7 @@ jobs:
       # ─────────────────────────────────────────────────────────────────────────
       - name: Tag rilis produksi (untuk rollback)
         if: success()
-        permissions:
-          contents: write
+        # permissions dipindah ke level job (lihat "permissions:" di atas)
         run: |
           TIMESTAMP=$(date -u +"%Y%m%d-%H%M")
           SHORT_SHA="${{ github.sha }}"

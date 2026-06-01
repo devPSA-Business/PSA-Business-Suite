@@ -11,15 +11,6 @@ import { Dexie } from 'dexie';
  * PERHATIAN: HANYA MENGHAPUS LOG DAN EVENT YANG SUDAH SYNC. TRANSAKSI HARUS DIPERTAHANKAN
  * UNTUK REFERENSI BUYBACK SAAT OFFLINE.
  */
-/**
- * @ai_context Auto-Pruner (Zero Maintenance Strategy Phase 2).
- * Dijalankan di background atau saat Admin menekan bersihkan data lokal.
- * Tidak perlu repot pop-up download file JSON untuk Founder. Asalkan sudah di Cloud (SYNCED),
- * hapus dari Dexie tablet untuk menghemat storage offline.
- * 
- * PERHATIAN: HANYA MENGHAPUS LOG DAN EVENT YANG SUDAH SYNC. TRANSAKSI HARUS DIPERTAHANKAN
- * UNTUK REFERENSI BUYBACK SAAT OFFLINE.
- */
 export const archiveOldLogsAndEvents = async (): Promise<{ count: number }> => {
   try {
     const PRUNE_THRESHOLD_DAYS = 90;

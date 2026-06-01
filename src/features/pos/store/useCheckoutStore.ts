@@ -90,6 +90,8 @@ export const useCheckoutStore = create<CheckoutState>((set, get) => ({
       const finalTotal = MathUtils.roundInt(rawFinalTotal < 0 ? 0 : rawFinalTotal);
 
       // Execute Clean Architecture Use Case
+      // totalPrice = pre-discount (sudah dihitung via MathUtils di atas)
+      // finalTotal = post-discount (setelah loyalty + manual discount)
       const transactionId = await DIContainer.checkoutUseCase.execute({
         subtotal: totalPrice,        // pre-discount, untuk validasi anti-tampering
         total: finalTotal,           // post-discount, yang benar-benar dibayar pelanggan

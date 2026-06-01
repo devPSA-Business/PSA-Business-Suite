@@ -2,7 +2,7 @@
 
 ![Build Status](https://img.shields.io/github/actions/workflow/status/devPSA-Business/PSA-Business-Suite/ci.yml?branch=main)
 ![License](https://img.shields.io/badge/license-MIT-blue.svg)
-![Version](https://img.shields.io/badge/version-1.4.0-green.svg)
+![Version](https://img.shields.io/badge/version-1.5.0-green.svg)
 
 Aplikasi Point of Sale (POS), ERP, dan CRM kelas Enterprise yang dirancang khusus untuk toko perhiasan imitasi. Aplikasi ini dibangun dengan arsitektur **Offline-First PWA**, memastikan operasional toko tetap berjalan lancar meskipun koneksi internet terputus, dengan prioritas keamanan, integritas data, dan *zero-maintenance*.
 

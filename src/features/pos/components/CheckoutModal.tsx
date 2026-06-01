@@ -36,7 +36,7 @@ export function CheckoutModal() {
   const [discountInput, setDiscountInput] = useState('');
   const [discountNote, setDiscountNote] = useState('');
   const [isAuthDialogOpen, setIsAuthDialogOpen] = useState(false);
-  const [authAction, setAuthAction] = useState<'DISCOUNT' | 'ZERO_CHECKOUT'>'DISCOUNT');
+  const [authAction, setAuthAction] = useState<'DISCOUNT' | 'ZERO_CHECKOUT'>('DISCOUNT');
 
   if (!isCheckoutModalOpen) return null;
 
@@ -101,6 +101,7 @@ export function CheckoutModal() {
     : true;
 
   const onConfirmCheckout = () => {
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
     const hasPhysicalItem = cartItems.some(item => !(item as any).isCustomItem);
     if (finalTotal <= 0 && hasPhysicalItem && !authorizedBy) {
       setAuthAction('ZERO_CHECKOUT');

@@ -13,12 +13,14 @@ export function CheckoutModal() {
     isCheckoutModalOpen,
     paymentMethod,
     cashReceived,
+    cashPortion,
     customer,
     pointsToRedeem,
     isLoading,
     checkoutError,
     setPaymentMethod,
     setCashReceived,
+    setCashPortion,
     setCustomer,
     setPointsToRedeem,
     setCheckoutError,
@@ -34,7 +36,7 @@ export function CheckoutModal() {
   const [discountInput, setDiscountInput] = useState('');
   const [discountNote, setDiscountNote] = useState('');
   const [isAuthDialogOpen, setIsAuthDialogOpen] = useState(false);
-  const [authAction, setAuthAction] = useState<'DISCOUNT' | 'ZERO_CHECKOUT'>('DISCOUNT');
+  const [authAction, setAuthAction] = useState<'DISCOUNT' | 'ZERO_CHECKOUT'>'DISCOUNT');
 
   if (!isCheckoutModalOpen) return null;
 
@@ -43,6 +45,8 @@ export function CheckoutModal() {
   const rawFinalTotal = MathUtils.sub(MathUtils.sub(totalPrice, loyaltyDiscountAmount), manualDiscountAmount);
   const finalTotal = MathUtils.roundInt(rawFinalTotal < 0 ? 0 : rawFinalTotal);
   const change = MathUtils.sub(cashReceived, finalTotal);
+  // [BUG-02] Porsi QRIS = finalTotal - cashPortion
+  const qrisPortion = MathUtils.sub(finalTotal, cashPortion);
 
   const handleAdjustQuantity = () => {
     if (checkoutError?.stockId && checkoutError.availableQuantity !== undefined) {
@@ -82,7 +86,6 @@ export function CheckoutModal() {
       setAuthorizedBy(authorizerId);
     } else if (authAction === 'ZERO_CHECKOUT') {
       setAuthorizedBy(authorizerId);
-      // We don't call finalizeTransaction here immediately to let user confirm with visible authorizer info
     }
     setIsAuthDialogOpen(false);
   };
@@ -92,22 +95,23 @@ export function CheckoutModal() {
     setAuthorizedBy(null);
   };
 
+  // [BUG-02] Validasi SPLIT: cashPortion harus > 0 dan < finalTotal
+  const isSplitValid = paymentMethod === 'SPLIT'
+    ? cashPortion > 0 && cashPortion < finalTotal
+    : true;
+
   const onConfirmCheckout = () => {
-    // Check for Rp 0 physical item giveaway
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
     const hasPhysicalItem = cartItems.some(item => !(item as any).isCustomItem);
     if (finalTotal <= 0 && hasPhysicalItem && !authorizedBy) {
       setAuthAction('ZERO_CHECKOUT');
       setIsAuthDialogOpen(true);
       return;
     }
-    
     finalizeTransaction();
   };
 
   return (
     <div className="fixed inset-0 z-50 flex justify-center sm:items-center bg-stone-900/40 backdrop-blur-sm sm:p-4 transition-opacity" onClick={(e) => {
-      // Prevent closing when clicking outside if loading
       if (e.target === e.currentTarget && !isLoading) {
         closeCheckoutModal();
       }
@@ -261,7 +265,7 @@ export function CheckoutModal() {
               {(['CASH', 'QRIS', 'SPLIT'] as const).map((method) => (
                 <button
                   key={method}
-                  onClick={() => setPaymentMethod(method)}
+                  onClick={() => { setPaymentMethod(method); setCashPortion(0); }}
                   disabled={isLoading}
                   className={`py-4 sm:py-6 px-2 sm:px-4 rounded-xl sm:rounded-2xl text-sm sm:text-lg font-bold transition-all active:scale-95 ${
                     paymentMethod === method
@@ -303,12 +307,68 @@ export function CheckoutModal() {
               </div>
             </div>
           )}
+
+          {/* [BUG-02] SPLIT Payment Section */}
+          {paymentMethod === 'SPLIT' && (
+            <div className="space-y-4">
+              <div>
+                <label className="block text-xs sm:text-sm font-bold text-stone-700 mb-2 sm:mb-3 uppercase tracking-wider">
+                  Porsi Tunai
+                </label>
+                <input
+                  type="number"
+                  value={cashPortion || ''}
+                  onChange={(e) => setCashPortion(Number(e.target.value))}
+                  onKeyDown={handleNumberInputKeyDown}
+                  disabled={isLoading}
+                  className="w-full px-4 sm:px-6 py-4 sm:py-5 bg-stone-50 border-2 border-stone-200 rounded-2xl focus:outline-none focus:ring-2 focus:ring-brand-500 transition-all text-stone-800 text-3xl sm:text-4xl font-bold font-mono"
+                  placeholder="Rp 0"
+                />
+                <p className="text-xs text-stone-400 mt-2">
+                  Masukkan nominal tunai. Sisa otomatis ditagih via QRIS.
+                </p>
+              </div>
+
+              {cashPortion > 0 && cashPortion < finalTotal && (
+                <div className="rounded-2xl bg-stone-50 border border-stone-200 overflow-hidden">
+                  <div className="flex justify-between items-center px-5 py-3 border-b border-stone-100">
+                    <span className="text-stone-600 font-bold text-sm">Tunai</span>
+                    <span className="font-mono font-bold text-stone-800">
+                      Rp {cashPortion.toLocaleString('id-ID')}
+                    </span>
+                  </div>
+                  <div className="flex justify-between items-center px-5 py-3 border-b border-stone-100">
+                    <span className="text-stone-600 font-bold text-sm">QRIS</span>
+                    <span className="font-mono font-bold text-stone-800">
+                      Rp {qrisPortion.toLocaleString('id-ID')}
+                    </span>
+                  </div>
+                  <div className="flex justify-between items-center px-5 py-4 bg-brand-50">
+                    <span className="font-bold text-brand-900 text-sm uppercase tracking-wider">Total</span>
+                    <span className="font-mono font-black text-brand-900 text-lg">
+                      Rp {finalTotal.toLocaleString('id-ID')}
+                    </span>
+                  </div>
+                </div>
+              )}
+
+              {cashPortion >= finalTotal && cashPortion > 0 && (
+                <p className="text-xs text-red-500 font-bold">
+                  ⚠ Porsi tunai tidak boleh sama atau melebihi total tagihan. Gunakan metode CASH.
+                </p>
+              )}
+            </div>
+          )}
         </div>
 
         <div className="p-4 sm:p-6 border-t border-stone-100 bg-white sm:bg-stone-50 shrink-0 pb-safe">
           <button
             onClick={onConfirmCheckout}
-            disabled={isLoading || (paymentMethod === 'CASH' && cashReceived < finalTotal)}
+            disabled={
+              isLoading ||
+              (paymentMethod === 'CASH' && cashReceived < finalTotal) ||
+              (paymentMethod === 'SPLIT' && !isSplitValid)
+            }
             className="w-full flex items-center justify-center gap-3 bg-brand-900 hover:bg-brand-800 disabled:bg-stone-300 text-gold-500 font-bold text-xl sm:text-2xl py-5 sm:py-6 rounded-2xl shadow-xl transition-all active:scale-95"
           >
             {isLoading ? (

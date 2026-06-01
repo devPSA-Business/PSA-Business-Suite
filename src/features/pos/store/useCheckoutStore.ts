@@ -14,6 +14,8 @@ type PaymentMethod = 'CASH' | 'QRIS' | 'SPLIT';
 interface CheckoutState {
   paymentMethod: PaymentMethod;
   cashReceived: number;
+  /** [BUG-02] Porsi tunai untuk SPLIT payment. Rp X tunai + (total-X) QRIS. */
+  cashPortion: number;
   customer: Customer | null;
   pointsToRedeem: number;
   authorizedBy: string | null;
@@ -22,6 +24,7 @@ interface CheckoutState {
   checkoutError: InsufficientStockError | null;
   setPaymentMethod: (method: PaymentMethod) => void;
   setCashReceived: (amount: number) => void;
+  setCashPortion: (amount: number) => void;
   setCustomer: (customer: Customer | null) => void;
   setPointsToRedeem: (points: number) => void;
   setAuthorizedBy: (name: string | null) => void;
@@ -34,6 +37,7 @@ interface CheckoutState {
 export const useCheckoutStore = create<CheckoutState>((set, get) => ({
   paymentMethod: 'CASH',
   cashReceived: 0,
+  cashPortion: 0,
   customer: null,
   pointsToRedeem: 0,
   authorizedBy: null,
@@ -43,6 +47,7 @@ export const useCheckoutStore = create<CheckoutState>((set, get) => ({
   
   setPaymentMethod: (method) => set({ paymentMethod: method }),
   setCashReceived: (amount) => set({ cashReceived: amount }),
+  setCashPortion: (amount) => set({ cashPortion: amount }),
   setCustomer: (customer) => set({ customer, pointsToRedeem: 0 }),
   setPointsToRedeem: (points) => set({ pointsToRedeem: points }),
   setAuthorizedBy: (name) => set({ authorizedBy: name }),
@@ -50,7 +55,8 @@ export const useCheckoutStore = create<CheckoutState>((set, get) => ({
   openCheckoutModal: () => set({ isCheckoutModalOpen: true, checkoutError: null }),
   closeCheckoutModal: () => set({ 
     isCheckoutModalOpen: false, 
-    cashReceived: 0, 
+    cashReceived: 0,
+    cashPortion: 0,
     paymentMethod: 'CASH',
     customer: null,
     pointsToRedeem: 0,
@@ -64,7 +70,7 @@ export const useCheckoutStore = create<CheckoutState>((set, get) => ({
     try {
       const cartState = useCartStore.getState();
       const { cartItems, totalPrice } = cartState;
-      const { paymentMethod, customer, pointsToRedeem, authorizedBy } = get();
+      const { paymentMethod, cashPortion, customer, pointsToRedeem, authorizedBy } = get();
       const user = useAuthStore.getState().user;
       const openShift = await DIContainer.shiftRepository.getOpenShift();
 
@@ -88,6 +94,8 @@ export const useCheckoutStore = create<CheckoutState>((set, get) => ({
         subtotal: totalPrice,        // pre-discount, untuk validasi anti-tampering
         total: finalTotal,           // post-discount, yang benar-benar dibayar pelanggan
         paymentMethod: paymentMethod,
+        // [BUG-02] Pass cashPortion untuk SPLIT — UseCase menggunakannya untuk shift.cashIn
+        cashPortion: paymentMethod === 'SPLIT' ? cashPortion : undefined,
         items: cartItems.map(item => ({
           stockId: item.stockId,
           name: item.name,

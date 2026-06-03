@@ -109,6 +109,11 @@ export default defineConfig(({mode}) => {
         '@tests': path.resolve(__dirname, './tests'),
       },
     },
+    // Worker format WAJIB 'es' — top-level Vite option, BUKAN di dalam build:{}.
+    // Default 'iife' crash saat rollup code-splitting aktif (manualChunks).
+    worker: {
+      format: 'es',
+    },
     build: {
       outDir: 'dist',
       // Optimasi Chunk Splitting agar loading awal lebih cepat

@@ -47,9 +47,9 @@ const CACHE_TTL_MS = 6 * 60 * 60 * 1000; // 6 Hours
 
 export class AnalyticsService {
   private worker: Worker | null = null;
-  // Exception: Callback Map resolves generic T promises.
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  private callbacks = new Map<string, { resolve: (value: any) => void, reject: (reason?: Error) => void }>();
+  // Callback Map untuk Worker Promise. Tipe 'unknown' (bukan 'any') — aman karena
+  // type-safety dijaga di call-site generic T via runInWorker<T>.
+  private callbacks = new Map<string, { resolve: (value: unknown) => void; reject: (reason?: Error) => void }>();
 
   constructor() {
     this.initWorker();
@@ -76,7 +76,9 @@ export class AnalyticsService {
     if (!this.worker) throw new Error("Web Worker not initialized");
     const id = crypto.randomUUID();
     return new Promise((resolve, reject) => {
-      this.callbacks.set(id, { resolve, reject });
+      // Type assertion: memperlebar (T | PromiseLike<T>) => void ke (unknown) => void.
+      // Aman — T extends unknown selalu benar. Menghindari 'any' di Map callback.
+      this.callbacks.set(id, { resolve: resolve as (value: unknown) => void, reject });
       this.worker!.postMessage({ type, id, ...payload });
     });
   }

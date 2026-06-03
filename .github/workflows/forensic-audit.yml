@@ -39,7 +39,9 @@ jobs:
         # --legacy-peer-deps: @firebase/rules-unit-testing@5.x peer-dep conflict
         # dengan firebase@11 (butuh firebase@^12). Flag ini aman dipakai sampai
         # upgrade firebase@12 dilakukan. Ref: CI-FIX-001
-        run: npm ci --legacy-peer-deps
+        # CI-FIX-002: npm install (bukan npm ci) — konsisten dengan ci.yml setelah fix
+        # commit 3cfc39f yang membuktikan npm ci crash di GitHub Actions runner ini.
+        run: npm install --legacy-peer-deps
 
       - name: TypeScript — Strict Type Check
         run: npx tsc --noEmit
@@ -101,7 +103,8 @@ jobs:
           node-version: 22
 
       - name: Install dependencies
-        run: npm ci --legacy-peer-deps
+        # CI-FIX-002: npm install (bukan npm ci) — lihat static_analysis job comment
+        run: npm install --legacy-peer-deps
 
       - name: NPM Audit (high severity)
         run: npm audit --audit-level=high

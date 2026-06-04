@@ -45,7 +45,9 @@ jobs:
           cache: 'npm'
 
       - name: Install dependencies
-        run: npm ci --legacy-peer-deps
+        # CI-FIX-002: npm install (bukan npm ci) — peer conflict firebase@11 vs @firebase/rules-unit-testing
+        # Konsisten dengan ci.yml dan forensic-audit.yml (lihat commit 3cfc39f)
+        run: npm install --legacy-peer-deps
 
       - name: Build Preview
         run: npm run build

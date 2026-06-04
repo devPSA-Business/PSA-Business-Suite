@@ -12,7 +12,11 @@ name: 🚀 Deploy — Produksi Firebase Hosting
 #   VITE_FIREBASE_API_KEY, VITE_FIREBASE_AUTH_DOMAIN, VITE_FIREBASE_PROJECT_ID
 #   VITE_FIREBASE_STORAGE_BUCKET, VITE_FIREBASE_MESSAGING_SENDER_ID
 #   VITE_FIREBASE_APP_ID, FIREBASE_SERVICE_ACCOUNT, FIREBASE_PROJECT_ID
-#   FIREBASE_DEPLOY_TOKEN, VITE_CRYPTO_PEPPER
+#   VITE_CRYPTO_PEPPER
+#
+# CATATAN: FIREBASE_DEPLOY_TOKEN SUDAH TIDAK DIPERLUKAN.
+#   Firestore rules kini di-deploy via service account (FIREBASE_SERVICE_ACCOUNT).
+#   Jika masih ada secret FIREBASE_DEPLOY_TOKEN di repo — bisa dihapus.
 #
 # SECRETS OPSIONAL (fitur disabled jika kosong, app tetap berjalan):
 #   VITE_GEMINI_PROXY_URL, VITE_TELEGRAM_BOT_TOKEN, VITE_TELEGRAM_CHAT_ID
@@ -58,6 +62,29 @@ jobs:
       - name: Install dependencies
         run: npm install --legacy-peer-deps
 
+      # ── Pre-flight: Validasi secrets wajib SEBELUM build ─────────────────
+      # Gagal cepat dengan pesan jelas daripada error kriptik saat deploy Firebase.
+      - name: Pre-flight — Validasi Secrets Wajib
+        env:
+          SA:  ${{ secrets.FIREBASE_SERVICE_ACCOUNT }}
+          PID: ${{ secrets.FIREBASE_PROJECT_ID }}
+        run: |
+          MISSING=()
+          [ -z "$SA"  ] && MISSING+=("FIREBASE_SERVICE_ACCOUNT")
+          [ -z "$PID" ] && MISSING+=("FIREBASE_PROJECT_ID")
+
+          if [ ${#MISSING[@]} -ne 0 ]; then
+            echo "❌ Deploy dibatalkan — secrets wajib belum dikonfigurasi:"
+            for s in "${MISSING[@]}"; do
+              echo "   → $s"
+            done
+            echo ""
+            echo "Cara set: https://github.com/${{ github.repository }}/settings/secrets/actions"
+            echo "Panduan lengkap: .github/secrets-checklist.md"
+            exit 1
+          fi
+          echo "✅ Pre-flight OK — semua secrets wajib tersedia"
+
       - name: Lint + TypeScript check
         run: npm run lint
 
@@ -86,11 +113,35 @@ jobs:
           channelId:              live
           projectId:              "${{ secrets.FIREBASE_PROJECT_ID }}"
 
+      # ── Deploy Firestore Security Rules ──────────────────────────────────
+      # PERBAIKAN: Hapus ketergantungan pada FIREBASE_DEPLOY_TOKEN (legacy --token).
+      # Firebase CLI kini menggunakan GOOGLE_APPLICATION_CREDENTIALS via service account
+      # yang sama (FIREBASE_SERVICE_ACCOUNT) dengan step hosting deploy di atas.
+      # Tidak ada secret tambahan yang diperlukan.
       - name: Deploy Firestore Security Rules
+        env:
+          FIREBASE_SA:  ${{ secrets.FIREBASE_SERVICE_ACCOUNT }}
+          PROJECT_ID:   ${{ secrets.FIREBASE_PROJECT_ID }}
         run: |
-          npx firebase-tools deploy --only firestore:rules \
-            --project "${{ secrets.FIREBASE_PROJECT_ID }}" \
-            --token   "${{ secrets.FIREBASE_DEPLOY_TOKEN }}"
+          # Graceful skip jika secrets belum diset (seharusnya sudah tertangkap pre-flight)
+          if [ -z "$FIREBASE_SA" ] || [ -z "$PROJECT_ID" ]; then
+            echo "::warning::Firestore rules deploy diskip — secrets tidak tersedia."
+            exit 0
+          fi
+
+          # Tulis service account ke temp file — dihapus setelah dipakai
+          SA_PATH="$(mktemp --suffix=.json)"
+          printf '%s' "$FIREBASE_SA" > "$SA_PATH"
+
+          # Deploy menggunakan service account (bukan legacy --token yang deprecated)
+          GOOGLE_APPLICATION_CREDENTIALS="$SA_PATH" \
+            npx firebase-tools deploy --only firestore:rules \
+              --project "$PROJECT_ID" \
+              --non-interactive
+
+          # Cleanup — jangan tinggalkan credentials di disk
+          rm -f "$SA_PATH"
+          echo "✅ Firestore security rules berhasil dideploy"
 
       # ─── ROLLBACK MECHANISM ────────────────────────────────────────────────────
       # Setiap deploy produksi yang berhasil secara otomatis membuat git tag
@@ -101,7 +152,7 @@ jobs:
       #   2. Klik "Run workflow" → pilih tag yang ingin di-rollback
       #   ATAU via terminal:
       #     git checkout <tag-name>
-      #     npm ci && npm run build && firebase deploy --only hosting
+      #     npm install --legacy-peer-deps && npm run build && firebase deploy --only hosting
       #
       # List semua tag produksi: git tag --list 'prod-*' --sort=-creatordate
       # ─────────────────────────────────────────────────────────────────────────
@@ -144,7 +195,7 @@ jobs:
           echo "" >> $GITHUB_STEP_SUMMARY
           echo "# Rollback ke versi ini:" >> $GITHUB_STEP_SUMMARY
           echo "git checkout ${ROLLBACK_TAG}" >> $GITHUB_STEP_SUMMARY
-          echo "npm ci && npm run build && firebase deploy --only hosting" >> $GITHUB_STEP_SUMMARY
+          echo "npm install --legacy-peer-deps && npm run build && firebase deploy --only hosting" >> $GITHUB_STEP_SUMMARY
           echo "\`\`\`" >> $GITHUB_STEP_SUMMARY
 
       - name: Email — Deploy berhasil

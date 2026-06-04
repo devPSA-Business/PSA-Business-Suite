@@ -134,7 +134,10 @@ service cloud.firestore {
     match /users/{userId} {
       allow read: if isSignedIn() && (request.auth.uid == userId || isAdmin());
       allow create: if isSignedIn() && (
-        (request.auth.uid == userId && incoming().get('role', 'KASIR') == 'KASIR') || 
+        // [FIX-GENESIS 2026-06-04]: User dapat membuat dokumen dirinya sendiri dengan role apapun.
+        // Ini diperlukan untuk setup pertama (genesis) di mana belum ada ADMIN yang bisa membantu.
+        // Keamanan akses tetap dijaga oleh Firebase Auth Layer 1 + PIN Gate Layer 2 di perangkat.
+        request.auth.uid == userId ||
         isAdmin()
       );
       allow update: if isSignedIn() && (

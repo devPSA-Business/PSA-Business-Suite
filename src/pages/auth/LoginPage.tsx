@@ -72,12 +72,36 @@ export function LoginPage() {
   };
 
   // ─── DAFTAR (Register) ──────────────────────────────────────────────────────
+  //
+  // @security_tier: HIGH
+  // @business_rule: Form Daftar hanya untuk PEMILIK TOKO (genesis setup).
+  //   Staf/kasir TIDAK mendaftar sendiri — akun mereka dibuat oleh admin via panel.
+  //   SEC-FIX-002 (2026-06-04): Email whitelist sebagai lapisan defense-in-depth
+  //   untuk mencegah pendaftaran akun tidak sah dari luar organisasi.
+  //   Server-side: Firebase Auth + App Check + Firestore rules (isSignedIn + uid validation).
+  //   Client-side: Whitelist ini adalah lapisan tambahan — bukan satu-satunya perlindungan.
+  //
+  // CATATAN MAINTENANCE: Jika owner mengganti email, perbarui array ini + commit + deploy.
+  const AUTHORIZED_OWNER_EMAILS = [
+    'dev.psajewelry@gmail.com',
+    'owner.psajewelry@gmail.com',
+  ] as const;
+
   const handleRegister = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!auth) {
       addToast('Sistem autentikasi tidak tersedia. Periksa konfigurasi Firebase.', 'error');
       return;
     }
+
+    // SEC-FIX-002: Validasi email whitelist (defense-in-depth)
+    const normalizedEmail = email.toLowerCase().trim();
+    if (!AUTHORIZED_OWNER_EMAILS.some(authorized => authorized === normalizedEmail)) {
+      logger.warn('[Auth] Percobaan registrasi dengan email tidak diotorisasi', { email: normalizedEmail });
+      addToast('Email ini tidak terdaftar sebagai akun resmi toko. Gunakan email pemilik yang sah.', 'error');
+      return;
+    }
+
     if (password.length < 8) {
       addToast('Kata sandi minimal 8 karakter.', 'warning');
       return;
@@ -120,9 +144,16 @@ export function LoginPage() {
   };
 
   // ─── SANDBOX (hanya di dev) ──────────────────────────────────────────────────
+  // @security_tier: HIGH — DOUBLE GUARD: (1) runtime check + (2) JSX conditional render
+  // Fungsi ini TIDAK akan berjalan di production build. Bundle tree-shaking oleh Rollup/esbuild
+  // mengeliminasi dead code saat import.meta.env.DEV == false.
+  // Email menggunakan akun resmi toko (bukan akun eksternal).
   const handleSandboxBypass = async () => {
+    // Runtime guard: jika entah bagaimana dipanggil di production, tolak
+    if (!import.meta.env.DEV) return;
     const { setFirebaseUser, login } = useAuthStore.getState();
-    setFirebaseUser({ uid: 'dev-admin', email: 'dev@psajewelry.com', displayName: 'Dev Admin' } as Parameters<typeof setFirebaseUser>[0]);
+    // SEC-FIX-001 (2026-06-04): Ganti dev@psajewelry.com → dev.psajewelry@gmail.com (email resmi toko)
+    setFirebaseUser({ uid: 'dev-admin', email: 'dev.psajewelry@gmail.com', displayName: 'Dev Admin' } as Parameters<typeof setFirebaseUser>[0]);
     login({ id: 'USR-ADMIN', name: 'Dev Admin', role: UserRole.ADMIN, branchId: 'HQ' });
     await db.store_profile.put({
       id: 'default',

@@ -122,7 +122,13 @@ export default defineConfig(({mode}) => {
           manualChunks: {
             'vendor-react': ['react', 'react-dom', '@tanstack/react-router'],
             'vendor-db': ['dexie', 'dexie-react-hooks', 'firebase/app', 'firebase/firestore'],
-            'vendor-ui': ['lucide-react', 'motion'],
+            // OPT-001 (2026-06-03): Pisah motion dari lucide-react ke chunk terpisah.
+            // Sebelum: vendor-ui 950KB (lucide+motion digabung) — satu cache invalidation
+            //          untuk dua library yang update-cycle-nya berbeda.
+            // Sesudah: vendor-ui (lucide-react icons, tree-shaken) + vendor-motion (animation).
+            // Benefit: cache granular — update lucide tidak invalidate motion cache & vice versa.
+            'vendor-ui': ['lucide-react'],
+            'vendor-motion': ['motion'],
             'vendor-chart': ['recharts']
           }
         }

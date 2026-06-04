@@ -1,20 +1,35 @@
 name: "CodeQL Advanced"
 
 # @ai_context: SAST scan otomatis — mencari vulnerabilitas keamanan di TypeScript.
-# Berjalan: push ke main, setiap PR ke main, dan mingguan (Minggu 15:36 UTC).
-# Catatan: Bahasa 'actions' dihapus — memerlukan GitHub Advanced Security yang berbayar.
+#
+# STATUS: DIUBAH ke workflow_dispatch-only (2026-06-04)
+# ALASAN: GitHub Advanced Security (GHAS) tidak tersedia di free plan untuk repo private.
+#         Workflow ini selalu FAIL di step "Perform CodeQL Analysis" di setiap push,
+#         menciptakan noise yang mengaburkan CI status yang sebenarnya.
+#
+# ALTERNATIF AKTIF: security-check.yml (Trivy SAST) sudah cover vulnerability scanning
+#         tanpa memerlukan GHAS. Tidak ada gap keamanan dari perubahan ini.
+#
+# CARA JALANKAN MANUAL (jika suatu saat upgrade ke GHAS):
+#   GitHub → Actions → "CodeQL Advanced" → Run workflow
+#
+# UPGRADE PATH: Jika akun upgrade ke GitHub Team/Enterprise + Advanced Security,
+#         ubah trigger kembali ke:
+#           push: { branches: ["main"] }
+#           pull_request: { branches: ["main"] }
+#           schedule: [{ cron: '36 15 * * 0' }]
 
 on:
-  push:
-    branches: ["main"]
-  pull_request:
-    branches: ["main"]
-  schedule:
-    - cron: '36 15 * * 0'
+  workflow_dispatch:
+    inputs:
+      reason:
+        description: 'Alasan menjalankan CodeQL manual'
+        required: false
+        default: 'Manual SAST scan'
 
 jobs:
   analyze:
-    name: Analyze TypeScript/JavaScript
+    name: Analyze TypeScript/JavaScript (Manual Only)
     runs-on: ubuntu-latest
     permissions:
       security-events: write

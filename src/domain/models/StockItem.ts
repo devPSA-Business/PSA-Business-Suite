@@ -32,7 +32,7 @@ export class StockItem extends Entity<StockItemProps> {
   public readonly weight: number;
   public readonly karat: number;
   public readonly specificCost?: number;
-  public version: number;
+  public readonly version: number;
   public readonly isDeleted: boolean;
   public readonly branchId?: string;
   public readonly isStale: boolean;

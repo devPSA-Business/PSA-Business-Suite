@@ -45,8 +45,6 @@ jobs:
           cache: 'npm'
 
       - name: Install dependencies
-        # CI-FIX-002: npm install (bukan npm ci) — peer conflict firebase@11 vs @firebase/rules-unit-testing
-        # Konsisten dengan ci.yml dan forensic-audit.yml (lihat commit 3cfc39f)
         run: npm install --legacy-peer-deps
 
       - name: Build Preview
@@ -75,7 +73,7 @@ jobs:
         with:
           repoToken: '${{ secrets.GITHUB_TOKEN }}'
           firebaseServiceAccount: '${{ secrets.FIREBASE_SERVICE_ACCOUNT }}'
-          projectId: '${{ secrets.FIREBASE_PROJECT_ID }}'
+          projectId: '${{ secrets.VITE_FIREBASE_PROJECT_ID }}'
           # channelId TIDAK di-set = otomatis generate per-PR
           expires: 7d   # Preview dihapus otomatis 7 hari setelah PR ditutup
 

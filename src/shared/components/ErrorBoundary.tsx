@@ -12,7 +12,7 @@ interface State {
 }
 
 export class ErrorBoundary extends Component<Props, State> {
-  public state: State = {
+  public override state: State = {
     hasError: false,
     error: null
   };
@@ -21,7 +21,7 @@ export class ErrorBoundary extends Component<Props, State> {
     return { hasError: true, error };
   }
 
-  public componentDidCatch(error: Error, errorInfo: ErrorInfo) {
+  public override componentDidCatch(error: Error, errorInfo: ErrorInfo) {
     logError(error, errorInfo);
   }
 
@@ -29,7 +29,7 @@ export class ErrorBoundary extends Component<Props, State> {
     window.location.reload();
   };
 
-  public render() {
+  public override render() {
     if (this.state.hasError) {
       return (
         <div className="min-h-screen bg-stone-50 flex items-center justify-center p-4">

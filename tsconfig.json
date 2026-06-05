@@ -30,7 +30,8 @@
     "noEmit": true,
     "strict": true,
     "useUnknownInCatchVariables": true,
-    "strictNullChecks": true
+    "strictNullChecks": true,
+    "noImplicitOverride": true
   },
   "exclude": ["functions", "api", "server.ts", "workers"]
 }

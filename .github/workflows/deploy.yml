@@ -11,7 +11,7 @@ name: 🚀 Deploy — Produksi Firebase Hosting
 # SECRETS WAJIB (deploy gagal tanpa ini):
 #   VITE_FIREBASE_API_KEY, VITE_FIREBASE_AUTH_DOMAIN, VITE_FIREBASE_PROJECT_ID
 #   VITE_FIREBASE_STORAGE_BUCKET, VITE_FIREBASE_MESSAGING_SENDER_ID
-#   VITE_FIREBASE_APP_ID, FIREBASE_SERVICE_ACCOUNT, FIREBASE_PROJECT_ID
+#   VITE_FIREBASE_APP_ID, FIREBASE_SERVICE_ACCOUNT
 #   VITE_CRYPTO_PEPPER
 #
 # CATATAN: FIREBASE_DEPLOY_TOKEN SUDAH TIDAK DIPERLUKAN.
@@ -67,11 +67,11 @@ jobs:
       - name: Pre-flight — Validasi Secrets Wajib
         env:
           SA:  ${{ secrets.FIREBASE_SERVICE_ACCOUNT }}
-          PID: ${{ secrets.FIREBASE_PROJECT_ID }}
+          PID: ${{ secrets.VITE_FIREBASE_PROJECT_ID }}
         run: |
           MISSING=()
           [ -z "$SA"  ] && MISSING+=("FIREBASE_SERVICE_ACCOUNT")
-          [ -z "$PID" ] && MISSING+=("FIREBASE_PROJECT_ID")
+          [ -z "$PID" ] && MISSING+=("VITE_FIREBASE_PROJECT_ID")
 
           if [ ${#MISSING[@]} -ne 0 ]; then
             echo "❌ Deploy dibatalkan — secrets wajib belum dikonfigurasi:"
@@ -111,7 +111,7 @@ jobs:
           repoToken:              "${{ secrets.GITHUB_TOKEN }}"
           firebaseServiceAccount: "${{ secrets.FIREBASE_SERVICE_ACCOUNT }}"
           channelId:              live
-          projectId:              "${{ secrets.FIREBASE_PROJECT_ID }}"
+          projectId:              "${{ secrets.VITE_FIREBASE_PROJECT_ID }}"
 
       # ── Deploy Firestore Security Rules ──────────────────────────────────
       # PERBAIKAN: Hapus ketergantungan pada FIREBASE_DEPLOY_TOKEN (legacy --token).
@@ -121,7 +121,7 @@ jobs:
       - name: Deploy Firestore Security Rules
         env:
           FIREBASE_SA:  ${{ secrets.FIREBASE_SERVICE_ACCOUNT }}
-          PROJECT_ID:   ${{ secrets.FIREBASE_PROJECT_ID }}
+          PROJECT_ID:   ${{ secrets.VITE_FIREBASE_PROJECT_ID }}
         run: |
           # Graceful skip jika secrets belum diset (seharusnya sudah tertangkap pre-flight)
           if [ -z "$FIREBASE_SA" ] || [ -z "$PROJECT_ID" ]; then

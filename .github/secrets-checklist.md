@@ -13,7 +13,6 @@
 | `VITE_FIREBASE_APP_ID` | App ID Firebase | Firebase Console → Project Settings |
 | `FIREBASE_SERVICE_ACCOUNT` | JSON service account untuk deploy | Firebase Console → Project Settings → Service Accounts → Generate Key |
 | `FIREBASE_PROJECT_ID` | Project ID (untuk firebase-tools CLI) | Sama dengan `VITE_FIREBASE_PROJECT_ID` |
-| `FIREBASE_DEPLOY_TOKEN` | Token deploy untuk firestore rules | Jalankan: `firebase login:ci` → copy token |
 
 ## 🟡 OPSIONAL (fitur akan disabled jika tidak ada, tapi app tetap berjalan)
 
@@ -28,9 +27,10 @@
 | `MAIL_USERNAME` | Gmail untuk notifikasi deploy | Email notif deploy tidak terkirim |
 | `MAIL_PASSWORD` | Gmail App Password | Email notif deploy tidak terkirim |
 
-## ❌ SUDAH TIDAK DIPERLUKAN (Cloud Functions dihapus)
+## ❌ SUDAH TIDAK DIPERLUKAN (Dihapus / Deprecated)
 
-Secrets ini TIDAK PERLU lagi — Cloud Functions sudah diarsipkan:
+Secrets ini **TIDAK PERLU lagi** dan bisa dihapus dari GitHub Secrets:
+- `FIREBASE_DEPLOY_TOKEN` → **DEPRECATED** — deploy.yml kini menggunakan `FIREBASE_SERVICE_ACCOUNT` (via `GOOGLE_APPLICATION_CREDENTIALS`) untuk firestore rules. Tidak perlu generate token via `firebase login:ci` lagi.
 - `GEMINI_API_KEY` (server-side) → diganti `VITE_GEMINI_API_KEY`
 - `CRYPTO_PEPPER` (server-side) → diganti `VITE_CRYPTO_PEPPER`
 - `TELEGRAM_BOT_TOKEN` (server-side) → diganti `VITE_TELEGRAM_BOT_TOKEN`

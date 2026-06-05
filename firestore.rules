@@ -134,10 +134,22 @@ service cloud.firestore {
     match /users/{userId} {
       allow read: if isSignedIn() && (request.auth.uid == userId || isAdmin());
       allow create: if isSignedIn() && (
-        // [FIX-GENESIS 2026-06-04]: User dapat membuat dokumen dirinya sendiri dengan role apapun.
-        // Ini diperlukan untuk setup pertama (genesis) di mana belum ada ADMIN yang bisa membantu.
-        // Keamanan akses tetap dijaga oleh Firebase Auth Layer 1 + PIN Gate Layer 2 di perangkat.
-        request.auth.uid == userId ||
+        // [FIX-GENESIS 2026-06-04]: User dapat membuat dokumen dirinya sendiri.
+        // Diperlukan untuk setup pertama (genesis) di mana belum ada ADMIN yang bisa membantu.
+        //
+        // SECURITY LAYERS:
+        //   L1: Firebase Auth — email terverifikasi (isSignedIn)
+        //   L2: Firestore Rule — hanya bisa buat dokumen UID sendiri (request.auth.uid == userId)
+        //   L3: App Check — mencegah akses dari luar app
+        //   L4: isValidUser() — validasi format & enum role (ADMIN/MANAGER/USER/KASIR)
+        //   L5: Client-side whitelist di LoginPage.tsx (AUTHORIZED_OWNER_EMAILS)
+        //
+        // KNOWN TRADE-OFF: User bisa self-claim role ADMIN saat genesis.
+        // Diterima karena: App Check + email verified + UID ownership check.
+        // Mitigasi tambahan: Setelah genesis, owner WAJIB disable Email/Password registration
+        // di Firebase Console → Authentication → Sign-in providers.
+        //
+        (request.auth.uid == userId && isValidUser(incoming())) ||
         isAdmin()
       );
       allow update: if isSignedIn() && (

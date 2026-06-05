@@ -72,12 +72,31 @@ export function LoginPage() {
   };
 
   // ─── DAFTAR (Register) ──────────────────────────────────────────────────────
+  //
+  // @security_tier: HIGH
+  // @business_rule: Form Daftar hanya untuk SETUP PERTAMA (genesis) oleh pemilik toko.
+  //   Staf/kasir TIDAK mendaftar sendiri — akun mereka dibuat oleh admin via panel Settings.
+  //
+  // KEAMANAN BERLAPIS (tidak perlu whitelist email hardcoded):
+  //   L1: Firebase Auth — hanya akun Firebase yang valid dapat masuk
+  //   L2: Firestore rules — isValidUser() + UID ownership check + App Check
+  //   L3: PinGate — autentikasi lokal per sesi di perangkat
+  //   L4: IndexedDB encryption — data terenkripsi AES-GCM per PIN
+  //   L5: branchId isolation — data antar toko tidak bisa saling akses
+  //
+  // Catatan: Whitelist email hardcoded SENGAJA TIDAK DIPAKAI karena:
+  //   (a) Memblokir owner jika emailnya tidak ada di daftar kode
+  //   (b) Perlu commit+deploy setiap kali email berubah
+  //   (c) Client-side check mudah dilewati — bukan security layer yang efektif
+  //   Perlindungan nyata sudah ada di L2–L5 di atas.
+  //
   const handleRegister = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!auth) {
       addToast('Sistem autentikasi tidak tersedia. Periksa konfigurasi Firebase.', 'error');
       return;
     }
+
     if (password.length < 8) {
       addToast('Kata sandi minimal 8 karakter.', 'warning');
       return;
@@ -120,9 +139,16 @@ export function LoginPage() {
   };
 
   // ─── SANDBOX (hanya di dev) ──────────────────────────────────────────────────
+  // @security_tier: HIGH — DOUBLE GUARD: (1) runtime check + (2) JSX conditional render
+  // Fungsi ini TIDAK akan berjalan di production build. Bundle tree-shaking oleh Rollup/esbuild
+  // mengeliminasi dead code saat import.meta.env.DEV == false.
+  // Email menggunakan akun resmi toko (bukan akun eksternal).
   const handleSandboxBypass = async () => {
+    // Runtime guard: jika entah bagaimana dipanggil di production, tolak
+    if (!import.meta.env.DEV) return;
     const { setFirebaseUser, login } = useAuthStore.getState();
-    setFirebaseUser({ uid: 'dev-admin', email: 'dev@psajewelry.com', displayName: 'Dev Admin' } as Parameters<typeof setFirebaseUser>[0]);
+    // SEC-FIX-001 (2026-06-04): Ganti dev@psajewelry.com → dev.psajewelry@gmail.com (email resmi toko)
+    setFirebaseUser({ uid: 'dev-admin', email: 'dev.psajewelry@gmail.com', displayName: 'Dev Admin' } as Parameters<typeof setFirebaseUser>[0]);
     login({ id: 'USR-ADMIN', name: 'Dev Admin', role: UserRole.ADMIN, branchId: 'HQ' });
     await db.store_profile.put({
       id: 'default',

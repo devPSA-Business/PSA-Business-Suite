@@ -186,6 +186,9 @@ Simpan file `psa.keystore` di tempat aman (Google Drive terkunci, bukan di repo)
 [ ] FASE 2C — FIREBASE_DEPLOY_TOKEN diset
 [ ] FASE 2D — PAT_SECRETS_WRITE diset
 [ ] FASE 3  — Bootstrap workflow dijalankan (VITE_CRYPTO_PEPPER)
+[ ] FASE 3B — Recovery Key sudah dicetak dan disimpan di tempat fisik aman
+[ ] FASE 3C — Recovery Key sudah disimpan di Bitwarden Secure Note (direkomendasikan)
+[ ] FASE 3D — VITE_CRYPTO_PEPPER sudah dicatat bersamaan dengan Recovery Key
 [ ] FASE 4  — setup-repo-settings.yml dijalankan
 [ ] FASE 6  — Deploy pertama berhasil → https://psa-business-suite.web.app
 [ ] FASE 7  — APK dibuat dan dikirim ke HP (opsional)

@@ -71,11 +71,13 @@ jobs:
             console.warn('coverage-summary.json tidak ditemukan, skip threshold check.');
             process.exit(0);
           }
-          // Coverage thresholds — disesuaikan dengan coverage aktual proyek (18-20%).
-          // Threshold aspirasional 80% tidak realistis untuk proyek UI-heavy dengan 173 tests.
-          // Roadmap: naikkan bertahap seiring penambahan test Money Path (BuybackUseCase, GoldLiquidation, Loyalty).
-          // Ref: BACKLOG P1 — test coverage expansion sprint berikutnya.
-          const min = { lines: 15, statements: 15, branches: 12, functions: 10 };
+          // Coverage thresholds — dinaikkan dari (15/15/12/10) ke (19/18/13/11) per sprint 2026-06-06.
+          // Angka berdasarkan coverage aktual terukur: Lines 20.08%, Stmts 18.82%, Branches 14.98%, Funcs 12.67%.
+          // Buffer 1% di bawah aktual untuk mencegah fluktuasi CI false-negative.
+          // Proyek ini UI-heavy (React components belum dites), coverage global rendah secara inherent.
+          // Roadmap: 19/18/13/11 → 25/24/18/16 (Money Path tests) → 40/38/30/28 (UI tests).
+          // Refs: PSA_Business_Suite_Audit.md F-01, F-05.
+          const min = { lines: 19, statements: 18, branches: 13, functions: 11 };
           const failures = [];
           for (const k of Object.keys(min)) {
             const pct = summary[k]?.pct ?? 0;

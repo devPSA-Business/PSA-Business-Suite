@@ -49,18 +49,18 @@ export class ShiftTotalsReconciler {
           .where('date').aboveOrEqual(startTime)
           .filter(r => (r.status === 'COMPLETED' || r.status === 'DELIVERED') && r.paymentMethod === 'CASH')
           .toArray();
-        const cashInRepairs = repairs.reduce((sum, r) => sum + r.price, 0);
+        const cashInRepairs = repairs.reduce((sum, r) => MathUtils.add(sum, r.price), 0);
 
         // 2. Calculate Cash Out (Petty Cash + Buyback)
         const pettyCashRecords = await db.petty_cash
           .where('date').aboveOrEqual(startTime)
           .toArray();
-        const pettyCashTotal = pettyCashRecords.reduce((sum, pc) => sum + pc.amount, 0);
+        const pettyCashTotal = pettyCashRecords.reduce((sum, pc) => MathUtils.add(sum, pc.amount), 0);
 
         const buybacks = await db.gold_buyback
           .where('date').aboveOrEqual(startTime)
           .toArray();
-        const buybackTotal = buybacks.reduce((sum, b) => sum + b.buybackPrice, 0);
+        const buybackTotal = buybacks.reduce((sum, b) => MathUtils.add(sum, b.buybackPrice), 0);
 
         // 3. Update shift_totals table
         await db.shift_totals.put({

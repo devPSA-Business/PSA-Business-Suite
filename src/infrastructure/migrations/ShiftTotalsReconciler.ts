@@ -1,5 +1,6 @@
 import { db } from '../../shared/api/db';
 import { logger } from '../../lib/logger';
+import { MathUtils } from '../../shared/utils/decimalUtils';
 
 export class ShiftTotalsReconciler {
   /**
@@ -32,10 +33,17 @@ export class ShiftTotalsReconciler {
           .filter(t => t.status === 'SUCCESS')
           .toArray();
         
-        const salesTotal = transactions.reduce((sum, t) => sum + t.total, 0);
+        const salesTotal = transactions.reduce((sum, t) => MathUtils.add(sum, t.total), 0);
         const cashInSales = transactions
           .filter(t => t.paymentMethod === 'CASH')
-          .reduce((sum, t) => sum + t.total, 0);
+          .reduce((sum, t) => MathUtils.add(sum, t.total), 0);
+
+        // FIX: Tambahkan porsi kas dari SPLIT payment
+        // @business_rule: SPLIT = cashPortion (kas) + sisanya (QRIS/Transfer)
+        // Hanya porsi kas yang masuk ke cashIn laci
+        const splitCashIn = transactions
+          .filter(t => t.paymentMethod === 'SPLIT' && t.cashPortion !== undefined && t.cashPortion > 0)
+          .reduce((sum, t) => MathUtils.add(sum, t.cashPortion ?? 0), 0);
 
         const repairs = await db.repair_services
           .where('date').aboveOrEqual(startTime)
@@ -59,7 +67,7 @@ export class ShiftTotalsReconciler {
           id: openShift.id,
           startTime: openShift.startTime,
           openCash: openShift.startCash,
-          cashIn: cashInSales + cashInRepairs,
+          cashIn: MathUtils.add(MathUtils.add(cashInSales, splitCashIn), cashInRepairs),
           cashOut: pettyCashTotal, // FASE 2: buyback dari kas terpisah
           salesTotal: salesTotal,
           buybackTotal: buybackTotal,

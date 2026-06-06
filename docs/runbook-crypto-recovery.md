@@ -61,7 +61,77 @@ Verifikasi backup setiap **6 bulan sekali** atau setelah:
 
 ---
 
-## 3. Recovery Key — Kunci Pemulihan PIN
+## 3. Strategi Penyimpanan Recovery Key — Cold Storage
+
+### 3.1 Prinsip Dasar
+
+Recovery Key adalah satu-satunya cara memulihkan data jika PIN terlupakan dan sistem terkunci.  
+Hilangnya Recovery Key = **data tidak dapat dipulihkan selamanya.**
+
+**Strategi terbaik: PRIMARY fisik + SEKUNDER digital terenkripsi**
+
+---
+
+### 3.2 PRIMER (Wajib): Penyimpanan Fisik
+
+Cetak atau tulis Recovery Key di kertas:
+- ✅ Simpan di brankas atau laci terkunci
+- ✅ Buat 2 salinan di 2 lokasi berbeda (toko + rumah)
+- ❌ Jangan foto dengan HP
+- ❌ Jangan kirim via WhatsApp/chat apapun
+
+---
+
+### 3.3 SEKUNDER (Sangat Direkomendasikan): Bitwarden
+
+**Bitwarden** adalah password manager dengan enkripsi zero-knowledge (bahkan Bitwarden tidak bisa membaca data Anda). Ini adalah opsi digital yang aman.
+
+**Langkah setup Bitwarden untuk Recovery Key:**
+
+1. Buat akun di **bitwarden.com** (gratis)
+2. Aktifkan Two-Factor Authentication (2FA) di akun Bitwarden
+3. Di Bitwarden: klik `+ New Item` → pilih `Secure Note`
+4. Judul: `PSA Business Suite — Recovery Key`
+5. Isi catatan:
+   ```
+   Recovery Key: [32 karakter Recovery Key Anda]
+   VITE_CRYPTO_PEPPER: [nilai dari GitHub Secrets]
+   Tanggal setup: [tanggal]
+   Aplikasi: PSA Business Suite
+   ```
+6. Simpan
+
+**Penting:** Password Bitwarden itu sendiri harus kuat dan TIDAK boleh sama dengan PIN aplikasi.
+
+---
+
+### 3.4 SEKUNDER (Alternatif): Google Drive Terenkripsi
+
+Jika tidak menggunakan Bitwarden, Google Drive bisa digunakan HANYA dengan enkripsi tambahan:
+
+1. Buat file `.txt` berisi Recovery Key
+2. Compress menjadi `.zip` dengan password (gunakan 7-Zip atau WinRAR)
+3. Upload file `.zip` terenkripsi ke Google Drive (folder private)
+4. Simpan password zip di tempat terpisah dari Google Drive
+
+> ⚠️ **Risiko:** Google Drive bisa diakses jika email Google Anda dikompromikan. Ini lebih berisiko dari Bitwarden. Gunakan hanya sebagai backup ketiga, bukan utama.
+
+---
+
+### 3.5 Tabel Prioritas Penyimpanan
+
+| Prioritas | Metode | Keamanan | Kemudahan |
+|-----------|--------|----------|-----------|
+| 1 (WAJIB) | Kertas fisik di brankas | ⭐⭐⭐⭐⭐ | Tergantung akses fisik |
+| 2 (Sangat Direkomendasikan) | Bitwarden Secure Note | ⭐⭐⭐⭐ | Mudah, akses dari mana saja |
+| 3 (Alternatif) | Google Drive + zip terenkripsi | ⭐⭐⭐ | Sedang |
+| ❌ DILARANG | WhatsApp, foto HP, email | ⭐ | Mudah tapi sangat berisiko |
+| ❌ DILARANG | Plaintext di Google Drive/cloud | ⭐ | Mudah tapi sangat berisiko |
+
+
+---
+
+## 4. Recovery Key — Kunci Pemulihan PIN
 
 Recovery Key adalah 24 kata acak (BIP-39 style) yang di-generate saat setup awal.
 Key ini memungkinkan owner membuka database meskipun PIN kasir terlupa.
@@ -101,7 +171,7 @@ Perangkat: _____________________________________________________
 
 ---
 
-## 4. Prosedur Darurat Kehilangan Semua Akses
+## 5. Prosedur Darurat Kehilangan Semua Akses
 
 Jika SEMUA lapisan keamanan hilang (Pepper + Recovery Key + PIN):
 
@@ -133,7 +203,7 @@ Gunakan tombol **"Darurat: Reset Database Lokal"** di halaman login.
 
 ---
 
-## 5. Checklist Backup Rutin (Bulanan)
+## 6. Checklist Backup Rutin (Bulanan)
 
 Dilakukan setiap **tanggal 1** setiap bulan oleh Owner:
 
@@ -145,7 +215,7 @@ Dilakukan setiap **tanggal 1** setiap bulan oleh Owner:
 
 ---
 
-## 6. Kontak Darurat
+## 7. Kontak Darurat
 
 ```
 Developer PSA Business Suite

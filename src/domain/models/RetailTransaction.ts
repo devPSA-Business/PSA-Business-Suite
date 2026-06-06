@@ -13,6 +13,9 @@ export interface RetailTransactionItem {
 export interface RetailTransactionProps {
   total: number;
   paymentMethod: 'CASH' | 'QRIS' | 'TRANSFER' | 'SPLIT';
+  // @business_rule: Hanya diisi untuk paymentMethod === 'SPLIT'. Merepresentasikan
+  //                 porsi kas tunai dari total transaksi. Unit: Rupiah integer.
+  cashPortion?: number;
   items: RetailTransactionItem[];
   status: 'SUCCESS' | 'VOIDED';
   userId: string;
@@ -34,6 +37,8 @@ export interface RetailTransactionProps {
 export class RetailTransaction extends Entity<RetailTransactionProps> {
   public readonly total: number;
   public readonly paymentMethod: 'CASH' | 'QRIS' | 'TRANSFER' | 'SPLIT';
+  /** @business_rule Hanya untuk SPLIT payment. Porsi kas tunai. */
+  public readonly cashPortion?: number;
   public readonly items: RetailTransactionItem[];
   public readonly status: 'SUCCESS' | 'VOIDED';
   public readonly userId: string;
@@ -55,6 +60,7 @@ export class RetailTransaction extends Entity<RetailTransactionProps> {
     super(id, createdAt);
     this.total = props.total;
     this.paymentMethod = props.paymentMethod;
+    this.cashPortion = props.cashPortion;
     this.items = props.items;
     this.status = props.status;
     this.userId = props.userId;

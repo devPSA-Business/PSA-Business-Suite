@@ -250,6 +250,9 @@ export class CheckoutUseCase {
            }
 
            // 5. Create Domain Entity
+           // FIX TD-01: cashPortion di-persist ke domain entity agar ShiftTotalsReconciler
+           // dapat merekonstruksi saldo kas akurat dari cold data (tanpa shift_totals).
+           // Lihat: docs/adr/ dan ShiftTotalsReconciler.ts
            const transaction = RetailTransaction.create({
              total: finalTotal,
              paymentMethod: request.paymentMethod,
@@ -265,7 +268,8 @@ export class CheckoutUseCase {
              manualDiscountNote,
              authorizedBy: request.authorizedBy, // Record authorizer
              isFlagged, // Injeksi flag
-             flagReason // Injeksi alasan
+             flagReason, // Injeksi alasan
+             cashPortion: request.paymentMethod === 'SPLIT' ? (request.cashPortion ?? 0) : undefined,
            });
 
            // 6. Persist Entity

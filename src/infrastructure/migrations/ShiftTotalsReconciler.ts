@@ -1,5 +1,6 @@
 import { db } from '../../shared/api/db';
 import { logger } from '../../lib/logger';
+import { MathUtils } from '../../shared/utils/decimalUtils';
 
 export class ShiftTotalsReconciler {
   /**
@@ -32,34 +33,41 @@ export class ShiftTotalsReconciler {
           .filter(t => t.status === 'SUCCESS')
           .toArray();
         
-        const salesTotal = transactions.reduce((sum, t) => sum + t.total, 0);
+        const salesTotal = transactions.reduce((sum, t) => MathUtils.add(sum, t.total), 0);
         const cashInSales = transactions
           .filter(t => t.paymentMethod === 'CASH')
-          .reduce((sum, t) => sum + t.total, 0);
+          .reduce((sum, t) => MathUtils.add(sum, t.total), 0);
+
+        // FIX: Tambahkan porsi kas dari SPLIT payment
+        // @business_rule: SPLIT = cashPortion (kas) + sisanya (QRIS/Transfer)
+        // Hanya porsi kas yang masuk ke cashIn laci
+        const splitCashIn = transactions
+          .filter(t => t.paymentMethod === 'SPLIT' && t.cashPortion !== undefined && t.cashPortion > 0)
+          .reduce((sum, t) => MathUtils.add(sum, t.cashPortion ?? 0), 0);
 
         const repairs = await db.repair_services
           .where('date').aboveOrEqual(startTime)
           .filter(r => (r.status === 'COMPLETED' || r.status === 'DELIVERED') && r.paymentMethod === 'CASH')
           .toArray();
-        const cashInRepairs = repairs.reduce((sum, r) => sum + r.price, 0);
+        const cashInRepairs = repairs.reduce((sum, r) => MathUtils.add(sum, r.price), 0);
 
         // 2. Calculate Cash Out (Petty Cash + Buyback)
         const pettyCashRecords = await db.petty_cash
           .where('date').aboveOrEqual(startTime)
           .toArray();
-        const pettyCashTotal = pettyCashRecords.reduce((sum, pc) => sum + pc.amount, 0);
+        const pettyCashTotal = pettyCashRecords.reduce((sum, pc) => MathUtils.add(sum, pc.amount), 0);
 
         const buybacks = await db.gold_buyback
           .where('date').aboveOrEqual(startTime)
           .toArray();
-        const buybackTotal = buybacks.reduce((sum, b) => sum + b.buybackPrice, 0);
+        const buybackTotal = buybacks.reduce((sum, b) => MathUtils.add(sum, b.buybackPrice), 0);
 
         // 3. Update shift_totals table
         await db.shift_totals.put({
           id: openShift.id,
           startTime: openShift.startTime,
           openCash: openShift.startCash,
-          cashIn: cashInSales + cashInRepairs,
+          cashIn: MathUtils.add(MathUtils.add(cashInSales, splitCashIn), cashInRepairs),
           cashOut: pettyCashTotal, // FASE 2: buyback dari kas terpisah
           salesTotal: salesTotal,
           buybackTotal: buybackTotal,

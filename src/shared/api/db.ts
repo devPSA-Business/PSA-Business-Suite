@@ -42,6 +42,12 @@ export interface Transaction {
   /** @precision Selalu gunakan MathUtils untuk aritmatika. Jangan gunakan JS native math. */
   total: number;
   paymentMethod: 'CASH' | 'QRIS' | 'TRANSFER' | 'SPLIT';
+  /**
+   * Porsi kas untuk pembayaran SPLIT.
+   * @business_rule Hanya diisi jika paymentMethod === 'SPLIT'.
+   * @precision Gunakan MathUtils untuk semua aritmatika. Nilai integer Rupiah.
+   */
+  cashPortion?: number;
   items: TransactionItem[];
   status: 'SUCCESS' | 'VOIDED';
   user: string;

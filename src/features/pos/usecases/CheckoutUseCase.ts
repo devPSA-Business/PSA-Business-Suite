@@ -363,6 +363,7 @@ export class CheckoutUseCase {
                date: transaction.createdAt,
                total: transaction.total,
                paymentMethod: transaction.paymentMethod,
+               cashPortion: transaction.cashPortion, // FIX P1-A: SPLIT cashPortion harus sync ke Firestore
                items: transaction.items,
                status: transaction.status,
                user: transaction.userId,

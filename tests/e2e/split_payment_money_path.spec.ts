@@ -11,6 +11,7 @@
 import { describe, it, expect, beforeEach, afterEach } from 'vitest';
 import { db } from '@shared/api/db';
 import { CheckoutUseCase } from '@features/pos/usecases/CheckoutUseCase';
+import { VoidTransactionUseCase } from '@features/pos/usecases/VoidTransactionUseCase';
 import { LoyaltyUseCase } from '@features/pos/usecases/LoyaltyUseCase';
 import { RetailRepositoryImpl } from '@infrastructure/repositories/RetailRepositoryImpl';
 import { StockRepositoryImpl } from '@infrastructure/repositories/StockRepositoryImpl';
@@ -294,5 +295,119 @@ describe('Integration: SPLIT Payment — The Money Path', () => {
       ).rejects.toThrow('melebihi atau sama dengan total akhir setelah diskon');
     });
   });
+
+  // ═══════════════════════════════════════════════════════════════════════════
+  // P1-B: VoidTransactionUseCase — SPLIT cashPortion revert
+  // P1-C: ShiftRepositoryImpl.calculateExpectedCash — SPLIT cashPortion inclusion
+  // ═══════════════════════════════════════════════════════════════════════════
+  describe('P1-B & P1-C: SPLIT void revert + calculateExpectedCash', () => {
+    // ─── TC-10: Void SPLIT → shift cashIn berkurang tepat cashPortion ────────
+    it('TC-10: Void SPLIT transaction harus revert cashIn sebesar cashPortion (bukan full total atau 0)', async () => {
+      // Setup shift_totals awal agar incrementShiftSales/revertShiftSales bekerja
+      await db.shift_totals.put({
+        id: SHIFT_ID,
+        startTime: Date.now() - 3600_000,
+        openCash: START_CASH,
+        cashIn: 0,
+        cashOut: 0,
+        salesTotal: 0,
+        buybackTotal: 0,
+        pettyCashTotal: 0,
+        lastUpdatedAt: Date.now()
+      });
+
+      // Checkout SPLIT: Rp 60k tunai + Rp 40k QRIS
+      const txId = await checkoutUseCase.execute({
+        subtotal: PRODUCT_PRICE,
+        items: [{ stockId: STOCK_ID, quantity: 1, price: PRODUCT_PRICE, name: 'Test Item', subtotal: PRODUCT_PRICE }],
+        total: PRODUCT_PRICE,
+        paymentMethod: 'SPLIT',
+        cashPortion: CASH_PORTION, // 60k masuk laci
+        sessionId: SHIFT_ID,       // KRITIS: diperlukan agar void dapat temukan shift untuk revert
+        userId: 'USR-ADMIN',
+        branchId: 'MAIN'
+      } as any);
+
+      // Verifikasi cashIn setelah checkout = 60k (bukan 100k)
+      const afterCheckout = await db.shift_totals.get(SHIFT_ID);
+      expect(afterCheckout!.cashIn).toBe(CASH_PORTION); // 60k
+
+      // Void transaksi
+      const voidUseCase = new VoidTransactionUseCase(uow, retailRepo, stockRepo, shiftRepo);
+      await voidUseCase.execute({
+        transactionId: txId,
+        reason: 'Test void TC-10',
+        authorizedBy: 'USR-ADMIN'
+      });
+
+      // KRITIS: cashIn harus kembali ke 0 — dikurangi cashPortion (60k), bukan total (100k) atau 0
+      const afterVoid = await db.shift_totals.get(SHIFT_ID);
+      expect(afterVoid!.cashIn).toBe(0); // 60k - 60k = 0
+    });
+
+    // ─── TC-11: Void CASH → cashIn berkurang full total (regression test) ───
+    it('TC-11: Void CASH transaction harus revert cashIn sebesar full total (regression)', async () => {
+      await db.shift_totals.put({
+        id: SHIFT_ID,
+        startTime: Date.now() - 3600_000,
+        openCash: START_CASH,
+        cashIn: 0,
+        cashOut: 0,
+        salesTotal: 0,
+        buybackTotal: 0,
+        pettyCashTotal: 0,
+        lastUpdatedAt: Date.now()
+      });
+
+      const txId = await checkoutUseCase.execute({
+        subtotal: PRODUCT_PRICE,
+        items: [{ stockId: STOCK_ID, quantity: 1, price: PRODUCT_PRICE, name: 'Test Item', subtotal: PRODUCT_PRICE }],
+        total: PRODUCT_PRICE,
+        paymentMethod: 'CASH',
+        sessionId: SHIFT_ID,  // KRITIS: diperlukan agar void dapat temukan shift untuk revert
+        userId: 'USR-ADMIN',
+        branchId: 'MAIN'
+      } as any);
+
+      const afterCheckout = await db.shift_totals.get(SHIFT_ID);
+      expect(afterCheckout!.cashIn).toBe(PRODUCT_PRICE); // 100k
+
+      const voidUseCase = new VoidTransactionUseCase(uow, retailRepo, stockRepo, shiftRepo);
+      await voidUseCase.execute({
+        transactionId: txId,
+        reason: 'Test void TC-11',
+        authorizedBy: 'USR-ADMIN'
+      });
+
+      const afterVoid = await db.shift_totals.get(SHIFT_ID);
+      expect(afterVoid!.cashIn).toBe(0); // 100k - 100k = 0
+    });
+
+    // ─── TC-12: calculateExpectedCash harus include SPLIT cashPortion ────────
+    it('TC-12: calculateExpectedCash harus hitung startCash + cashPortion untuk SPLIT (bukan 0 atau total)', async () => {
+      // Checkout SPLIT tanpa setup shift_totals — calculateExpectedCash baca langsung dari transactions
+      await checkoutUseCase.execute({
+        subtotal: PRODUCT_PRICE,
+        items: [{ stockId: STOCK_ID, quantity: 1, price: PRODUCT_PRICE, name: 'Test Item', subtotal: PRODUCT_PRICE }],
+        total: PRODUCT_PRICE,
+        paymentMethod: 'SPLIT',
+        cashPortion: CASH_PORTION, // 60k
+        sessionId: SHIFT_ID,       // KRITIS: calculateExpectedCash query by sessionId
+        userId: 'USR-ADMIN',
+        branchId: 'MAIN'
+      } as any);
+
+      const expectedCash = await shiftRepo.calculateExpectedCash(SHIFT_ID);
+
+      const correctExpected   = MathUtils.add(START_CASH, CASH_PORTION);  // 560,000 ✓
+      const buggyExpected_old = START_CASH;                                // 500,000 ✗ (SPLIT diabaikan)
+      const buggyExpected_max = MathUtils.add(START_CASH, PRODUCT_PRICE); // 600,000 ✗ (full total terhitung)
+
+      expect(expectedCash).toBe(correctExpected);
+      expect(expectedCash).not.toBe(buggyExpected_old);
+      expect(expectedCash).not.toBe(buggyExpected_max);
+    });
+  });
+
 
 });

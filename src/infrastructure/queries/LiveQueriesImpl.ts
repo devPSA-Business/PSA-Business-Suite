@@ -202,6 +202,13 @@ export class LiveQueriesImpl implements ILiveQueries {
         .filter(t => t.status === 'SUCCESS' && t.paymentMethod === 'CASH')
         .each(tx => { cashIn = MathUtils.add(cashIn, tx.total); });
 
+      // Aggregasi transaksi SPLIT — hanya porsi kas (cashPortion)
+      // @business_rule: SPLIT = cashPortion (masuk laci) + sisanya QRIS/Transfer (tidak ke laci)
+      await db.transactions
+        .where('date').aboveOrEqual(startTime)
+        .filter(t => t.status === 'SUCCESS' && t.paymentMethod === 'SPLIT' && (t.cashPortion ?? 0) > 0)
+        .each(tx => { cashIn = MathUtils.add(cashIn, tx.cashPortion ?? 0); });
+
       // Aggregasi servis reparasi cash via cursor
       await db.repair_services
         .where('date').aboveOrEqual(startTime)

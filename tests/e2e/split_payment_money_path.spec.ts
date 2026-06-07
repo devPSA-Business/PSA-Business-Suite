@@ -168,4 +168,131 @@ describe('Integration: SPLIT Payment — The Money Path', () => {
     expect(MathUtils.add(reconciled!.openCash ?? 0, reconciled!.cashIn)).toBe(expectedCashBalance);
     expect(MathUtils.add(reconciled!.openCash ?? 0, reconciled!.cashIn)).not.toBe(wrongCashBalance);
   });
+
+  // ═══════════════════════════════════════════════════════════════════════════
+  // Rule SPLIT-2: cashPortion boundary validation
+  // Memastikan bahwa validasi pre-transaction DAN post-loyalty bekerja benar.
+  // ═══════════════════════════════════════════════════════════════════════════
+  describe('Rule SPLIT-2: cashPortion boundary validation', () => {
+    // ─── TC-4: cashPortion negatif → throw ──────────────────────────────────
+    it('TC-4: cashPortion negatif harus diblokir (pre-tx check)', async () => {
+      await expect(
+        checkoutUseCase.execute({
+          subtotal: PRODUCT_PRICE,
+          items: [{ stockId: STOCK_ID, quantity: 1, price: PRODUCT_PRICE, name: 'Test Item', subtotal: PRODUCT_PRICE }],
+          total: PRODUCT_PRICE,
+          paymentMethod: 'SPLIT',
+          cashPortion: -1,
+          userId: 'USR-ADMIN',
+          branchId: 'MAIN'
+        } as any)
+      ).rejects.toThrow('cashPortion tidak boleh bernilai negatif');
+    });
+
+    // ─── TC-5: cashPortion = 0 → throw ─────────────────────────────────────
+    it('TC-5: cashPortion Rp 0 harus diblokir (pre-tx check)', async () => {
+      await expect(
+        checkoutUseCase.execute({
+          subtotal: PRODUCT_PRICE,
+          items: [{ stockId: STOCK_ID, quantity: 1, price: PRODUCT_PRICE, name: 'Test Item', subtotal: PRODUCT_PRICE }],
+          total: PRODUCT_PRICE,
+          paymentMethod: 'SPLIT',
+          cashPortion: 0,
+          userId: 'USR-ADMIN',
+          branchId: 'MAIN'
+        } as any)
+      ).rejects.toThrow('cashPortion tidak boleh Rp 0');
+    });
+
+    // ─── TC-6: cashPortion = total (sama persis) → throw ───────────────────
+    it('TC-6: cashPortion = total (bukan SPLIT, harusnya CASH) harus diblokir', async () => {
+      await expect(
+        checkoutUseCase.execute({
+          subtotal: PRODUCT_PRICE,
+          items: [{ stockId: STOCK_ID, quantity: 1, price: PRODUCT_PRICE, name: 'Test Item', subtotal: PRODUCT_PRICE }],
+          total: PRODUCT_PRICE,
+          paymentMethod: 'SPLIT',
+          cashPortion: PRODUCT_PRICE, // cashPortion = total → bukan SPLIT
+          userId: 'USR-ADMIN',
+          branchId: 'MAIN'
+        } as any)
+      ).rejects.toThrow('tidak boleh melebihi atau sama dengan total transaksi');
+    });
+
+    // ─── TC-7: cashPortion > total → throw ─────────────────────────────────
+    it('TC-7: cashPortion melebihi total harus diblokir (pre-tx check)', async () => {
+      await expect(
+        checkoutUseCase.execute({
+          subtotal: PRODUCT_PRICE,
+          items: [{ stockId: STOCK_ID, quantity: 1, price: PRODUCT_PRICE, name: 'Test Item', subtotal: PRODUCT_PRICE }],
+          total: PRODUCT_PRICE,
+          paymentMethod: 'SPLIT',
+          cashPortion: PRODUCT_PRICE + 1, // 1 rupiah lebih dari total
+          userId: 'USR-ADMIN',
+          branchId: 'MAIN'
+        } as any)
+      ).rejects.toThrow('tidak boleh melebihi atau sama dengan total transaksi');
+    });
+
+    // ─── TC-8: cashPortion valid (boundary pass) → sukses ──────────────────
+    it('TC-8: cashPortion valid (< total) harus berhasil diproses', async () => {
+      const VALID_CASH_PORTION = PRODUCT_PRICE - 1; // 1 rupiah kurang dari total
+      await expect(
+        checkoutUseCase.execute({
+          subtotal: PRODUCT_PRICE,
+          items: [{ stockId: STOCK_ID, quantity: 1, price: PRODUCT_PRICE, name: 'Test Item', subtotal: PRODUCT_PRICE }],
+          total: PRODUCT_PRICE,
+          paymentMethod: 'SPLIT',
+          cashPortion: VALID_CASH_PORTION,
+          userId: 'USR-ADMIN',
+          branchId: 'MAIN'
+        } as any)
+      ).resolves.toBeDefined(); // tidak throw → transaksi berhasil
+    });
+
+    // ─── TC-9: cashPortion > finalTotal setelah loyalty discount → throw ────
+    // Skenario: total = 100k, cashPortion = 80k (< total, lolos pre-check).
+    // Server loyalty mengurangi finalTotal menjadi 70k (30k discount).
+    // Post-loyalty check: 80k >= 70k → HARUS throw.
+    //
+    // Root cause sesi sebelumnya: mock menggunakan req.total (undefined)
+    // padahal LoyaltyUseCase menerima req.transactionAmount (bukan req.total).
+    // Fix: gunakan req.transactionAmount di mock.
+    it('TC-9: cashPortion > finalTotal setelah loyalty discount harus diblokir (post-loyalty check)', async () => {
+      const LOYALTY_REDUCTION = 30_000;
+      // cashPortion = 80k. total = 100k → lolos pre-check (80k < 100k).
+      // Setelah loyalty: finalTotal = 70k. Post-check: 80k >= 70k → throw.
+      const cashPortionOver = 80_000;
+
+      // Mock dengan loyalty yang mengurangi total 30k
+      // PENTING: gunakan req.transactionAmount (bukan req.total) sesuai LoyaltyCalculationRequest
+      const loyaltyWith30kReduction = {
+        calculateAndApplyLoyalty: (req: any) => Dexie.Promise.resolve({
+          netTotal: (req.transactionAmount as number) - LOYALTY_REDUCTION,
+          pointsEarned: 0,
+          pointsRedeemed: 0,
+          loyaltyDiscountAmount: LOYALTY_REDUCTION
+        })
+      } as unknown as LoyaltyUseCase;
+
+      const uowForTC9 = new UnitOfWorkImpl(new SyncServiceImpl());
+      const checkoutForTC9 = new CheckoutUseCase(
+        retailRepo, stockRepo, shiftRepo, uowForTC9, loyaltyWith30kReduction
+      );
+
+      await expect(
+        checkoutForTC9.execute({
+          subtotal: PRODUCT_PRICE,
+          items: [{ stockId: STOCK_ID, quantity: 1, price: PRODUCT_PRICE, name: 'Test Item', subtotal: PRODUCT_PRICE }],
+          total: PRODUCT_PRICE,   // 100k → lolos pre-check (80k < 100k)
+          paymentMethod: 'SPLIT',
+          cashPortion: cashPortionOver, // 80k → harus gagal post-loyalty (80k >= 70k)
+          customerId: 'CUST-TC9-TEST',  // trigger loyalty path
+          userId: 'USR-ADMIN',
+          branchId: 'MAIN'
+        } as any)
+      ).rejects.toThrow('melebihi atau sama dengan total akhir setelah diskon');
+    });
+  });
+
 });

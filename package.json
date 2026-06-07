@@ -47,7 +47,7 @@
     "@firebase/eslint-plugin-security-rules": "^0.0.2",
     "@firebase/rules-unit-testing": "^5.0.1",
     "@tailwindcss/vite": "^4.1.14",
-    "@types/node": "^22.19.17",
+    "@types/node": "^25.9.2",
     "@types/react": "^19.2.14",
     "@types/react-dom": "^19.2.3",
     "@types/w3c-web-usb": "^1.0.14",

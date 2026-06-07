@@ -74,6 +74,24 @@ export class CheckoutUseCase {
         throw new Error('Transaksi Rp 0 diblokir. Otorisasi Manager atau Admin diperlukan.');
       }
 
+      // Rule SPLIT-2 (pre-transaction): cashPortion boundary validation
+      // Validasi ini menggunakan request.total (sudah divalidasi vs DB price).
+      // Validasi kedua (post-loyalty) dilakukan di dalam transaksi setelah finalTotal diketahui.
+      // @business_rule: 0 < cashPortion < total. Jika cashPortion = 0 → gunakan QRIS/Transfer.
+      //                 Jika cashPortion >= total → gunakan CASH penuh, bukan SPLIT.
+      if (request.paymentMethod === 'SPLIT') {
+        const cp = request.cashPortion ?? 0;
+        if (cp < 0) {
+          throw new Error('SPLIT payment: cashPortion tidak boleh bernilai negatif.');
+        }
+        if (cp === 0) {
+          throw new Error('SPLIT payment: cashPortion tidak boleh Rp 0. Gunakan metode QRIS atau Transfer untuk pembayaran non-tunai penuh.');
+        }
+        if (request.total > 0 && MathUtils.roundInt(cp) >= MathUtils.roundInt(request.total)) {
+          throw new Error(`SPLIT payment: porsi kas (Rp ${cp.toLocaleString('id-ID')}) tidak boleh melebihi atau sama dengan total transaksi (Rp ${request.total.toLocaleString('id-ID')}). Gunakan metode CASH untuk pembayaran tunai penuh.`);
+        }
+      }
+
       const maxRetries = 3;
       let attempt = 0;
 
@@ -249,6 +267,17 @@ export class CheckoutUseCase {
              flagReason = 'ANOMALI: Transaksi Rp 0 akibat diskon manual 100%';
            }
 
+           // Rule SPLIT-2 (post-loyalty): Re-validasi cashPortion terhadap finalTotal
+           // Server loyalty dapat mengurangi finalTotal lebih dari estimasi klien,
+           // sehingga cashPortion yang lolos pre-check bisa melebihi finalTotal sesungguhnya.
+           // @business_rule: 0 < cashPortion < finalTotal (setelah SEMUA diskon).
+           if (request.paymentMethod === 'SPLIT' && finalTotal > 0) {
+             const cp = request.cashPortion ?? 0;
+             if (MathUtils.roundInt(cp) >= MathUtils.roundInt(finalTotal)) {
+               throw new Error(`SPLIT payment: porsi kas (Rp ${cp.toLocaleString('id-ID')}) melebihi atau sama dengan total akhir setelah diskon (Rp ${finalTotal.toLocaleString('id-ID')}). Kurangi porsi kas atau ubah metode pembayaran.`);
+             }
+           }
+
            // 5. Create Domain Entity
            // FIX TD-01: cashPortion di-persist ke domain entity agar ShiftTotalsReconciler
            // dapat merekonstruksi saldo kas akurat dari cold data (tanpa shift_totals).
@@ -334,6 +363,7 @@ export class CheckoutUseCase {
                date: transaction.createdAt,
                total: transaction.total,
                paymentMethod: transaction.paymentMethod,
+               cashPortion: transaction.cashPortion, // FIX P1-A: SPLIT cashPortion harus sync ke Firestore
                items: transaction.items,
                status: transaction.status,
                user: transaction.userId,

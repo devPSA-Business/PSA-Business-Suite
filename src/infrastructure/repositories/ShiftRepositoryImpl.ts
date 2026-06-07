@@ -102,6 +102,14 @@ export class ShiftRepositoryImpl implements IShiftRepository {
       .filter(t => t.status === 'SUCCESS' && t.paymentMethod === 'CASH')
       .each(tx => { expectedCash = MathUtils.add(expectedCash, tx.total); });
 
+    // [+] CASH IN: 1b. Transaksi Ritel (SPLIT — porsi kas saja)
+    // @business_rule: SPLIT = cashPortion (masuk laci) + sisanya QRIS/Transfer (tidak ke laci).
+    // VOID transactions sudah berstatus 'VOIDED' → otomatis tidak terfilter (status !== 'SUCCESS').
+    await db.transactions
+      .where('sessionId').equals(shiftId)
+      .filter(t => t.status === 'SUCCESS' && t.paymentMethod === 'SPLIT' && (t.cashPortion ?? 0) > 0)
+      .each(tx => { expectedCash = MathUtils.add(expectedCash, tx.cashPortion ?? 0); });
+
     // [+] CASH IN: 2. Pendapatan Jasa/Reparasi (Tunai & Selesai)
     await db.repair_services
       .where('date').between(shift.startTime, endTime, true, true)

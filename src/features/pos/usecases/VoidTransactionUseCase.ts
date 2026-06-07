@@ -78,9 +78,16 @@ export class VoidTransactionUseCase {
       }
 
       // Revert Shift Totals
+      // @business_rule: removedCash harus mirror logika addedCash di CheckoutUseCase:
+      //   CASH     → full voidAmount dikembalikan ke laci
+      //   SPLIT    → hanya cashPortion yang dikembalikan (sisanya QRIS/Transfer, tidak ke laci)
+      //   QRIS/TRANSFER → Rp 0 (tidak ada uang tunai di laci untuk dikembalikan)
       if (transaction.sessionId) {
         const voidAmount = transaction.total;
-        const removedCash = transaction.paymentMethod === 'CASH' ? voidAmount : 0;
+        const removedCash =
+          transaction.paymentMethod === 'CASH'  ? voidAmount :
+          transaction.paymentMethod === 'SPLIT' ? (transaction.cashPortion ?? 0) :
+          0;
         await this.shiftRepository.revertShiftSales(transaction.sessionId, removedCash, voidAmount);
       }
 

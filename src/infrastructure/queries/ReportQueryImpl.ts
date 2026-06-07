@@ -178,7 +178,13 @@ export class ReportQueryImpl implements IReportQuery {
         
         totalRevenue = MathUtils.add(totalRevenue, txRevenue);
         totalCost = MathUtils.add(totalCost, txCogs);
-        if (tx.paymentMethod === 'CASH') cashFlow.cashIn = MathUtils.add(cashFlow.cashIn, txRevenue);
+        // FIX P2: cashFlow.cashIn harus cerminkan uang yang benar-benar masuk ke laci
+        // CASH → full revenue masuk kas; SPLIT → hanya cashPortion yang masuk kas
+        if (tx.paymentMethod === 'CASH') {
+          cashFlow.cashIn = MathUtils.add(cashFlow.cashIn, txRevenue);
+        } else if (tx.paymentMethod === 'SPLIT' && (tx.cashPortion ?? 0) > 0) {
+          cashFlow.cashIn = MathUtils.add(cashFlow.cashIn, tx.cashPortion ?? 0);
+        }
       });
 
     // 4. Hitung Likuidasi Emas (Fase 2 Update: Gunakan gold_buyback dengan status sold_to_collector)

@@ -119,17 +119,23 @@ export default defineConfig(({mode}) => {
       // Optimasi Chunk Splitting agar loading awal lebih cepat
       rollupOptions: {
         output: {
-          manualChunks: {
-            'vendor-react': ['react', 'react-dom', '@tanstack/react-router'],
-            'vendor-db': ['dexie', 'dexie-react-hooks', 'firebase/app', 'firebase/firestore'],
-            // OPT-001 (2026-06-03): Pisah motion dari lucide-react ke chunk terpisah.
-            // Sebelum: vendor-ui 950KB (lucide+motion digabung) — satu cache invalidation
-            //          untuk dua library yang update-cycle-nya berbeda.
-            // Sesudah: vendor-ui (lucide-react icons, tree-shaken) + vendor-motion (animation).
-            // Benefit: cache granular — update lucide tidak invalidate motion cache & vice versa.
-            'vendor-ui': ['lucide-react'],
-            'vendor-motion': ['motion'],
-            'vendor-chart': ['recharts']
+          // OPT-001 (2026-06-03): Pisah motion dari lucide-react ke chunk terpisah.
+          // Sebelum: vendor-ui 950KB (lucide+motion digabung) — satu cache invalidation
+          //          untuk dua library yang update-cycle-nya berbeda.
+          // Sesudah: vendor-ui (lucide-react icons, tree-shaken) + vendor-motion (animation).
+          // Benefit: cache granular — update lucide tidak invalidate motion cache & vice versa.
+          //
+          // FIX (2026-06-08): Vite 8 mengganti bundler internal Rollup → Rolldown (rolldown@1.x).
+          // Di Rolldown, manualChunks HANYA menerima ManualChunksFunction — object literal
+          // { 'chunk-name': string[] } sudah TIDAK kompatibel (breaking API change).
+          // Konversi ke function syntax agar TSC 0 error & chunk splitting tetap berfungsi.
+          manualChunks: (id: string): string | undefined => {
+            if (['react', 'react-dom', '@tanstack/react-router'].some(m => id.includes(m))) return 'vendor-react';
+            if (['dexie', 'dexie-react-hooks', 'firebase/app', 'firebase/firestore'].some(m => id.includes(m))) return 'vendor-db';
+            if (id.includes('lucide-react')) return 'vendor-ui';
+            if (id.includes('motion')) return 'vendor-motion';
+            if (id.includes('recharts')) return 'vendor-chart';
+            return undefined;
           }
         }
       }

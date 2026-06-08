@@ -18,8 +18,18 @@ export interface StockItem {
   version?: number;
   isDeleted?: boolean;
   branchId?: string;
-  isStale?: boolean; // Indicates offline client needs Server HPP calculation
-  is_shadow_hpp?: boolean; // Phase 1.1: indicates cost is a shadow moving average calculation
+  /**
+   * @pending_phase 1.1 — tidak digunakan hingga HPP (Harga Pokok Penjualan) feature diimplementasi.
+   * Field ini TIDAK boleh dihapus karena BulkReceiveStockUseCase.ts:66 masih menulis ke sini.
+   * Menandakan bahwa IndexedDB lokal perlu kalkulasi HPP dari server setelah sinkronisasi.
+   */
+  isStale?: boolean;
+  /**
+   * @pending_phase 1.1 — tidak digunakan hingga HPP feature diimplementasi.
+   * Field ini TIDAK boleh dihapus karena BulkReceiveStockUseCase.ts:76 masih menulis ke sini.
+   * Menandakan bahwa unitCost dihitung sebagai shadow moving average (bukan HPP aktual).
+   */
+  is_shadow_hpp?: boolean;
 }
 
 export interface TransactionItem {

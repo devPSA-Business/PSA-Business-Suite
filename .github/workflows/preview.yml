@@ -17,8 +17,19 @@ on:
   pull_request:
     branches: [main]
     types: [opened, synchronize, reopened]
+  # P2-3 CI Pruning (2026-06-08): Batasi push trigger ke develop saja.
+  # Sebelum: ui/**, ux/**, feature/**, fix/** semua men-trigger Firebase Preview Channel deploy.
+  # Ini overhead signifikan — setiap commit ke branch kerja = 1 Firebase deploy.
+  # Sesudah: hanya develop yang auto-deploy preview. Feature branches pakai workflow_dispatch.
   push:
-    branches: [develop, 'ui/**', 'ux/**', 'feature/**', 'fix/**']
+    branches: [develop]
+  # Manual trigger: gunakan ini untuk preview feature branch tanpa harus push ke develop.
+  workflow_dispatch:
+    inputs:
+      reason:
+        description: 'Alasan trigger manual preview'
+        required: false
+        default: 'Manual preview check'
 
 concurrency:
   group: preview-${{ github.ref }}

@@ -14,7 +14,7 @@ type PaymentMethod = 'CASH' | 'QRIS' | 'SPLIT';
 interface CheckoutState {
   paymentMethod: PaymentMethod;
   cashReceived: number;
-  /** [BUG-02] Porsi tunai untuk SPLIT payment. Rp X tunai + (total-X) QRIS. */
+  /** @resolved BUG-02: Porsi tunai untuk SPLIT payment. Rp X tunai + (total-X) QRIS. */
   cashPortion: number;
   customer: Customer | null;
   pointsToRedeem: number;
@@ -96,7 +96,7 @@ export const useCheckoutStore = create<CheckoutState>((set, get) => ({
         subtotal: totalPrice,        // pre-discount, untuk validasi anti-tampering
         total: finalTotal,           // post-discount, yang benar-benar dibayar pelanggan
         paymentMethod: paymentMethod,
-        // [BUG-02] Pass cashPortion untuk SPLIT — UseCase menggunakannya untuk shift.cashIn
+        // @resolved BUG-02: Pass cashPortion untuk SPLIT — UseCase menggunakannya untuk shift.cashIn
         cashPortion: paymentMethod === 'SPLIT' ? cashPortion : undefined,
         items: cartItems.map(item => ({
           stockId: item.stockId,

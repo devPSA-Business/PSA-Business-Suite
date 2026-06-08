@@ -80,7 +80,7 @@ export interface CheckoutRequestDTO {
   authorizedBy?: string;
 
   /**
-   * [BUG-02 PREP] Porsi tunai untuk metode SPLIT payment
+   * @resolved BUG-02: Porsi tunai untuk metode SPLIT payment (cashPortion field — fully persisted di db.ts, RetailTransaction, RetailRepositoryImpl, CheckoutUseCase)
    * Contoh: total 100k, SPLIT → 60k CASH + 40k QRIS
    * cashPortion = 60000
    * Opsional, default = 0 jika bukan SPLIT

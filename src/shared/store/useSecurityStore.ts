@@ -107,8 +107,7 @@ const ensureUserSalt = async (user: User): Promise<Uint8Array> => {
       return typeof user.salt === 'string' ? new TextEncoder().encode(user.salt) : (user.salt as Uint8Array);
    }
    const newSalt = crypto.getRandomValues(new Uint8Array(32));
-   // eslint-disable-next-line @typescript-eslint/no-explicit-any
-   await db.users.update(user.id, { salt: newSalt as any });
+   await db.users.update(user.id, { salt: (newSalt as string | Uint8Array) });
    return newSalt;
 };
 
@@ -260,8 +259,7 @@ export const useSecurityStore = create<SecurityState>()(
             await cryptoKeyStore.saveWrappedKey(wrappedKeyMeta);
             // BUG-03: hash baru menggunakan usePepper=false (default baru)
             const updatedHash = await hashPin(pin, newSalt, false, HASH_ITERATIONS_V2);
-            // eslint-disable-next-line @typescript-eslint/no-explicit-any
-            await db.users.update(user.id, { salt: newSalt as any, pinHash: updatedHash });
+            await db.users.update(user.id, { salt: (newSalt as string | Uint8Array), pinHash: updatedHash });
             cryptoDB.setKey(deviceKey, wrappedKeyMeta.keyId);
           } else {
             if (!wrappedKeyMeta.wrappedKeysByPin) wrappedKeyMeta.wrappedKeysByPin = {};
@@ -276,8 +274,7 @@ export const useSecurityStore = create<SecurityState>()(
               await cryptoKeyStore.saveWrappedKey(wrappedKeyMeta);
               // BUG-03: hash upgrade menggunakan usePepper=false (migrating away from pepper)
               const updatedHash = await hashPin(pin, newSalt, false, HASH_ITERATIONS_V2);
-              // eslint-disable-next-line @typescript-eslint/no-explicit-any
-              await db.users.update(user.id, { salt: newSalt as any, pinHash: updatedHash });
+              await db.users.update(user.id, { salt: (newSalt as string | Uint8Array), pinHash: updatedHash });
               await cryptoDB.unwrapKeyWithPin(newPinWrappedKey, pin, newSalt);
             } else {
               await cryptoDB.unwrapKeyWithPin(userOfflineKey, pin, await ensureUserSalt(user));

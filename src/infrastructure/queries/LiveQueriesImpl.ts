@@ -1,6 +1,6 @@
-import { db, StockItem, RepairService, Handover, AuditLog, SuspendedCart, StockHistory, Shift, GoldBuyback, GoldLiquidation, Transaction, CustomOrder, SyncEvent } from '../../shared/api/db';
+import { db, StockItem, RepairService, Handover, AuditLog, SuspendedCart, StockHistory, Shift, GoldBuyback, GoldLiquidation, Transaction, CustomOrder, SyncEvent, Appointment, InternalNote } from '../../shared/api/db';
 import { ILiveQueries, InventoryListFilter, InventoryListResult } from '../../application/queries/ILiveQueries';
-import { PromiseExtended, liveQuery } from 'dexie';
+import { PromiseExtended, liveQuery, Collection, IndexableType } from 'dexie';
 import { cryptoDB } from '../../lib/cryptoIndexedDB';
 import { MathUtils } from '../../shared/utils/decimalUtils';
 import { logger } from '../../lib/logger';
@@ -22,8 +22,7 @@ export class LiveQueriesImpl implements ILiveQueries {
   observeOpenShift(branchId?: string): PromiseExtended<Shift | undefined> {
     const query = db.shifts.where('status').equals('OPEN');
     if (branchId && branchId !== 'HQ') {
-      // eslint-disable-next-line @typescript-eslint/no-explicit-any
-      return query.filter(s => s.branchId === branchId).first() as any;
+      return query.filter(s => s.branchId === branchId).first() as PromiseExtended<Shift | undefined>;
     }
     return query.first();
   }
@@ -31,16 +30,14 @@ export class LiveQueriesImpl implements ILiveQueries {
   observeLowStock(branchId?: string): PromiseExtended<StockItem[]> {
     const query = db.stock.where('quantity').below(5);
     if (branchId && branchId !== 'HQ') {
-      // eslint-disable-next-line @typescript-eslint/no-explicit-any
-      return query.filter(i => i.branchId === branchId).limit(100).toArray() as any;
+      return query.filter(i => i.branchId === branchId).limit(100).toArray() as PromiseExtended<StockItem[]>;
     }
     return query.limit(100).toArray();
   }
 
   observeProducts(branchId?: string): PromiseExtended<StockItem[]> {
     if (branchId && branchId !== 'HQ') {
-      // eslint-disable-next-line @typescript-eslint/no-explicit-any
-      return db.stock.filter(i => i.branchId === branchId).limit(100).toArray() as any;
+      return db.stock.filter(i => i.branchId === branchId).limit(100).toArray() as PromiseExtended<StockItem[]>;
     }
     return db.stock.limit(100).toArray();
   }
@@ -48,8 +45,7 @@ export class LiveQueriesImpl implements ILiveQueries {
   observeRepairs(branchId?: string): PromiseExtended<RepairService[]> {
     const query = db.repair_services.orderBy('date').reverse();
     if (branchId && branchId !== 'HQ') {
-      // eslint-disable-next-line @typescript-eslint/no-explicit-any
-      return query.filter(r => r.branchId === branchId).limit(100).toArray() as any;
+      return query.filter(r => r.branchId === branchId).limit(100).toArray() as PromiseExtended<RepairService[]>;
     }
     return query.limit(100).toArray();
   }
@@ -57,8 +53,7 @@ export class LiveQueriesImpl implements ILiveQueries {
   observeHandovers(branchId?: string): PromiseExtended<Handover[]> {
     const query = db.handovers.orderBy('timestamp').reverse();
     if (branchId && branchId !== 'HQ') {
-      // eslint-disable-next-line @typescript-eslint/no-explicit-any
-      return query.filter(h => h.branchId === branchId).limit(50).toArray() as any;
+      return query.filter(h => h.branchId === branchId).limit(50).toArray() as PromiseExtended<Handover[]>;
     }
     return query.limit(50).toArray();
   }
@@ -67,29 +62,28 @@ export class LiveQueriesImpl implements ILiveQueries {
     const query = db.audit_logs.orderBy('timestamp').reverse();
     
     // Konversi query menjadi Collection (tipe objek manipulasi Dexie)
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    let collection: any = query;
+    // IndexableType digunakan karena primary key tabel bervariasi (string | number)
+    let collection: Collection<AuditLog, IndexableType> = query as unknown as Collection<AuditLog, IndexableType>;
     if (branchId && branchId !== 'HQ') {
-      collection = query.filter(l => l.branchId === branchId);
+      collection = query.filter(l => l.branchId === branchId) as unknown as Collection<AuditLog, IndexableType>;
     }
     
     // Terapkan batasan (limit) SEBELUM data dilempar ke Array & di Decrypt!
     if (limit && limit > 0) {
-      collection = collection.limit(limit);
+      collection = collection.limit(limit) as unknown as Collection<AuditLog, IndexableType>;
     }
 
     const recordsPromise = collection.toArray() as Promise<AuditLog[]>;
 
-    // Cast as any because we mapped the Promise with then()
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    return recordsPromise.then((logs: AuditLog[]) => Promise.all(logs.map((log: AuditLog) => this.decryptAuditLog(log)))) as any;
+    // Explicit cast via unknown — liveQuery/then chaining returns Promise<T[]>, bukan PromiseExtended<T[]>,
+    // karena kita memetakan result lewat .then(). Tipe runtime sama, PromiseExtended interface hilang di chain.
+    return recordsPromise.then((logs: AuditLog[]) => Promise.all(logs.map((log: AuditLog) => this.decryptAuditLog(log)))) as unknown as PromiseExtended<AuditLog[]>;
   }
 
   observeSuspendedCarts(branchId?: string): PromiseExtended<SuspendedCart[]> {
     const query = db.suspended_carts.orderBy('timestamp').reverse();
     if (branchId && branchId !== 'HQ') {
-      // eslint-disable-next-line @typescript-eslint/no-explicit-any
-      return query.filter(c => c.branchId === branchId).limit(50).toArray() as any;
+      return query.filter(c => c.branchId === branchId).limit(50).toArray() as PromiseExtended<SuspendedCart[]>;
     }
     return query.limit(50).toArray();
   }
@@ -158,8 +152,7 @@ export class LiveQueriesImpl implements ILiveQueries {
   observeGoldBuybacks(branchId?: string): PromiseExtended<GoldBuyback[]> {
     const query = db.gold_buyback.orderBy('date').reverse();
     if (branchId && branchId !== 'HQ') {
-      // eslint-disable-next-line @typescript-eslint/no-explicit-any
-      return query.filter(b => b.branchId === branchId).limit(100).toArray() as any;
+      return query.filter(b => b.branchId === branchId).limit(100).toArray() as PromiseExtended<GoldBuyback[]>;
     }
     return query.limit(100).toArray();
   }
@@ -167,8 +160,7 @@ export class LiveQueriesImpl implements ILiveQueries {
   observeGoldSales(branchId?: string): PromiseExtended<GoldLiquidation[]> {
     const query = db.gold_liquidations.orderBy('date').reverse().filter(l => l.status === 'SUCCESS');
     if (branchId && branchId !== 'HQ') {
-      // eslint-disable-next-line @typescript-eslint/no-explicit-any
-      return query.filter(l => l.branchId === branchId).limit(100).toArray() as any;
+      return query.filter(l => l.branchId === branchId).limit(100).toArray() as PromiseExtended<GoldLiquidation[]>;
     }
     return query.limit(100).toArray();
   }
@@ -227,8 +219,10 @@ export class LiveQueriesImpl implements ILiveQueries {
         .each(b => { cashOut = MathUtils.add(cashOut, b.buybackPrice); });
 
       return { cashIn, cashOut };
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    }) as any;
+    // liveQuery() returns Observable<T> (Dexie reactive) — ILiveQueries interface deklarasi
+    // PromiseExtended<T> untuk kompatibilitas consumer. Cast via unknown karena
+    // runtime behavior identik; perbedaan hanya di shape interface TypeScript.
+    }) as unknown as PromiseExtended<{ cashIn: number; cashOut: number }>;
   }
 
   observeRecentTransactions(shiftStartTime: number, limit = 5, branchId?: string): PromiseExtended<Transaction[]> {
@@ -237,8 +231,7 @@ export class LiveQueriesImpl implements ILiveQueries {
       .aboveOrEqual(shiftStartTime)
       .reverse();
     if (branchId && branchId !== 'HQ') {
-      // eslint-disable-next-line @typescript-eslint/no-explicit-any
-      return query.filter((t) => t.branchId === branchId).limit(limit).toArray() as any;
+      return query.filter((t) => t.branchId === branchId).limit(limit).toArray() as PromiseExtended<Transaction[]>;
     }
     return query.limit(limit).toArray();
   }
@@ -249,27 +242,23 @@ export class LiveQueriesImpl implements ILiveQueries {
        
       return (query as unknown as PromiseExtended<CustomOrder[]>).then((orders: CustomOrder[]) =>
         orders.filter((o) => o.branchId === branchId)
-      // eslint-disable-next-line @typescript-eslint/no-explicit-any
-      ) as any;
+      ) as unknown as PromiseExtended<CustomOrder[]>;
     }
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    return query as any;
+    return query as unknown as PromiseExtended<CustomOrder[]>;
   }
 
-  observeAppointments(fromDate: number, branchId?: string): PromiseExtended<import('../../shared/api/db').Appointment[]> {
+  observeAppointments(fromDate: number, branchId?: string): PromiseExtended<Appointment[]> {
     const query = db.appointments.where('date').aboveOrEqual(fromDate);
     if (branchId && branchId !== 'HQ') {
-      // eslint-disable-next-line @typescript-eslint/no-explicit-any
-      return query.filter((a) => a.branchId === branchId).toArray() as any;
+      return query.filter((a) => a.branchId === branchId).toArray() as PromiseExtended<Appointment[]>;
     }
     return query.toArray();
   }
 
-  observeInternalNotes(fromDate: number, branchId?: string): PromiseExtended<import('../../shared/api/db').InternalNote[]> {
+  observeInternalNotes(fromDate: number, branchId?: string): PromiseExtended<InternalNote[]> {
     const query = db.internal_notes.where('date').aboveOrEqual(fromDate);
     if (branchId && branchId !== 'HQ') {
-      // eslint-disable-next-line @typescript-eslint/no-explicit-any
-      return query.filter((n) => n.branchId === branchId).toArray() as any;
+      return query.filter((n) => n.branchId === branchId).toArray() as PromiseExtended<InternalNote[]>;
     }
     return query.toArray();
   }
@@ -287,15 +276,18 @@ export class LiveQueriesImpl implements ILiveQueries {
     branchId?: string
   ): PromiseExtended<InventoryListResult> {
     return db.transaction('r', db.stock, async () => {
-      // eslint-disable-next-line @typescript-eslint/no-explicit-any
-      let collection: any;
+      // Collection<StockItem, IndexableType>: IndexableType digunakan karena primary key
+      // bisa string (UUID) atau number tergantung skema tabel. Dua path (search vs full)
+      // menghasilkan tipe Collection yang compatible.
+      let collection: Collection<StockItem, IndexableType>;
 
       if (searchTerm) {
+        // .where().startsWithIgnoreCase().or().startsWithIgnoreCase() → akhirnya Collection<T, K>
         collection = db.stock
           .where('name').startsWithIgnoreCase(searchTerm)
-          .or('barcode').startsWithIgnoreCase(searchTerm);
+          .or('barcode').startsWithIgnoreCase(searchTerm) as unknown as Collection<StockItem, IndexableType>;
       } else {
-        collection = db.stock.toCollection();
+        collection = db.stock.toCollection() as unknown as Collection<StockItem, IndexableType>;
       }
 
       const filteredCollection = collection.filter((item: StockItem) => {
@@ -313,8 +305,9 @@ export class LiveQueriesImpl implements ILiveQueries {
         .toArray();
 
       return { count, items };
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    }) as any;
+    // db.transaction() returns PromiseExtended<T> — cast via unknown untuk menyatakan
+    // tipe return generic yang tidak bisa di-infer TypeScript dari closure async.
+    }) as unknown as PromiseExtended<InventoryListResult>;
   }
 
   /**

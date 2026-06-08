@@ -1,15 +1,21 @@
 name: Forensic Audit
 
-# @ai_context: Workflow keamanan mendalam — dijalankan di setiap PR dan push ke main/develop.
+# @ai_context: Workflow keamanan mendalam — dijalankan di setiap PR dan push ke main.
 # Mencakup: TypeScript strict check, ESLint, dependency audit,
 # dan deteksi pelanggaran arsitektur (direct DB write dari UI layer).
 # NOTE: CodeQL SAST dijalankan terpisah di codeql.yml — TIDAK diduplikasi di sini.
+#
+# P2-3 CI Pruning (2026-06-08): Hapus trigger push ke 'develop'.
+# Rationale: Semua perubahan ke develop harus lewat PR (branch protection aktif).
+# Forensic audit di PR sudah mencakup audit sebelum merge — running ulang
+# setelah merge ke develop adalah redundant overhead tanpa nilai tambah.
+# Push ke 'main' dipertahankan sebagai post-merge verification safety net.
 
 on:
   pull_request:
     types: [opened, synchronize, reopened]
   push:
-    branches: [main, develop]
+    branches: [main]
 
 permissions:
   contents: read

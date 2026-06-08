@@ -45,7 +45,7 @@ export function CheckoutModal() {
   const rawFinalTotal = MathUtils.sub(MathUtils.sub(totalPrice, loyaltyDiscountAmount), manualDiscountAmount);
   const finalTotal = MathUtils.roundInt(rawFinalTotal < 0 ? 0 : rawFinalTotal);
   const change = MathUtils.sub(cashReceived, finalTotal);
-  // [BUG-02] Porsi QRIS = finalTotal - cashPortion
+  // @resolved BUG-02: Porsi QRIS = finalTotal - cashPortion
   const qrisPortion = MathUtils.sub(finalTotal, cashPortion);
 
   const handleAdjustQuantity = () => {
@@ -95,7 +95,7 @@ export function CheckoutModal() {
     setAuthorizedBy(null);
   };
 
-  // [BUG-02] Validasi SPLIT: cashPortion harus > 0 dan < finalTotal
+  // @resolved BUG-02: Validasi SPLIT: cashPortion harus > 0 dan < finalTotal
   const isSplitValid = paymentMethod === 'SPLIT'
     ? cashPortion > 0 && cashPortion < finalTotal
     : true;
@@ -309,7 +309,7 @@ export function CheckoutModal() {
             </div>
           )}
 
-          {/* [BUG-02] SPLIT Payment Section */}
+          {/* @resolved BUG-02: SPLIT Payment Section */}
           {paymentMethod === 'SPLIT' && (
             <div className="space-y-4">
               <div>

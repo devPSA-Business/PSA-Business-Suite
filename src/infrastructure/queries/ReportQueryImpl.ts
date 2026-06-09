@@ -341,7 +341,8 @@ export class ReportQueryImpl implements IReportQuery {
     const customerRevenueMap = new Map<string, number>();
     transactions.forEach(tx => {
       const customerId = tx.customerId!;
-      customerRevenueMap.set(customerId, (customerRevenueMap.get(customerId) || 0) + tx.total);
+      // FIX: MathUtils.add() untuk presisi finansial Rupiah integer (konsistensi P0-FINANCIAL)
+      customerRevenueMap.set(customerId, MathUtils.add(customerRevenueMap.get(customerId) ?? 0, tx.total));
     });
 
     let regularCount = 0;

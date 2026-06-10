@@ -1,4 +1,8 @@
-name: Branch Protection
+name: Branch Protection Guard
+
+# @ai_context: Workflow ini TIDAK melakukan merge sendiri.
+# Tugasnya: memvalidasi bahwa PR yang masuk ke main sudah memenuhi syarat.
+# Bot Dependabot di-handle oleh auto-merge.yml secara terpisah.
 
 on:
   pull_request:
@@ -6,11 +10,68 @@ on:
 
 permissions:
   contents: read
+  pull-requests: write
 
 jobs:
   enforce:
+    name: Validate PR Requirements
     runs-on: ubuntu-latest
+    timeout-minutes: 5
+
     steps:
-      - name: Ensure Audit Passed
+      - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
+        with:
+          # fetch-depth: 0 WAJIB agar git diff bisa membandingkan dengan origin/main
+          # Tanpa ini, default shallow clone tidak memiliki origin/$base_ref
+          # sehingga restricted file check TIDAK PERNAH berjalan (false negative)
+          fetch-depth: 0
+
+      - name: Check Restricted Files Changed
+        # Jika PR menyentuh file kritis, tambahkan warning label.
+        # Ini TIDAK memblokir merge — hanya sebagai signal ke reviewer.
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          PR_NUMBER: ${{ github.event.pull_request.number }}
         run: |
-          echo "✅ Semua audit harus lulus sebelum merge"
+          CHANGED=$(git diff --name-only origin/${{ github.base_ref }}...HEAD 2>/dev/null || echo "")
+
+          RESTRICTED_FILES=(
+            "src/shared/api/db.ts"
+            "src/shared/api/firebase.ts"
+            "src/lib/cryptoIndexedDB.ts"
+            "src/stores/useSecurityStore.ts"
+          )
+
+          NEEDS_REVIEW="false"
+          TOUCHED=""
+
+          for f in "${RESTRICTED_FILES[@]}"; do
+            if echo "$CHANGED" | grep -q "$f"; then
+              NEEDS_REVIEW="true"
+              TOUCHED="$TOUCHED $f"
+            fi
+          done
+
+          if [[ "$NEEDS_REVIEW" == "true" ]]; then
+            echo "::warning ::PR ini menyentuh file restricted:$TOUCHED — wajib review manual."
+            gh pr edit "$PR_NUMBER" --add-label "needs-human-review" 2>/dev/null || true
+            gh pr comment "$PR_NUMBER" --body "⚠️ **Perhatian Owner:** PR ini mengubah file keamanan/database kritis:
+          \`\`\`
+          $TOUCHED
+          \`\`\`
+          Perubahan ini membutuhkan review manual sebelum di-merge.
+          Tanyakan kepada AI: *'Apakah perubahan di file ini aman?'* sebelum menekan Merge." 2>/dev/null || true
+          else
+            echo "✅ Tidak ada file restricted yang diubah."
+          fi
+
+      - name: Verify PSA_GOVERNANCE.md Exists
+        run: |
+          if [ ! -f "PSA_GOVERNANCE.md" ]; then
+            echo "::error ::PSA_GOVERNANCE.md tidak ditemukan. File ini wajib ada."
+            exit 1
+          fi
+          echo "✅ PSA_GOVERNANCE.md tersedia."
+
+      - name: Summary
+        run: echo "✅ Branch protection checks selesai."

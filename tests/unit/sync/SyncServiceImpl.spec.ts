@@ -466,13 +466,21 @@ describe('SyncServiceImpl', () => {
     global.fetch = vi.fn().mockResolvedValue({ ok: true } as any);
 
     const events = [{ id: 1, entity_type: 'stock', action: 'INSERT', payload: { client_txn_id: '123' }, status: 'PENDING' }];
-    // Gunakan pola inline (bukan createQueryMock()) agar chain anyOf → toArray terpisah.
-    // createQueryMock() mengembalikan self-reference via closure yang bisa terganggu
-    // oleh vi.resetAllMocks() pada siklus beforeEach sebelumnya.
-    const query = {
+
+    // FIX NT-03: Gunakan mockImplementation (bukan mockReturnValue) agar SEMUA panggilan
+    // db.sync_events.where() — termasuk panggilan residual dari async task sebelumnya —
+    // mendapatkan mock chain yang valid (anyOf + equals + first + count).
+    // Ini mencegah "anyOf is not a function" yang muncul di stderr saat ada residual
+    // processSyncQueue() dari handleOnline fire-and-forget di tes AutoSync sebelumnya
+    // yang masih pending di microtask queue saat transisi antar tes.
+    (db.sync_events.where as any).mockImplementation(() => ({
       anyOf: vi.fn().mockReturnValue({ toArray: vi.fn().mockResolvedValue(events) }),
-    };
-    (db.sync_events.where as any).mockReturnValue(query);
+      equals: vi.fn().mockReturnValue({
+        first: vi.fn().mockResolvedValue(null),
+        count: vi.fn().mockResolvedValue(0),
+        toArray: vi.fn().mockResolvedValue([]),
+      }),
+    }));
 
     // SyncUploaderService.onAuthError() hanya dipanggil untuk code 'unauthenticated'.
     // 'permission-denied' → DLQ path (by design, lihat ARCH comment di SyncUploaderService).
@@ -481,13 +489,20 @@ describe('SyncServiceImpl', () => {
     const batchMock = { commit: commitMock, set: vi.fn(), update: vi.fn(), delete: vi.fn() };
     const firestore = await import('firebase/firestore');
     (firestore.writeBatch as any).mockReturnValue(batchMock);
-    
+
     const authErrorEventSpy = vi.fn();
     window.addEventListener('psa:auth-error', authErrorEventSpy);
 
-    await syncService.processSyncQueue();
-    
-    expect(authErrorEventSpy).toHaveBeenCalled();
+    try {
+      await syncService.processSyncQueue();
+      // Drain microtask queue — flush any pending promise continuations
+      // dari fire-and-forget calls (handleOnline, resolveConflict, dll)
+      await Promise.resolve();
+      expect(authErrorEventSpy).toHaveBeenCalled();
+    } finally {
+      // Cleanup: selalu hapus listener agar tidak bocor ke tes berikutnya
+      window.removeEventListener('psa:auth-error', authErrorEventSpy);
+    }
   });
   
   it('trims large base64 photos when moving to DLQ', async () => {

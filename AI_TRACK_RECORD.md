@@ -323,3 +323,53 @@ Catatan perubahan besar untuk PSA Business Suite v1.4+.
 | VITE_CRYPTO_PEPPER di client bundle (BUG-03) | Medium | Trade-off diterima: komentar justifikasi sudah ada, PBKDF2 600K tetap kuat |
 | 52 `as any` di infrastructure layer | Rendah | P3 Backlog |
 | Recovery Key UI: belum ada tombol "Generate" di Settings | Menengah | P2 Sprint berikutnya |
+
+---
+
+## Sprint 2026-06-10 — Stabilisasi & Governance
+
+### Ringkasan
+Sprint ini fokus pada: (1) koreksi temuan NT-02/NT-03 dari audit 2026-06-09, (2) pembuatan governance docs komprehensif untuk mencegah AI confusion berulang, (3) penguatan GitHub Actions.
+
+### Perubahan yang Dilakukan
+
+| File | Perubahan | Alasan |
+|------|-----------|--------|
+| `tests/unit/sync/SyncServiceImpl.spec.ts` | **NT-03 FIX**: Ganti `mockReturnValue(query)` → `mockImplementation()` dengan full chain (anyOf+equals+first+count). Tambah `try/finally` + `removeEventListener` + `await Promise.resolve()` | Swallowed `anyOf is not a function` dari residual async task antar test |
+| `tests/unit/application/AuditIntegrityService.spec.ts` | **NT-02 NEW**: 13 test baru — 5 createDailyClosure, 4 verifyChain, 4 verifyAuditChain | AuditIntegrityService (blockchain audit) was 0% coverage |
+| *(merged via PR#150 sebelumnya)* `src/infrastructure/queries/ReportQueryImpl.ts` | Fix `getCustomerSegmentation` pakai native `+` → `MathUtils.add()` | MathUtils invariant violation di infrastructure layer |
+| *(merged via PR#150)* `tests/unit/application/CustomerManagementUseCases.spec.ts` + `UtilityUseCases.spec.ts` | +30 tests baru | Coverage naik dari ~18% ke ~23.6% |
+| `AGENTS.md` | Update v1.5 → v1.5.1: status akurat, TD list terkini, whitelist EmployeesPage | Memory AI sebelumnya punya data stale (TD-01/03 masih ditulis outstanding) |
+| `PSA_GOVERNANCE.md` | **NEW FILE**: Tata kelola komprehensif A-G (konteks bisnis, immutable rules, bot rules, panduan owner, snapshot status, FAQ risiko) | Mencegah AI salah tafsir pattern yang intentional (LockedPage.tsx, MathUtils, dll) |
+| `.github/workflows/branch-protection.yml` | Upgrade dari dummy (echo saja) → guard file restricted + PSA_GOVERNANCE check | Branch protection sebelumnya tidak melakukan apapun nyata |
+
+### Metrics Setelah Sprint
+
+> ⚠️ Catatan: PR#150 (`MathUtils operatorInt fix + 30 tests`) di-merge SEBELUM PR ini, sehingga
+> baseline yang tepat adalah 269 tests / 38 files (setelah PR#150), bukan 239 (awal mula audit).
+
+| Metrik | Sebelum PR ini (setelah PR#150) | Sesudah |
+|--------|---------|---------|
+| Test count | 269 | **282** (+13) |
+| Test files | 38 | **39** (+1) |
+| TSC errors | 0 | **0** |
+| AuditIntegrityService coverage | 0% | **~85%** (3 methods) |
+| `anyOf` stderr error | Ada | **Tidak ada** |
+
+### Technical Debt Update
+- NT-02: ✅ CLOSED (AuditIntegrityService.spec.ts dibuat)
+- NT-03: ✅ CLOSED (SyncServiceImpl handles-auth-error test diperkuat)
+- NT-01: 🟡 OPEN (EmployeesPage direct db.users — butuh ManageUserUseCase, Sprint +1)
+
+### Dependabot PRs Pending (Aman, Tunggu CI)
+9 PRs minor/patch GitHub Actions + npm:
+sharp v0.34.5, @tanstack/react-virtual v3.14.2, @types/node v25.9.1,
+actions/checkout v6, actions/upload-artifact v7, android-actions/setup-android v4,
+github/codeql-action v4, softprops/action-gh-release v3.
+Semua akan auto-merge via auto-merge.yml setelah CI hijau.
+
+### Catatan untuk AI di Session Berikutnya
+1. Baca `PSA_GOVERNANCE.md` dulu sebelum bertindak — ini dokumen tata kelola utama
+2. NT-01 (ManageUserUseCase) = feature work baru, bukan refactor — butuh desain dulu
+3. Dependabot PR vite = kritis (pernah break), meskipun tidak ada di daftar critical deps resmi
+4. `LockedPage.tsx:247-248` adalah intentional nuclear reset — JANGAN diperbaiki

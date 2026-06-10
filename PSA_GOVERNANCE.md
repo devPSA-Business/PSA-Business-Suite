@@ -87,13 +87,27 @@ npm install --legacy-peer-deps
 |---------|-------------|
 | Minor/patch update, bukan dep kritis | ✅ Auto-approve + auto-merge setelah CI hijau |
 | Major update (semua dep) | 🔴 Label `needs-human-review`, komentar ke owner |
-| Dep kritis: firebase, dexie, @firebase/* | 🔴 Tahan meskipun patch — minta review manual |
+| Dep kritis: firebase, dexie, @firebase/*, vite, @types/node | 🔴 Tahan meskipun patch |
 
-**Dep kritis saat ini:** `firebase`, `dexie`, `@firebase/app`, `@firebase/auth`, `firebase-admin`
+**Dep kritis (diblokir auto-merge):**
+```
+firebase, dexie, @firebase/app, @firebase/auth, firebase-admin
+vite        → major version pernah break build (kasus nyata: v6→v8, PR#138)
+@types/node → major version menyebabkan TSC error (kasus nyata: v22→v25, PR#131 DITOLAK)
+```
 
-**Mengapa firebase dan dexie kritis:**
-- Firebase: menyentuh auth + sync — update bisa break offline handshake
-- Dexie: menyentuh skema IndexedDB — update bisa corrupt data lokal
+**⚠️ URGENT — Node.js 20 Actions deprecated 16 Juni 2026:**
+GitHub memaksa Node.js 24. PR #135 (actions/checkout v6.0.3) HARUS di-merge
+sebelum 16 Juni 2026 atau semua CI/CD akan gagal.
+**Tindakan owner:** buka GitHub → Pull Requests → PR #135 → klik Merge.
+
+**GitHub Secrets yang belum diset (deploy masih akan gagal):**
+```
+VITE_FIREBASE_API_KEY, VITE_FIREBASE_AUTH_DOMAIN, VITE_FIREBASE_PROJECT_ID
+VITE_FIREBASE_STORAGE_BUCKET, VITE_FIREBASE_MESSAGING_SENDER_ID, VITE_FIREBASE_APP_ID
+FIREBASE_SERVICE_ACCOUNT  ← JSON dari Firebase Console → Service Accounts
+```
+Preview deploy di-skip (bukan gagal merah) sampai FIREBASE_SERVICE_ACCOUNT diisi.
 
 ### C2. CI Workflow — Quality Gate
 CI **HARUS** lulus semua langkah ini sebelum merge diizinkan:

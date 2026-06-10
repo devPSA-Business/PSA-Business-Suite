@@ -41,6 +41,12 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 20
 
+    # Skip preview deploy jika Firebase secrets belum dikonfigurasi.
+    # Ini mencegah CI fail merah untuk setiap PR hanya karena secrets belum diset.
+    # Preview deploy baru aktif setelah owner set FIREBASE_SERVICE_ACCOUNT di repo secrets.
+    # Ref: PSA_GOVERNANCE.md Bagian D1 — tindakan yang hanya bisa dilakukan owner.
+    if: ${{ secrets.FIREBASE_SERVICE_ACCOUNT != '' }}
+
     permissions:
       contents: read
       pull-requests: write  # Untuk posting komentar URL preview ke PR

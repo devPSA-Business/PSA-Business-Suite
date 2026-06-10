@@ -22,7 +22,7 @@ jobs:
     steps:
       - name: Fetch Dependabot Metadata
         id: meta
-        uses: dependabot/fetch-metadata@d7267f607e9d3fb96fc2fbe7e91a35d6b3ff57c8 # v2.3.0
+        uses: dependabot/fetch-metadata@25dd0e34f4fe68f24cc83900b1fe3fe149efef98 # v3.1.0
         with:
           github-token: ${{ secrets.GITHUB_TOKEN }}
 
@@ -46,8 +46,10 @@ jobs:
             REASON="Major version update - perlu review manual agar tidak ada breaking change."
           fi
 
-          # Blokir 2: Dependensi kritis keamanan/DB
-          CRITICAL_DEPS=("firebase" "dexie" "@firebase/app" "firebase-admin" "@firebase/auth")
+          # Blokir 2: Dependensi kritis keamanan/DB/build
+          # vite: major version pernah break build (vite 6→8 kasus nyata, PR#138)
+          # @types/node: major version (v22→v25) menyebabkan TSC error di vite.config.ts
+          CRITICAL_DEPS=("firebase" "dexie" "@firebase/app" "firebase-admin" "@firebase/auth" "vite" "@types/node")
           for dep in "${CRITICAL_DEPS[@]}"; do
             if echo "$DEPENDENCY_NAMES" | grep -qi "$dep"; then
               SAFE="false"

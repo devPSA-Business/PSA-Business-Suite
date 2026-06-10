@@ -16,6 +16,10 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
+        with:
+          # fetch-depth: 0 WAJIB — shallow clone tidak memiliki origin/$base_ref
+          # sehingga git diff akan exit 128 (ref not found) tanpa ini.
+          fetch-depth: 0
 
       - name: Verify Line Constraints
         run: |
@@ -43,7 +47,9 @@ jobs:
       - name: Require Human Review for SCOPE.md
         run: |
           # If SCOPE.md is changed, we log this so that PR checks can enforce reviews.
-          CHANGED_FILES=$(git diff --name-only origin/${{ github.base_ref }} HEAD)
+          # three-dot diff: bandingkan tip HEAD terhadap merge-base dengan base branch
+          # Dua-titik (origin/main..HEAD) bisa memasukkan commit yang tidak ada di PR
+          CHANGED_FILES=$(git diff --name-only origin/${{ github.base_ref }}...HEAD 2>/dev/null || echo "")
           if echo "$CHANGED_FILES" | grep -q "SCOPE.md"; then
             echo "::warning file=SCOPE.md::Perubahan pada SCOPE.md terdeteksi. Sesuai proposal, perubahan pada file ini WAJIB ditinjau secara manual oleh Tech Lead."
             # The branch protection rules will actually enforce the review on PR.

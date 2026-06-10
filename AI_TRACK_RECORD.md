@@ -337,16 +337,21 @@ Sprint ini fokus pada: (1) koreksi temuan NT-02/NT-03 dari audit 2026-06-09, (2)
 |------|-----------|--------|
 | `tests/unit/sync/SyncServiceImpl.spec.ts` | **NT-03 FIX**: Ganti `mockReturnValue(query)` → `mockImplementation()` dengan full chain (anyOf+equals+first+count). Tambah `try/finally` + `removeEventListener` + `await Promise.resolve()` | Swallowed `anyOf is not a function` dari residual async task antar test |
 | `tests/unit/application/AuditIntegrityService.spec.ts` | **NT-02 NEW**: 13 test baru — 5 createDailyClosure, 4 verifyChain, 4 verifyAuditChain | AuditIntegrityService (blockchain audit) was 0% coverage |
+| *(merged via PR#150 sebelumnya)* `src/infrastructure/queries/ReportQueryImpl.ts` | Fix `getCustomerSegmentation` pakai native `+` → `MathUtils.add()` | MathUtils invariant violation di infrastructure layer |
+| *(merged via PR#150)* `tests/unit/application/CustomerManagementUseCases.spec.ts` + `UtilityUseCases.spec.ts` | +30 tests baru | Coverage naik dari ~18% ke ~23.6% |
 | `AGENTS.md` | Update v1.5 → v1.5.1: status akurat, TD list terkini, whitelist EmployeesPage | Memory AI sebelumnya punya data stale (TD-01/03 masih ditulis outstanding) |
 | `PSA_GOVERNANCE.md` | **NEW FILE**: Tata kelola komprehensif A-G (konteks bisnis, immutable rules, bot rules, panduan owner, snapshot status, FAQ risiko) | Mencegah AI salah tafsir pattern yang intentional (LockedPage.tsx, MathUtils, dll) |
 | `.github/workflows/branch-protection.yml` | Upgrade dari dummy (echo saja) → guard file restricted + PSA_GOVERNANCE check | Branch protection sebelumnya tidak melakukan apapun nyata |
 
 ### Metrics Setelah Sprint
 
-| Metrik | Sebelum | Sesudah |
+> ⚠️ Catatan: PR#150 (`MathUtils operatorInt fix + 30 tests`) di-merge SEBELUM PR ini, sehingga
+> baseline yang tepat adalah 269 tests / 38 files (setelah PR#150), bukan 239 (awal mula audit).
+
+| Metrik | Sebelum PR ini (setelah PR#150) | Sesudah |
 |--------|---------|---------|
-| Test count | 239 | **252** (+13) |
-| Test files | 36 | **37** (+1) |
+| Test count | 269 | **282** (+13) |
+| Test files | 38 | **39** (+1) |
 | TSC errors | 0 | **0** |
 | AuditIntegrityService coverage | 0% | **~85%** (3 methods) |
 | `anyOf` stderr error | Ada | **Tidak ada** |
@@ -368,17 +373,3 @@ Semua akan auto-merge via auto-merge.yml setelah CI hijau.
 2. NT-01 (ManageUserUseCase) = feature work baru, bukan refactor — butuh desain dulu
 3. Dependabot PR vite = kritis (pernah break), meskipun tidak ada di daftar critical deps resmi
 4. `LockedPage.tsx:247-248` adalah intentional nuclear reset — JANGAN diperbaiki
-
----
-
-## Sprint 2026-06-10 — Stabilisasi & Governance
-
-| File | Perubahan | Alasan |
-|------|-----------|--------|
-| `tests/unit/sync/SyncServiceImpl.spec.ts` | NT-03 FIX: mockImplementation + try/finally + removeEventListener | Swallowed anyOf error dari residual async task |
-| `tests/unit/application/AuditIntegrityService.spec.ts` | NT-02 NEW: 13 test (createDailyClosure×5, verifyChain×4, verifyAuditChain×4) | 0% → ~85% coverage komponen blockchain audit |
-| `AGENTS.md` | Update v1.5→v1.5.1: status akurat, TD list terkini | Memory AI stale (TD-01/03 masih ditulis outstanding) |
-| `PSA_GOVERNANCE.md` | NEW: Tata kelola A-G — konteks bisnis, rules, bot rules, panduan owner | Mencegah AI salah tafsir pattern intentional |
-| `.github/workflows/branch-protection.yml` | Upgrade dari dummy → guard file restricted + governance check | Branch protection sebelumnya tidak melakukan apapun |
-
-**Metrics:** Tests 239→252 (+13) · Files 36→37 · TSC=0 · NT-01 masih OPEN (Sprint +1)

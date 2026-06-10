@@ -1,5 +1,5 @@
 # PSA_GOVERNANCE.md — Tata Kelola Project PSA Business Suite
-# Versi 1.0 · Dibuat 2026-06-10 · Otoritatif per HEAD a6dbc70
+# Versi 1.1 · Diperbarui 2026-06-10 · Otoritatif per HEAD ff0f8e8 (pre-governance merge)
 
 Dokumen ini adalah **sumber kebenaran tunggal** untuk semua pihak yang terlibat di project ini:
 AI (Claude/Gemini/dll), GitHub Bots (Dependabot/Actions), dan Owner/Kasir (manusia).
@@ -74,7 +74,7 @@ npm install --legacy-peer-deps
 
 ### B6. Test Requirements Sebelum Push ke Main
 - `npx tsc --noEmit` → 0 errors
-- `npx vitest run` → semua hijau (minimal count saat ini: 252)
+- `npx vitest run` → semua hijau (minimal count saat ini: **282**)
 - Tidak ada `any` baru di area money/security (14 yang sudah ada di LiveQueriesImpl.ts adalah warisan)
 
 ---
@@ -150,7 +150,7 @@ Di setiap commit di GitHub, ada tanda di sebelah commit:
 
 ## BAGIAN E — STATUS TEKNIS SNAPSHOT (Update Per Sprint)
 
-### E1. State Per 2026-06-10 (HEAD: ff0f8e8 + governance branch)
+### E1. State Per 2026-06-10 (HEAD: ff0f8e8 + governance branch = 282 tests)
 
 | Metrik | Nilai |
 |--------|-------|
@@ -160,8 +160,8 @@ Di setiap commit di GitHub, ada tanda di sebelah commit:
 | Coverage (Lines) | ~23.6% |
 | Coverage (Statements) | ~22.08% |
 | Vite version | 8.0.16 (upgraded dari 6.4.2) |
-| PSA IT Team Skill | v4.0.0 (installed /mnt/skills/user/psa-it-team/) |
-| Dependabot PRs pending | 9 (minor/patch + major GitHub Actions) |
+| PSA IT Team Skill | *(Planned — belum diinstall; akan ada di `/mnt/skills/user/psa-it-team/` saat diinstall owner)* |
+| Dependabot PRs pending | 7 (setelah sharp + @tanstack di-merge; lihat G2 untuk daftar terkini) |
 
 ### E2. Technical Debt Register
 
@@ -237,22 +237,24 @@ dependabot/*   → auto PR dari dependabot
 | AI pakai `mockReturnValue` tunggal untuk Dexie chain | Chain query Dexie tidak linear | Lihat pola `mockImplementation` di SyncServiceImpl.spec.ts |
 | AI merge dependabot PR vite tanpa review | Vite 6→8 pernah break build | Vite termasuk kritis meski bukan di daftar resmi |
 
-### G2. Dependabot PRs yang Saat Ini Pending (Per 2026-06-10 post-PR#150)
+### G2. Dependabot PRs yang Saat Ini Pending (Per 2026-06-10 post-PR#150, terkini)
 
 **Vite 8.0.16 sudah di-merge ke main (PR#138)** — build kompatibel, vite.config.ts sudah di-update.
 
+**Sudah auto-merged:**
+- `sharp` v0.34.5 → ✅ merged ke main (PR#134)
+- `@tanstack/react-virtual` v3.14.2 → ✅ merged ke main (PR#136)
+
 **Safe auto-merge** (minor/patch — tunggu CI hijau):
-- `sharp` v0.34.5 (dev dep, image processing)
-- `@tanstack/react-virtual` v3.14.2 (minor, virtual list)
-- `@typescript-eslint/parser` v8.60.1 (patch, linter)
-- `github/codeql-action` v4.36.2 (patch, CI)
+- `@typescript-eslint/parser` v8.60.1 (patch, linter) — PR#137
+- `github/codeql-action` v4.36.2 (patch, CI) — PR#130
 
 **Major — butuh review manual** (label `needs-human-review`):
-- `@types/node` 22→25 (major types, cek TSC dulu sebelum merge)
-- `actions/checkout` 4→6 (major GitHub Action)
-- `actions/upload-artifact` 4→7 (major GitHub Action)
-- `android-actions/setup-android` 3→4 (major, TWA build)
-- `softprops/action-gh-release` 2→3 (major, release action)
+- `@types/node` 22→25 (major types, cek TSC dulu sebelum merge) — PR#131
+- `actions/checkout` 4→6 (major GitHub Action) — PR#135
+- `actions/upload-artifact` 4→7 (major GitHub Action) — PR#132
+- `android-actions/setup-android` 3→4 (major, TWA build) — PR#133
+- `softprops/action-gh-release` 2→3 (major, release action) — PR#129
 
 ---
 
@@ -373,15 +375,18 @@ npm install --legacy-peer-deps   # ← WAJIB, SELALU, TIDAK BISA DINEGOSIASI
 # Tanpa flag ini: npm akan error dan abort
 ```
 
-### H7. PSA IT Team Skill v4.0
+### H7. Dokumen Referensi Teknis PSA
 
-Skill telah diinstall di `/mnt/skills/user/psa-it-team/` dengan referensi:
-- `references/07-tdd-testing.md` — TDD workflow, mock patterns, TC-4 to TC-12
-- `references/08-code-review.md` — Adversarial 3-persona review
-- `references/09-ci-release.md` — GitHub Secrets list, release protocol
-- `references/10-security-audit.md` — PBKDF2, AES-GCM, Firebase rules
-- `references/11-tech-debt.md` — TD register dengan scoring matrix
-- `references/12-18-combined.md` — Focused fix, migration, performance, spec-driven
+Dokumen-dokumen ini ada di repository dan WAJIB dibaca sebelum mengubah area terkait:
+
+| Dokumen | Area |
+|---------|------|
+| `AGENTS.md` | Konteks proyek, constraints, status terkini |
+| `PSA_GOVERNANCE.md` *(file ini)* | Tata kelola lengkap, anti-footgun reference |
+| `AI_TRACK_RECORD.md` | Riwayat sprint, konteks perubahan |
+| `docs/runbook-crypto-recovery.md` | Prosedur recovery key, PIN darurat |
+| `docs/secrets-checklist.md` | Daftar GitHub Secrets yang wajib diset |
+| `AGENTS.md` Section 5 | Arsitektur whitelist (file mana boleh direct db writes) |
 
 ---
 

@@ -20,6 +20,11 @@ jobs:
 
     steps:
       - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
+        with:
+          # fetch-depth: 0 WAJIB agar git diff bisa membandingkan dengan origin/main
+          # Tanpa ini, default shallow clone tidak memiliki origin/$base_ref
+          # sehingga restricted file check TIDAK PERNAH berjalan (false negative)
+          fetch-depth: 0
 
       - name: Check Restricted Files Changed
         # Jika PR menyentuh file kritis, tambahkan warning label.
@@ -28,7 +33,7 @@ jobs:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           PR_NUMBER: ${{ github.event.pull_request.number }}
         run: |
-          CHANGED=$(git diff --name-only origin/${{ github.base_ref }} HEAD 2>/dev/null || echo "")
+          CHANGED=$(git diff --name-only origin/${{ github.base_ref }}...HEAD 2>/dev/null || echo "")
 
           RESTRICTED_FILES=(
             "src/shared/api/db.ts"

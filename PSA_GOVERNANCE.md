@@ -100,7 +100,7 @@ CI **HARUS** lulus semua langkah ini sebelum merge diizinkan:
 1. `npm run lint` — ESLint (hooks/exhaustive-deps = error)
 2. `npx tsc --noEmit` — 0 errors
 3. `npx vitest run --coverage` — semua test hijau
-4. Coverage threshold: Lines ≥19%, Statements ≥18%, Branches ≥13%, Functions ≥11%
+4. Coverage threshold: Lines ≥21%, Statements ≥20%, Branches ≥15%, Functions ≥13%
 5. Architecture guard (`EnterpriseArchitecture.test.ts`) — TIDAK boleh ada pelanggaran FSD
 
 ### C3. Auto-Deploy Rules
@@ -150,15 +150,18 @@ Di setiap commit di GitHub, ada tanda di sebelah commit:
 
 ## BAGIAN E — STATUS TEKNIS SNAPSHOT (Update Per Sprint)
 
-### E1. State Per 2026-06-10 (HEAD: a6dbc70)
+### E1. State Per 2026-06-10 (HEAD: ff0f8e8 + governance branch)
 
 | Metrik | Nilai |
 |--------|-------|
-| Test files | 37 |
-| Tests passing | 252 |
+| Test files | 39 |
+| Tests passing | 282 |
 | TypeScript errors | 0 |
-| Coverage (Lines) | ~20% |
-| Dependabot PRs pending | 9 (semua minor/patch actions) |
+| Coverage (Lines) | ~23.6% |
+| Coverage (Statements) | ~22.08% |
+| Vite version | 8.0.16 (upgraded dari 6.4.2) |
+| PSA IT Team Skill | v4.0.0 (installed /mnt/skills/user/psa-it-team/) |
+| Dependabot PRs pending | 9 (minor/patch + major GitHub Actions) |
 
 ### E2. Technical Debt Register
 
@@ -167,6 +170,7 @@ Di setiap commit di GitHub, ada tanda di sebelah commit:
 | TD-01 | CheckoutUseCase guard Rp 0 | ✅ RESOLVED | — |
 | TD-03 | AutoArchiver 90-day prune + buyback exclude | ✅ RESOLVED | — |
 | TD-04 | LockedPage db.keyval.3 | ✅ RESOLVED | — |
+| TD-05 | Hardcoded PBKDF2 salt | 🟡 OPEN P1 | Sprint +1 |
 | NT-01 | EmployeesPage direct db.users write (butuh ManageUserUseCase) | 🟡 OPEN | Sprint +1 |
 | NT-02 | AuditIntegrityService 0% coverage | ✅ RESOLVED 2026-06-10 | — |
 | NT-03 | SyncServiceImpl anyOf swallowed error | ✅ RESOLVED 2026-06-10 | — |
@@ -181,6 +185,8 @@ Di setiap commit di GitHub, ada tanda di sebelah commit:
 | `SyncStatusPage.tsx:41` | Direct sync_events update | Intentional admin repair operation |
 | `DeadLetterQueueViewer.tsx` | Direct DLQ operations | Admin tool, tidak ada di audit trail by design |
 | `AuditIntegrityService.ts` | `crypto.subtle` tidak di-mock | Gunakan real SHA-256 di test — ini validasi end-to-end |
+| `LiveQueriesImpl.ts` | Ada 14 `as any` cast | Warisan Dexie v4 type inference — BUKAN pelanggaran baru |
+| `ReportQueryImpl.ts` | `getCustomerSegmentation` pernah pakai native `+` | FIXED 2026-06-10: sekarang pakai MathUtils.add() |
 
 ---
 
@@ -231,16 +237,153 @@ dependabot/*   → auto PR dari dependabot
 | AI pakai `mockReturnValue` tunggal untuk Dexie chain | Chain query Dexie tidak linear | Lihat pola `mockImplementation` di SyncServiceImpl.spec.ts |
 | AI merge dependabot PR vite tanpa review | Vite 6→8 pernah break build | Vite termasuk kritis meski bukan di daftar resmi |
 
-### G2. Dependabot PRs yang Saat Ini Pending (Per 2026-06-10)
-Semua PR ini adalah minor/patch GitHub Actions — aman untuk auto-merge setelah CI hijau:
-- actions/checkout v6.0.3
-- actions/upload-artifact v7.0.1
-- android-actions/setup-android v4.0.1
-- github/codeql-action v4.36.2
-- softprops/action-gh-release v3.0.0
-- npm: sharp v0.34.5, @tanstack/react-virtual v3.14.2, @types/node v25.9.1
+### G2. Dependabot PRs yang Saat Ini Pending (Per 2026-06-10 post-PR#150)
+
+**Vite 8.0.16 sudah di-merge ke main (PR#138)** — build kompatibel, vite.config.ts sudah di-update.
+
+**Safe auto-merge** (minor/patch — tunggu CI hijau):
+- `sharp` v0.34.5 (dev dep, image processing)
+- `@tanstack/react-virtual` v3.14.2 (minor, virtual list)
+- `@typescript-eslint/parser` v8.60.1 (patch, linter)
+- `github/codeql-action` v4.36.2 (patch, CI)
+
+**Major — butuh review manual** (label `needs-human-review`):
+- `@types/node` 22→25 (major types, cek TSC dulu sebelum merge)
+- `actions/checkout` 4→6 (major GitHub Action)
+- `actions/upload-artifact` 4→7 (major GitHub Action)
+- `android-actions/setup-android` 3→4 (major, TWA build)
+- `softprops/action-gh-release` 2→3 (major, release action)
 
 ---
 
 *Dokumen ini diupdate otomatis oleh AI setiap sprint selesai.*
 *Owner tidak perlu membaca bagian teknis (B, C, F, G) — cukup bagian A dan D.*
+
+---
+
+## BAGIAN H — REFERENSI TEKNIS CEPAT UNTUK AI (ANTI-FOOTGUN)
+
+> Bagian ini mencegah kesalahan berulang yang paling sering terjadi saat AI menulis kode/test.
+
+### H1. Domain Model — Enum Values yang Benar
+
+```typescript
+// UserRole (enum, BUKAN string literal)
+import { UserRole } from 'src/domain/models/User'
+UserRole.ADMIN     // ✅ — bukan 'ADMIN' atau 'admin' atau UserRole.OWNER
+UserRole.MANAGER   // ✅
+UserRole.CASHIER   // ✅ — BUKAN UserRole.KASIR
+
+// StockCategory (enum)
+import { StockCategory } from 'src/domain/models/StockCategory'
+StockCategory.IMITATION  // ✅ — BUKAN StockCategory.IMITASI
+StockCategory.GOLD       // ✅
+StockCategory.SERVICE    // ✅ (untuk jasa)
+```
+
+### H2. Repository Interface — Return Types (Kesalahan Umum)
+
+| Repository | Method | Return Type | Catatan |
+|-----------|--------|-------------|---------|
+| ICustomerRepository | `save()` | `Promise<Customer>` | Returns entity |
+| ICustomerRepository | `update()` | `Promise<Customer>` | Returns entity |
+| ICustomerRepository | `delete()` | `Promise<void>` | No return |
+| IStockRepository | `save()` | `Promise<void>` | BUKAN entity |
+| IStockRepository | `update()` | `Promise<void>` | BUKAN entity |
+| IRetailRepository | `save()` | `Promise<void>` | BUKAN entity |
+| ISuspendedCartRepository | `save()` | `Promise<void>` | No return |
+| IHandoverRepository | `save()` | `Promise<void>` | No return |
+
+### H3. IUnitOfWork — Mock Pattern yang Benar untuk Tests
+
+```typescript
+// ✅ BENAR — wajib gunakan 'as unknown as IUnitOfWork'
+function buildMockUow(): IUnitOfWork {
+  return {
+    execute: vi.fn().mockImplementation(async (callback: () => Promise<unknown>) => callback()),
+    registerAudit: vi.fn().mockResolvedValue(undefined),
+    registerSync: vi.fn().mockResolvedValue(undefined),
+    registerStockHistory: vi.fn().mockResolvedValue(undefined),
+    registerGoldAssetHistory: vi.fn().mockResolvedValue(undefined),
+  } as unknown as IUnitOfWork;
+}
+
+// ❌ SALAH — vi.fn((work) => work()) langsung TANPA 'as unknown as' cast
+// akan menyebabkan TSC error: Type 'Promise<unknown>' not assignable to 'Promise<T>'
+```
+
+### H4. Dexie Mock Pattern untuk Test dengan IndexedDB
+
+```typescript
+// ✅ BENAR — vi.hoisted() + full mock chain
+const { mockDb } = vi.hoisted(() => ({
+  mockDb: {
+    transactions: {
+      add: vi.fn().mockResolvedValue('mock-id'),
+      where: vi.fn().mockReturnValue({
+        equals: vi.fn().mockReturnValue({
+          first: vi.fn().mockResolvedValue(null),
+          toArray: vi.fn().mockResolvedValue([]),
+          count: vi.fn().mockResolvedValue(0),
+          anyOf: vi.fn().mockReturnValue({
+            toArray: vi.fn().mockResolvedValue([]),
+          }),
+        }),
+      }),
+    },
+    keyval: {
+      get: vi.fn().mockResolvedValue(null),
+      set: vi.fn().mockResolvedValue(undefined),
+    },
+    syncEvents: { add: vi.fn().mockResolvedValue('sync-id') },
+  },
+}))
+
+vi.mock('../../src/shared/api/db', () => ({ db: mockDb }))
+
+// ⚠️ PENTING: jika test menyentuh Dexie.js sortBy() atau similar:
+// sortBy() mengembalikan Promise<T[]> LANGSUNG, bukan Collection
+// Gunakan: vi.fn().mockResolvedValue([...]) bukan vi.fn().mockReturnThis()
+```
+
+### H5. Kalkulasi Uang — Selalu MathUtils
+
+```typescript
+// ❌ DILARANG di semua layer (domain, application, infrastructure)
+const total = price * quantity;
+const cashIn = cash + splitPortion;
+const change = received - total;
+
+// ✅ WAJIB
+import { MathUtils } from 'src/shared/utils/MathUtils';
+const total = MathUtils.multiply(price, quantity);
+const cashIn = MathUtils.add(cash, splitPortion);
+const change = MathUtils.subtract(received, total);
+
+// Rule khusus SPLIT payment:
+// cashIn = CASH.total + SPLIT.cashPortion  ← BUKAN SPLIT.total
+// Ini business rule kritis — tested di TC-1 s/d TC-12
+```
+
+### H6. npm Install — Selalu Legacy Peer Deps
+
+```bash
+npm install --legacy-peer-deps   # ← WAJIB, SELALU, TIDAK BISA DINEGOSIASI
+# Alasan: @firebase/rules-unit-testing vs firebase@11 peer conflict
+# Tanpa flag ini: npm akan error dan abort
+```
+
+### H7. PSA IT Team Skill v4.0
+
+Skill telah diinstall di `/mnt/skills/user/psa-it-team/` dengan referensi:
+- `references/07-tdd-testing.md` — TDD workflow, mock patterns, TC-4 to TC-12
+- `references/08-code-review.md` — Adversarial 3-persona review
+- `references/09-ci-release.md` — GitHub Secrets list, release protocol
+- `references/10-security-audit.md` — PBKDF2, AES-GCM, Firebase rules
+- `references/11-tech-debt.md` — TD register dengan scoring matrix
+- `references/12-18-combined.md` — Focused fix, migration, performance, spec-driven
+
+---
+
+*Dokumen ini diupdate otomatis oleh AI setiap sprint selesai.*
+*Owner tidak perlu membaca bagian teknis (B, C, F, G, H) — cukup bagian A dan D.*

@@ -7,7 +7,8 @@ import {
   DailyRevenueTrend, 
   PaymentMethodRevenue, 
   ReportFilters,
-  CustomerRevenue
+  CustomerRevenue,
+  SegmentationThresholds
 } from '@application/queries/IReportQuery';
 import { db, Transaction, AuditLog } from '../../shared/api/db';
 import { logger } from '../../lib/logger';
@@ -334,14 +335,14 @@ export class ReportQueryImpl implements IReportQuery {
     });
   }
 
-  async getCustomerSegmentation(): Promise<{ segment: string; count: number; revenue: number }[]> {
+  async getCustomerSegmentation(thresholds: SegmentationThresholds): Promise<{ segment: string; count: number; revenue: number }[]> {
     const customers = await db.customers.toArray();
     const transactions = await db.transactions.filter(tx => tx.status === 'SUCCESS' && !!tx.customerId).toArray();
 
     const customerRevenueMap = new Map<string, number>();
     transactions.forEach(tx => {
       const customerId = tx.customerId!;
-      // FIX: MathUtils.add() untuk presisi finansial Rupiah integer (konsistensi P0-FINANCIAL)
+      // MathUtils.add() untuk presisi finansial Rupiah integer (P0-FINANCIAL rule)
       customerRevenueMap.set(customerId, MathUtils.add(customerRevenueMap.get(customerId) ?? 0, tx.total));
     });
 
@@ -352,11 +353,8 @@ export class ReportQueryImpl implements IReportQuery {
     let vipCount = 0;
     let vipRevenue = 0;
 
-    // We can't import useSettingsStore directly at the top if it causes circular dependency, 
-    // but we can import it here or at the top. Let's import it at the top.
-    const { useSettingsStore } = await import('../../shared/store/settingsStore');
-    const thresholds = useSettingsStore.getState().segmentationThresholds;
-
+    // thresholds di-pass dari caller (DashboardPage via DIContainer)
+    // Infrastructure layer tidak mengakses UI store (ARCH-02 fix, audit 2026-06-12)
     customers.forEach(customer => {
       const revenue = customerRevenueMap.get(customer.id) || 0;
       if (revenue >= thresholds.vip) {

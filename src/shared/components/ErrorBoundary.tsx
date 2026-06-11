@@ -1,6 +1,6 @@
 import React, { Component, ErrorInfo, ReactNode } from 'react';
 import { AlertCircle, RefreshCw } from 'lucide-react';
-import { logError } from '../utils/logger';
+import { persistError } from '../utils/errorPersistence';
 
 interface Props {
   children?: ReactNode;
@@ -22,7 +22,7 @@ export class ErrorBoundary extends Component<Props, State> {
   }
 
   public override componentDidCatch(error: Error, errorInfo: ErrorInfo) {
-    logError(error, errorInfo);
+    persistError(error, errorInfo);
   }
 
   private handleReload = () => {

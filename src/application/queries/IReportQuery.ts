@@ -80,5 +80,15 @@ export interface IReportQuery {
   getLowStockItems(): Promise<StockItem[]>;
   getTopCustomers(startDate: number, endDate: number, limit: number): Promise<CustomerRevenue[]>;
   getAuditLogs(page: number, pageSize: number): Promise<AuditLog[]>;
-  getCustomerSegmentation(): Promise<{ segment: string; count: number; revenue: number }[]>;
+  getCustomerSegmentation(thresholds: SegmentationThresholds): Promise<{ segment: string; count: number; revenue: number }[]>;
+}
+
+/**
+ * Threshold konfigurasi segmentasi pelanggan.
+ * Di-pass dari caller (UI layer) ke getCustomerSegmentation.
+ * Infrastructure layer tidak boleh mengakses UI store secara langsung.
+ */
+export interface SegmentationThresholds {
+  vip: number;
+  loyal: number;
 }

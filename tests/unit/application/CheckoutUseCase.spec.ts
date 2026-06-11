@@ -176,4 +176,77 @@ describe('CheckoutUseCase', () => {
     // Ensure unitOfWork.execute was called
     expect(mockUow.execute).toHaveBeenCalled();
   });
+
+  it('should process TRANSFER payment with addedCash=0 (non-cash path)', async () => {
+    vi.mocked(mockShiftRepo.hasOpenShift).mockResolvedValue(true);
+    vi.mocked(mockShiftRepo.getOpenShift).mockResolvedValue({ id: 'shift-1' } as any);
+
+    const stockItem = StockItem.create({
+      name: 'Cincin Emas',
+      category: StockCategory.ACCESSORIES,
+      price: 150000,
+      cost: 80000,
+      quantity: 5,
+      barcode: '77777',
+    });
+    vi.mocked(mockStockRepo.findById).mockResolvedValue(stockItem);
+
+    const request: CheckoutRequestDTO = {
+      subtotal: 150000,
+      total: 150000,
+      paymentMethod: 'TRANSFER',
+      items: [
+        { stockId: stockItem.id, name: 'Cincin Emas', quantity: 1, price: 150000, subtotal: 150000 },
+      ],
+      userId: 'user-1',
+    };
+
+    const result = await checkoutUseCase.execute(request);
+
+    expect(result).toBeDefined();
+    expect(typeof result).toBe('string'); // returns transaction.id
+    // addedCash = 0 untuk TRANSFER (hanya finalTotal yang diincrementasi ke shift)
+    expect(mockShiftRepo.incrementShiftSales).toHaveBeenCalledWith(
+      expect.any(String),
+      0,       // addedCash = 0 untuk non-cash payment
+      150000,  // finalTotal
+    );
+    expect(mockRetailRepo.save).toHaveBeenCalled();
+    expect(mockUow.registerSync).toHaveBeenCalled();
+  });
+
+  it('should process TRANSFER payment and persist correct paymentMethod in transaction', async () => {
+    vi.mocked(mockShiftRepo.hasOpenShift).mockResolvedValue(true);
+
+    const stockItem = StockItem.create({
+      name: 'Gelang Imitasi',
+      category: StockCategory.ACCESSORIES,
+      price: 75000,
+      cost: 35000,
+      quantity: 10,
+      barcode: '88888',
+    });
+    vi.mocked(mockStockRepo.findById).mockResolvedValue(stockItem);
+
+    const request: CheckoutRequestDTO = {
+      subtotal: 75000,
+      total: 75000,
+      paymentMethod: 'TRANSFER',
+      items: [
+        { stockId: stockItem.id, name: 'Gelang Imitasi', quantity: 1, price: 75000, subtotal: 75000 },
+      ],
+      userId: 'user-2',
+    };
+
+    await checkoutUseCase.execute(request);
+
+    // Verifikasi retailRepo.save dipanggil dengan paymentMethod = TRANSFER
+    expect(mockRetailRepo.save).toHaveBeenCalledWith(
+      expect.objectContaining({ paymentMethod: 'TRANSFER' })
+    );
+    // cashPortion harus undefined untuk TRANSFER (bukan SPLIT)
+    expect(mockRetailRepo.save).toHaveBeenCalledWith(
+      expect.not.objectContaining({ cashPortion: expect.anything() })
+    );
+  });
 });

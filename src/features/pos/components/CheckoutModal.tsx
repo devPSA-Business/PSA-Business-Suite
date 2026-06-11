@@ -262,8 +262,8 @@ export function CheckoutModal() {
 
           <div>
             <label className="block text-xs sm:text-sm font-bold text-stone-700 mb-3 uppercase tracking-wider">Metode Pembayaran</label>
-            <div className="grid grid-cols-3 gap-2 sm:gap-4">
-              {(['CASH', 'QRIS', 'SPLIT'] as const).map((method) => (
+            <div className="grid grid-cols-2 sm:grid-cols-4 gap-2 sm:gap-4">
+              {(['CASH', 'QRIS', 'TRANSFER', 'SPLIT'] as const).map((method) => (
                 <button
                   key={method}
                   onClick={() => { setPaymentMethod(method); setCashPortion(0); }}
@@ -306,6 +306,15 @@ export function CheckoutModal() {
                   Rp {change >= 0 ? change.toLocaleString('id-ID') : '0'}
                 </span>
               </div>
+            </div>
+          )}
+
+          {/* R-01: TRANSFER Payment Section */}
+          {paymentMethod === 'TRANSFER' && (
+            <div className="rounded-2xl bg-stone-50 border border-stone-200 p-4 sm:p-5">
+              <p className="text-sm text-stone-600 text-center font-medium">
+                Pembayaran via Transfer Bank.<br/>Pastikan konfirmasi transfer sudah diterima sebelum lanjut.
+              </p>
             </div>
           )}
 

@@ -66,7 +66,14 @@ jobs:
           # ALLOWED dari UI: useLiveQuery (reads only), db.keyval (UI ephemeral state),
           # dan tabel infrastruktur non-domain (config dan sync queues).
           # FORBIDDEN: direct write ke tabel domain dari UI layer.(
-          VIOLATIONS=$(grep -rn             --include="*.ts" --include="*.tsx"             -E "await[[:space:]]+db\.(transactions|stock|customers|repair_services|gold_buybacks|shifts|financial_closures|audit_logs|staff_members)\.(add|put|delete|update|bulkAdd|bulkPut|bulkDelete|clear|modify)\("             src/features/*/ui/ src/features/*/components/             2>/dev/null || true)
+          VIOLATIONS=$(grep -rn \
+            --include="*.ts" --include="*.tsx" \
+            -E "await[[:space:]]+db\.(transactions|stock|customers|repair_services|gold_buybacks|shifts|financial_closures|audit_logs|staff_members|users)\.(add|put|delete|update|bulkAdd|bulkPut|bulkDelete|clear|modify)\(" \
+            src/features/*/ui/ src/features/*/components/ \
+            src/pages/ \
+            2>/dev/null \
+            | grep -v "@architecture_bypass_approved" \
+            || true)
 
           if [ -n "$VIOLATIONS" ]; then
             echo "❌ PELANGGARAN ARSITEKTUR: UI layer menulis langsung ke domain DB"

@@ -53,21 +53,21 @@ const LOCKOUT_DURATION = 30 * 60 * 1000;
 export const HASH_ITERATIONS_V1 = 100000;
 export const HASH_ITERATIONS_V2 = 600000;
 
+/**
+ * @resolved BUG-03 (2026-05): Pepper dihapus dari creation path.
+ * - Hash BARU: usePepper=false (default). PBKDF2 v2 tanpa pepper.
+ * - Hash LAMA: usePepper=true dipertahankan HANYA untuk backward-compat verification.
+ * - Migration: selesai. Semua user aktif sudah re-hash ke V2 saat login berikutnya.
+ */
 export const hashPin = async (
   pin: string, 
   saltInput: string | Uint8Array, 
-  // BUG-03 MIGRATION: Default diubah ke false. Hash BARU tidak menggunakan pepper.
-  // usePepper=true dipertahankan HANYA untuk verifikasi hash LAMA (backward-compat).
-  // Ref: docs/TD.md MIGRATION-01 — hapus sepenuhnya setelah semua user reset PIN.
   usePepper: boolean = false,
   iterations: number = HASH_ITERATIONS_V2
 ): Promise<string> => {
   const encoder = new TextEncoder();
   const salt = typeof saltInput === 'string' ? encoder.encode(saltInput) : saltInput;
 
-  // BUG-03 FIX (partial): pepper tidak lagi digunakan untuk hash baru (usePepper default=false).
-  // @security_tier: Improving — PBKDF2 600K iter + UUID salt per-user adalah lapisan proteksi utama.
-  // VITE_CRYPTO_PEPPER hanya diakses via usePepper=true di jalur verifikasi backward-compat.
   let pinWithOptionalPepper = pin;
   if (usePepper) {
     // @deprecated-path: Hanya untuk verifikasi hash LAMA. Jangan gunakan untuk creation baru.
@@ -198,7 +198,6 @@ export const useSecurityStore = create<SecurityState>()(
         const needsHashUpgrade = (!isPinValid && !isOfflineVerification);
 
         if (!isPinValid && !isOfflineVerification) {
-          // BUG-03 MIGRATION: coba V2 tanpa pepper (untuk hash baru yang dibuat setelah fix)
           const hashedInputV2NoPepper = await hashPin(pin, currentSalt, false, HASH_ITERATIONS_V2);
           isPinValid = (hashedInputV2NoPepper === user.pinHash);
           if (!isPinValid) {
@@ -215,7 +214,7 @@ export const useSecurityStore = create<SecurityState>()(
               isPinValid = (oldHash === user.pinHash);
             }
           }
-          } // end BUG-03 V2-no-pepper block
+          }
         }
 
         const handleFailedAttempt = () => {
@@ -257,7 +256,6 @@ export const useSecurityStore = create<SecurityState>()(
               createdAt: Date.now()
             };
             await cryptoKeyStore.saveWrappedKey(wrappedKeyMeta);
-            // BUG-03: hash baru menggunakan usePepper=false (default baru)
             const updatedHash = await hashPin(pin, newSalt, false, HASH_ITERATIONS_V2);
             await db.users.update(user.id, { salt: (newSalt as string | Uint8Array), pinHash: updatedHash });
             cryptoDB.setKey(deviceKey, wrappedKeyMeta.keyId);
@@ -272,7 +270,6 @@ export const useSecurityStore = create<SecurityState>()(
               const newPinWrappedKey = await cryptoDB.reWrapKeyWithPin(userOfflineKey, pin, oldSalt, pin, newSalt);
               wrappedKeyMeta.wrappedKeysByPin[user.id] = newPinWrappedKey;
               await cryptoKeyStore.saveWrappedKey(wrappedKeyMeta);
-              // BUG-03: hash upgrade menggunakan usePepper=false (migrating away from pepper)
               const updatedHash = await hashPin(pin, newSalt, false, HASH_ITERATIONS_V2);
               await db.users.update(user.id, { salt: (newSalt as string | Uint8Array), pinHash: updatedHash });
               await cryptoDB.unwrapKeyWithPin(newPinWrappedKey, pin, newSalt);
@@ -407,7 +404,6 @@ export const useSecurityStore = create<SecurityState>()(
                break;
             }
             
-            // BUG-03 MIGRATION: coba V2 tanpa pepper (untuk hash baru setelah pepper dihapus dari creation path)
             const hashedInputV2NoPepper = await hashPin(pin, currentSalt, false, HASH_ITERATIONS_V2);
             if (hashedInputV2NoPepper === user.pinHash) {
                isValid = true;

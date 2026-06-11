@@ -9,7 +9,7 @@ import { mapErrorToUser } from '../../../shared/utils/errorMapper';
 import { Customer } from '../../../domain/models/Customer';
 import { MathUtils } from '../../../shared/utils/decimalUtils';
 
-type PaymentMethod = 'CASH' | 'QRIS' | 'SPLIT';
+type PaymentMethod = 'CASH' | 'QRIS' | 'TRANSFER' | 'SPLIT';
 
 interface CheckoutState {
   paymentMethod: PaymentMethod;

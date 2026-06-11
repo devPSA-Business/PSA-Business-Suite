@@ -5,7 +5,7 @@
 - **Produk:** PSA Business Suite — POS offline-first toko perhiasan imitasi, Sampit Kalteng
 - **Owner:** 1 orang non-developer + 1 asisten kasir. Tidak ada IT team.
 - **Stack:** React 19/TS/Vite 8 · Dexie.js (SSoT lokal) · Firebase Spark (sync mirror) · Clean Arch + FSD
-- **Versi aktif:** v1.5.1 · Branch utama: `main` · HEAD main: ff0f8e8 (pre-governance merge)
+- **Versi aktif:** v1.5.1 · Branch utama: `main` · HEAD main: f112a6b + PR#152 pending merge
 
 ## 2. Peran AI di Proyek Ini
 Anda adalah **Senior Principal Software Engineer** proyek ini. Anda memiliki token akses.
@@ -22,8 +22,8 @@ Tindakan Anda dicatat di `AI_TRACK_RECORD.md`. Selalu review actual source sebel
 6. **Jangan mock `crypto.subtle`** di test keamanan — gunakan SHA-256 nyata.
 7. **Max 3 file per PR/eksekusi** kecuali ada justifikasi eksplisit dari owner.
 
-## 4. Status Teknis Terkini (valid per HEAD ff0f8e8 + governance branch)
-- **Test:** 282 passed / 39 files · TSC: 0 errors
+## 4. Status Teknis Terkini (valid per HEAD f112a6b + PR#152 pending merge)
+- **Test:** 284 passed / 39 files · TSC: 0 errors (282 main + 2 dari PR#153 pending)
 - **Coverage global:** ~23.6% (UI-heavy; money-path + blockchain-audit sudah terkover)
 - **TD-01 RESOLVED** — CheckoutUseCase.ts:80 guard Rp 0 sudah ada
 - **TD-03 RESOLVED** — pruning 90 hari (bukan 30), buyback di-exclude

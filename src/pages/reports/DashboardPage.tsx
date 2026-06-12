@@ -8,10 +8,17 @@ import { DashboardCharts } from '../../features/reports/components/DashboardChar
 import { DashboardSecondary } from '../../features/reports/components/DashboardSecondary';
 import { useLiveQuery } from 'dexie-react-hooks';
 import { DIContainer } from '@infrastructure/di/Container';
+import { useSettingsStore } from '../../shared/store/settingsStore';
 import { BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer } from 'recharts';
 
 function CustomerSegmentationChart() {
-  const segmentation = useLiveQuery(() => DIContainer.reportQuery.getCustomerSegmentation(), []);
+  // ARCH-02 fix: thresholds dibaca di UI layer, lalu di-pass ke infrastructure query.
+  // Infrastructure layer tidak boleh mengakses Zustand store secara langsung.
+  const { segmentationThresholds } = useSettingsStore();
+  const segmentation = useLiveQuery(
+    () => DIContainer.reportQuery.getCustomerSegmentation(segmentationThresholds),
+    [segmentationThresholds.vip, segmentationThresholds.loyal]
+  );
 
   if (!segmentation) {
     return <div className="flex-1 flex items-center justify-center animate-pulse bg-stone-100 rounded-2xl"></div>;

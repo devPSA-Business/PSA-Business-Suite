@@ -9,7 +9,10 @@
  * @last_audit: 2026-05-20
  * @changelog:
  *   2026-05-20 — Tambah wrapKeyWithRecoveryKey & unwrapKeyWithRecoveryKey (P1 Remediation)
- *              — Recovery Key menggunakan HKDF-SHA256 agar deterministik dari mnemonic
+ *              — Recovery Key menggunakan HKDF-SHA256 agar deterministik dari string hex
+ *   2026-06-12 — Standarisasi dokumentasi: Recovery Key adalah hex string 64 karakter
+ *                (32 bytes, lowercase hex) yang di-generate oleh bootstrap-secrets.yml.
+ *                Format "24-kata mnemonic" di komentar lama adalah DEPRECATED dan tidak aktif.
  */
 import { logger } from './logger';
 import { Dexie } from 'dexie';
@@ -71,10 +74,13 @@ export class CryptoIndexedDB {
   }
 
   /**
-   * Derive a wrapping key from a Recovery Key (raw string mnemonic) using HKDF-SHA256.
+   * Derive a wrapping key dari Recovery Key string menggunakan HKDF-SHA256.
    * HKDF dipilih karena deterministik — recovery key menghasilkan kunci yang sama setiap kali,
    * memungkinkan pemulihan tanpa menyimpan state apapun.
-   * @param recoveryKeyString - 24-kata mnemonic atau string rahasia recovery
+   *
+   * @param recoveryKeyString - String hex 64 karakter (32 bytes, lowercase) yang di-generate
+   *                            oleh bootstrap-secrets.yml. Format: "a3f1c2...b2" (64 hex chars).
+   *                            BUKAN 24-kata mnemonic — format itu DEPRECATED, tidak digunakan.
    * @param salt - salt unik perangkat (sama yang dipakai di PIN wrapping)
    */
   private async _deriveKeyFromRecoveryKey(
@@ -123,7 +129,7 @@ export class CryptoIndexedDB {
    * Disimpan di db.keyval dengan key 'rk_wrapped_device_key'.
    * Format: `rk1|<ivBase64>.<wrappedBase64>`
    * @param deviceKey - CryptoKey yang akan di-wrap (harus extractable)
-   * @param recoveryKeyString - mnemonic / recovery phrase dari owner
+   * @param recoveryKeyString - String hex 64 karakter (recovery key dari bootstrap-secrets.yml)
    * @param salt - salt perangkat (sama dengan PIN salt)
    */
   async wrapKeyWithRecoveryKey(
@@ -149,7 +155,7 @@ export class CryptoIndexedDB {
    * Unwrap device key menggunakan Recovery Key.
    * Setelah berhasil, key dimuat sebagai operational key (non-extractable).
    * @param wrappedKeyByRK - string hasil wrapKeyWithRecoveryKey (format: rk1|iv.wrapped)
-   * @param recoveryKeyString - mnemonic / recovery phrase yang sama saat wrapping
+   * @param recoveryKeyString - String hex 64 karakter yang sama dengan saat wrapKeyWithRecoveryKey dipanggil
    * @param salt - salt perangkat
    * @throws Error jika recovery key salah atau format tidak dikenali
    */

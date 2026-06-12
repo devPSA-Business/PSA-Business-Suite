@@ -64,4 +64,8 @@ export class UserRepositoryImpl implements IUserRepository {
       await db.users.delete(user.id);
     }
   }
+
+  async deleteById(id: string): Promise<void> {
+    await db.users.delete(id);
+  }
 }

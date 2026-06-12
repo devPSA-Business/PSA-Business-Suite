@@ -71,14 +71,16 @@ jobs:
             console.warn('coverage-summary.json tidak ditemukan, skip threshold check.');
             process.exit(0);
           }
-          // Coverage thresholds — dinaikkan dari (19/18/13/11) ke (21/20/15/13) per sprint 2026-06-07.
-          // Angka berdasarkan coverage aktual terukur: Lines 22.03%, Stmts 20.58%, Branches 16.23%, Funcs 14.44%.
-          // +30 tests baru: Customer CRUD + FlagTransaction + Cart Suspend/Resume + Handover + DeleteProduct.
-          // Buffer ~1% di bawah aktual untuk mencegah fluktuasi CI false-negative.
+          // Coverage thresholds — dinaikkan ke (22/21/15/14) per sprint 2026-06-12.
+          // Angka berdasarkan coverage aktual terukur di branch batch-d:
+          //   Lines: 23.89%, Stmts: 22.33%, Branches: 17.48%, Funcs: 15.66%
+          // +18 tests baru: ManageUserUseCase (createUser x6, updateUser x6, deleteUser x6).
+          // Mock fixes: BuybackUseCase, DomainSeparation, GoldLiquidationUseCase.
+          // Buffer ~1-2% di bawah aktual untuk mencegah fluktuasi CI false-negative.
           // Proyek ini UI-heavy (React components belum dites), coverage global rendah secara inherent.
-          // Roadmap: 21/20/15/13 → 28/26/20/18 (Report+Infrastructure tests) → 40/38/30/28 (UI tests).
-          // Refs: PSA_Business_Suite_Audit.md F-01, F-05.
-          const min = { lines: 21, statements: 20, branches: 15, functions: 13 };
+          // Roadmap: 22/21/15/14 → 28/26/20/18 (Report+Infrastructure tests) → 40/38/30/28 (UI tests).
+          // Refs: Audit Komprehensif 2026-06-12, PSA_Business_Suite_Audit.md F-01, F-05.
+          const min = { lines: 22, statements: 21, branches: 15, functions: 14 };
           const failures = [];
           for (const k of Object.keys(min)) {
             const pct = summary[k]?.pct ?? 0;

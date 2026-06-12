@@ -49,7 +49,8 @@ jobs:
           # Blokir 2: Dependensi kritis keamanan/DB/build
           # vite: major version pernah break build (vite 6→8 kasus nyata, PR#138)
           # @types/node: major version (v22→v25) menyebabkan TSC error di vite.config.ts
-          CRITICAL_DEPS=("firebase" "dexie" "@firebase/app" "firebase-admin" "@firebase/auth" "vite" "@types/node")
+          # decimal.js: financial library inti — semua MathUtils bergantung padanya (audit 2026-06-12)
+          CRITICAL_DEPS=("firebase" "dexie" "@firebase/app" "firebase-admin" "@firebase/auth" "vite" "@types/node" "decimal.js")
           for dep in "${CRITICAL_DEPS[@]}"; do
             if echo "$DEPENDENCY_NAMES" | grep -qi "$dep"; then
               SAFE="false"

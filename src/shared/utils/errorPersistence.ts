@@ -2,7 +2,18 @@ import { ErrorInfo } from 'react';
 import { db } from '../api/db';
 import { logger } from '../../lib/logger';
 
-export const logError = async (error: Error, errorInfo?: ErrorInfo, user: string = 'unknown') => {
+/**
+ * persistError — Wrapper untuk menyimpan error aplikasi ke IndexedDB (sync_events)
+ * agar dapat di-sync ke Firestore dan di-monitor.
+ *
+ * BERBEDA dari `src/lib/logger.ts` yang hanya merupakan runtime logger (console + Telegram).
+ * File ini adalah persistence layer untuk error boundary & UI error tracking.
+ *
+ * Jangan import `src/lib/logger.ts` langsung dari UI — gunakan `persistError` dari sini.
+ *
+ * @deprecated Alias `logError` tetap diekspor untuk backward-compatibility ErrorBoundary.
+ */
+export const persistError = async (error: Error, errorInfo?: ErrorInfo, user: string = 'unknown') => {
   const errorPayload = {
     user,
     message: (error instanceof Error ? error.message : String(error)),
@@ -36,3 +47,7 @@ export const logError = async (error: Error, errorInfo?: ErrorInfo, user: string
     logger.error("Gagal mencatat error ke DB", e);
   }
 };
+
+/** @deprecated Gunakan persistError. Alias ini akan dihapus di v1.6. */
+export const logError = persistError;
+

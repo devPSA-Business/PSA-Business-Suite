@@ -61,7 +61,7 @@ export class CheckoutUseCase {
 
       // Rule 1: High Discount (> 30%) requires authorization
       if (discountPercentage > 0.3 && !request.authorizedBy && request.userRole !== 'ADMIN') {
-        throw new Error(`Diskon terlalu besar (${Math.round(discountPercentage * 100)}%). Otorisasi Manager diperlukan.`);
+        throw new Error(`Diskon terlalu besar (${MathUtils.roundInt(discountPercentage * 100)}%). Otorisasi Manager diperlukan.`);
       }
 
       // Rule 2: Negative total guard

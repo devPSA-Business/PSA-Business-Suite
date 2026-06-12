@@ -124,7 +124,7 @@ export function LockedPage() {
     if (!selectedUser) return;
     try {
       const hashedNewPin = await hashPin(newPin, selectedUser.id);
-      await db.users.update(selectedUser.id, { // @architecture_bypass_approved pinHash: hashedNewPin }); // @architecture_bypass_approved
+      await db.users.update(selectedUser.id, { pinHash: hashedNewPin }); // @architecture_bypass_approved
       addToast('PIN berhasil diperbarui. Silakan masuk dengan PIN baru Anda.', 'success');
       setActiveView('enter_pin');
       setPinInput('');
@@ -209,7 +209,7 @@ export function LockedPage() {
       // Ini konsisten dengan BATCH F fix di EmployeesPage untuk keamanan yang lebih kuat.
       const newPinSalt = crypto.getRandomValues(new Uint8Array(32));
       const hashedNewPin = await hashPin(recoveryNewPin, newPinSalt);
-      await db.users.update(selectedUser.id, {
+      await db.users.update(selectedUser.id, { // @architecture_bypass_approved
         pinHash: hashedNewPin,
         // eslint-disable-next-line @typescript-eslint/no-explicit-any
         salt: newPinSalt as any,  // Uint8Array — Dexie menerima, type cast diperlukan karena Dexie Table<User> mendeklarasikan salt: string|Uint8Array

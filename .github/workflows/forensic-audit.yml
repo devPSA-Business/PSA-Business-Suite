@@ -90,7 +90,7 @@ jobs:
         run: |
           echo "Scanning for 'any' type in domain and usecases layers..."
 
-          VIOLATIONS=$(grep -rn             --include="*.ts"             -E ": any|as any|<any>"             src/domain/ src/features/*/usecases/ src/application/             2>/dev/null || true)
+          VIOLATIONS=$(grep -rn             --include="*.ts"             -E "([: (]any[^a-zA-Z0-9_]|as any[^a-zA-Z0-9_]|<any>)"             src/domain/ src/features/*/usecases/ src/application/             2>/dev/null || true)
 
           if [ -n "$VIOLATIONS" ]; then
             echo "❌ PELANGGARAN: Tipe 'any' ditemukan di layer Domain/UseCase"

@@ -73,6 +73,7 @@ describe('Domain Separation: Retail vs Gold Asset Trading', () => {
       findAll: vi.fn(),
       save: vi.fn(),
       delete: vi.fn(),
+      deleteById: vi.fn(),
     };
     mockUow = {
       execute: vi.fn((work) => work()),

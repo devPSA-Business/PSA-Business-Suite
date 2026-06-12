@@ -43,6 +43,7 @@ import { ManageCustomOrderUseCase } from '../../features/services/usecases/Manag
 import { ManageCommunicationUseCase } from '../../features/admin/usecases/ManageCommunicationUseCase';
 import { VoidTransactionUseCase } from '../../features/pos/usecases/VoidTransactionUseCase';
 import { FlagTransactionUseCase } from '../../features/pos/usecases/FlagTransactionUseCase';
+import { ManageUserUseCase } from '../../features/admin/usecases/ManageUserUseCase';
 import { SetupStoreUseCase } from '../../features/auth/usecases/SetupStoreUseCase';
 
 import { AuditIntegrityService } from '@application/services/AuditIntegrityService';
@@ -102,6 +103,7 @@ let _manageCommunicationUseCase: ManageCommunicationUseCase;
 let _voidTransactionUseCase: VoidTransactionUseCase;
 let _flagTransactionUseCase: FlagTransactionUseCase;
 let _setupStoreUseCase: SetupStoreUseCase;
+let _manageUserUseCase: ManageUserUseCase;
 
 export const DIContainer = {
   // Repositories
@@ -161,6 +163,7 @@ export const DIContainer = {
   get voidTransactionUseCase() { if (!_voidTransactionUseCase) _voidTransactionUseCase = new VoidTransactionUseCase(this.unitOfWork, this.retailRepository, this.stockRepository, this.shiftRepository); return _voidTransactionUseCase; },
   get flagTransactionUseCase() { if (!_flagTransactionUseCase) _flagTransactionUseCase = new FlagTransactionUseCase(this.unitOfWork, this.retailRepository); return _flagTransactionUseCase; },
   get setupStoreUseCase() { if (!_setupStoreUseCase) _setupStoreUseCase = new SetupStoreUseCase(this.unitOfWork); return _setupStoreUseCase; },
+  get manageUserUseCase() { if (!_manageUserUseCase) _manageUserUseCase = new ManageUserUseCase(this.userRepository, this.unitOfWork); return _manageUserUseCase; },
 };
 
 // Export individual use cases for backward compatibility if needed

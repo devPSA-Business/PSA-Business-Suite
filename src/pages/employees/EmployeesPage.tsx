@@ -1,11 +1,12 @@
 import { useState, useEffect, useCallback } from 'react';
 import { BackButton } from '../../shared/components/BackButton';
 import { Users, UserPlus, Shield, Key, Trash2, Edit2, Check, AlertCircle } from 'lucide-react';
-import { db, User } from '../../shared/api/db';
+import { User } from '../../shared/api/db';
 import { UserRole } from '../../domain/models/User';
 import { useToastStore } from '../../shared/store/toastStore';
 import { hashPin, useSecurityStore } from '../../shared/store/useSecurityStore';
 import { useAuthStore } from '../../shared/store/authStore';
+import { DIContainer } from '@infrastructure/di/Container';
 
 export function EmployeesPage() {
   const { addToast } = useToastStore();
@@ -26,7 +27,8 @@ export function EmployeesPage() {
 
   const fetchUsers = useCallback(async () => {
     try {
-      const allUsers = await db.users.toArray();
+      // READ via repository (bukan direct db access)
+      const allUsers = await DIContainer.userRepository.findAll();
       setUsers(allUsers);
     } catch (_err) {
       addToast('Gagal memuat data pegawai.', 'error');
@@ -55,68 +57,58 @@ export function EmployeesPage() {
     try {
       const generatedId = `USR-${Date.now()}`;
       const targetUserId = editingUser ? editingUser.id : generatedId;
-      
-      // BATCH F / TD-05: Generate random 32-byte salt untuk user BARU.
-      // Sebelumnya menggunakan targetUserId (string deterministik) sebagai salt —
-      // ini lebih lemah karena userId bisa ditebak. Random Uint8Array jauh lebih aman.
-      // Untuk edit user: salt lama dipertahankan (jangan di-rotate kecuali PIN berubah).
+      const operatorId = currentUser?.id ?? 'unknown';
+
+      // PIN hashing dilakukan di UI layer (device-specific crypto, bukan business logic)
+      // Uint8Array salt di-generate di sini sebelum di-pass ke UseCase
       let pinHash: string;
       let newUserSalt: Uint8Array | undefined;
       if (formData.pin) {
-        if (!editingUser) {
-          // User BARU: generate salt random sebelum hash
-          newUserSalt = crypto.getRandomValues(new Uint8Array(32));
-          pinHash = await hashPin(formData.pin, newUserSalt);
-        } else {
-          // FIX MEDIUM-7: Edit user dengan PIN baru → generate salt random baru.
-          // Salt lama (deterministik dari userId) digantikan dengan Uint8Array(32) random.
-          // Ini konsisten dengan kebijakan BATCH F untuk semua user — salt selalu random.
-          newUserSalt = crypto.getRandomValues(new Uint8Array(32));
-          pinHash = await hashPin(formData.pin, newUserSalt);
-        }
+        // Selalu generate salt baru (create atau update PIN)
+        newUserSalt = crypto.getRandomValues(new Uint8Array(32));
+        pinHash = await hashPin(formData.pin, newUserSalt);
       } else {
         pinHash = editingUser?.pinHash || '';
       }
-      
+
       if (editingUser) {
-        await db.users.update(editingUser.id, {
+        // NT-01 FIX: Gunakan ManageUserUseCase — audit log + sync event terdaftar otomatis
+        await DIContainer.manageUserUseCase.updateUser({
+          id: editingUser.id,
           name: formData.name,
           role: formData.role,
           branchId: formData.branchId,
-          pinHash: pinHash,
-          // FIX MEDIUM-7: Simpan salt baru jika PIN diubah (newUserSalt akan ada jika formData.pin diisi)
-          ...(newUserSalt ? { salt: newUserSalt as unknown as string } : {}),
+          ...(formData.pin ? { pinHash, salt: newUserSalt } : {}),
+          requestedBy: operatorId,
         });
-        
-        // Auto-enroll user in local device crypto if PIN is updated
+
+        // Auto-enroll user in local device crypto jika PIN diupdate
         if (formData.pin) {
-           await useSecurityStore.getState().authorizeUserLocal(editingUser.id, formData.pin);
+          await useSecurityStore.getState().authorizeUserLocal(editingUser.id, formData.pin);
         }
         addToast('Data pegawai diperbarui.', 'success');
       } else {
-        const newUser: User = {
+        // NT-01 FIX: Gunakan ManageUserUseCase — audit log + sync event terdaftar otomatis
+        await DIContainer.manageUserUseCase.createUser({
           id: targetUserId,
           name: formData.name,
           role: formData.role,
           branchId: formData.branchId,
-          pinHash: pinHash,
-          // TD-05: simpan salt random (Uint8Array) bersama user record
-          // eslint-disable-next-line @typescript-eslint/no-explicit-any
-          ...(newUserSalt ? { salt: newUserSalt as any } : {}),
-          status: 'ACTIVE',
-          createdAt: Date.now()
-        };
-        await db.users.add(newUser);
+          pinHash,
+          ...(newUserSalt ? { salt: newUserSalt } : {}),
+          requestedBy: operatorId,
+        });
+
         // Auto-enroll new user in local device crypto
         await useSecurityStore.getState().authorizeUserLocal(targetUserId, formData.pin);
-        
         addToast('Pegawai baru ditambahkan dan diotorisasi di perangkat ini.', 'success');
       }
-      
+
       resetForm();
       fetchUsers();
-    } catch (_err) {
-      addToast('Gagal menyimpan data.', 'error');
+    } catch (err) {
+      const msg = err instanceof Error ? err.message : 'Gagal menyimpan data.';
+      addToast(msg, 'error');
     }
   };
 
@@ -129,11 +121,16 @@ export function EmployeesPage() {
     if (!window.confirm('Hapus pegawai ini secara permanen?')) return;
 
     try {
-      await db.users.delete(id);
+      // NT-01 FIX: Gunakan ManageUserUseCase — audit log + sync event terdaftar otomatis
+      await DIContainer.manageUserUseCase.deleteUser({
+        id,
+        requestedBy: currentUser?.id ?? 'unknown',
+      });
       addToast('Pegawai dihapus.', 'success');
       fetchUsers();
-    } catch (_err) {
-      addToast('Gagal menghapus pegawai.', 'error');
+    } catch (err) {
+      const msg = err instanceof Error ? err.message : 'Gagal menghapus pegawai.';
+      addToast(msg, 'error');
     }
   };
 

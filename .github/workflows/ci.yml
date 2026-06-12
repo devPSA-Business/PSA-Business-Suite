@@ -31,7 +31,7 @@ jobs:
 
       # SHA diverifikasi dari repo resmi actions/setup-node (sama dengan deploy.yml)
       - name: Setup Node.js 22
-        uses: actions/setup-node@39370e3970a6d050c480ffad4ff0ed4d3fdee5af # v4.1.0
+        uses: actions/setup-node@48b55a011bda9f5d6aeb4c2d9c7362e8dae4041e # v6.4.0
         with:
           node-version: 22
           cache: 'npm'
@@ -87,7 +87,9 @@ jobs:
             if (pct < min[k]) failures.push(k + ': ' + pct + '% < ' + min[k] + '%');
           }
           if (failures.length) {
-            console.error('Coverage thresholds tidak terpenuhi:\n' + failures.join('\n'));
+            console.error('Coverage thresholds tidak terpenuhi:
+' + failures.join('
+'));
             process.exit(1);
           }
           console.log('Semua coverage thresholds terpenuhi ✓');

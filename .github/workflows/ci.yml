@@ -25,7 +25,7 @@ jobs:
     steps:
       # SHA diverifikasi dari repo resmi actions/checkout (sama dengan deploy.yml)
       - name: Checkout repository
-        uses: actions/checkout@df4cb1c069e1874edd31b4311f1884172cec0e10 # v6.0.3 # v6.0.3
+        uses: actions/checkout@df4cb1c069e1874edd31b4311f1884172cec0e10 # v6.0.3
         with:
           fetch-depth: 0
 
@@ -38,6 +38,7 @@ jobs:
 
       - name: Install dependencies
         run: npm install --legacy-peer-deps
+
       - name: TypeScript — Type Check
         run: npx tsc --noEmit
 
@@ -51,7 +52,7 @@ jobs:
           VITE_TELEGRAM_CHAT_ID: ${{ secrets.VITE_TELEGRAM_CHAT_ID || 'ci-mocked-chat' }}
         run: npm run test:coverage
 
-      # Gunakan version tag — SHA v4.x resmi tidak dapat diverifikasi saat ini
+      # SHA diverifikasi dari repo resmi actions/upload-artifact
       - name: Upload Coverage Report
         if: always()
         uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
@@ -78,7 +79,7 @@ jobs:
           // Mock fixes: BuybackUseCase, DomainSeparation, GoldLiquidationUseCase.
           // Buffer ~1-2% di bawah aktual untuk mencegah fluktuasi CI false-negative.
           // Proyek ini UI-heavy (React components belum dites), coverage global rendah secara inherent.
-          // Roadmap: 22/21/15/14 → 28/26/20/18 (Report+Infrastructure tests) → 40/38/30/28 (UI tests).
+          // Roadmap: 22/21/15/14 -> 28/26/20/18 (Report+Infrastructure tests) -> 40/38/30/28 (UI tests).
           // Refs: Audit Komprehensif 2026-06-12, PSA_Business_Suite_Audit.md F-01, F-05.
           const min = { lines: 22, statements: 21, branches: 15, functions: 14 };
           const failures = [];
@@ -87,12 +88,10 @@ jobs:
             if (pct < min[k]) failures.push(k + ': ' + pct + '% < ' + min[k] + '%');
           }
           if (failures.length) {
-            console.error('Coverage thresholds tidak terpenuhi:
-' + failures.join('
-'));
+            console.error('Coverage thresholds tidak terpenuhi:\\n' + failures.join('\\n'));
             process.exit(1);
           }
-          console.log('Semua coverage thresholds terpenuhi ✓');
+          console.log('Semua coverage thresholds terpenuhi \u2713');
           "
 
       # SHA diverifikasi dari repo resmi davelosert/vitest-coverage-report-action

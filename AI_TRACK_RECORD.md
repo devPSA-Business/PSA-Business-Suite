@@ -453,3 +453,29 @@ Set 8 secrets berikut:
 3. `@vitejs/plugin-react` 6.x sekarang works (build + test pass), pin tidak lagi diperlukan
 4. NT-01 (ManageUserUseCase) masih OPEN — EmployeesPage direct db.users
 5. Sentry v10 + vite-plugin v5 belum ditest secara fungsional — error tracking perlu dicek setelah deploy
+
+---
+
+## Session: 2026-06-13 (SHA Audit + Secrets Bootstrap)
+
+**Trigger:** Owner request — fix all outstanding CI/setup issues identified in previous session audit.
+
+### Tindakan yang Dilakukan
+
+**SHA Pin Fixes (PR #177 — merged 0d6cd939):**
+1. `aquasecurity/trivy-action` SHA: `fe8` → `fe2` — root cause Security Check failure
+2. `dawidd6/action-send-mail` SHA: corrected to actual v3.12.0
+3. `FirebaseExtended/action-hosting-deploy`: v0.9.0 → v0.10.0 (`deploy.yml` + `preview.yml`)
+4. `softprops/action-gh-release`: comment `# v2` → `# v3.0.0`
+
+**Dependabot Guard:** block `@vitejs/plugin-react` minor/major + `firebase`/`dexie` major auto-bumps
+
+**Secrets Set via GitHub API:**
+- `VITE_FIREBASE_PROJECT_ID` = `psa-business-suite` ✅
+- `VITE_FIREBASE_AUTH_DOMAIN` = `psa-business-suite.firebaseapp.com` ✅
+
+### Outstanding — Perlu Tindakan Owner (5 secrets tersisa)
+Firebase Console → Project Settings → Web App → salin firebaseConfig:
+- `VITE_FIREBASE_API_KEY`, `VITE_FIREBASE_STORAGE_BUCKET`, `VITE_FIREBASE_MESSAGING_SENDER_ID`, `VITE_FIREBASE_APP_ID`
+Firebase Console → Service Accounts → Generate new private key (JSON):
+- `FIREBASE_SERVICE_ACCOUNT`

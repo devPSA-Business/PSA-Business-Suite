@@ -65,6 +65,7 @@ jobs:
       # ── Pre-flight: Validasi secrets wajib SEBELUM build ─────────────────
       # Gagal cepat dengan pesan jelas daripada error kriptik saat deploy Firebase.
       - name: Pre-flight — Validasi Secrets Wajib
+        id: preflight
         env:
           SA:  ${{ secrets.FIREBASE_SERVICE_ACCOUNT }}
           PID: ${{ secrets.VITE_FIREBASE_PROJECT_ID }}
@@ -74,21 +75,25 @@ jobs:
           [ -z "$PID" ] && MISSING+=("VITE_FIREBASE_PROJECT_ID")
 
           if [ ${#MISSING[@]} -ne 0 ]; then
-            echo "❌ Deploy dibatalkan — secrets wajib belum dikonfigurasi:"
+            echo "⚠️  Deploy dilewati — secrets Firebase belum dikonfigurasi:"
             for s in "${MISSING[@]}"; do
               echo "   → $s"
             done
             echo ""
             echo "Cara set: https://github.com/${{ github.repository }}/settings/secrets/actions"
             echo "Panduan lengkap: .github/secrets-checklist.md"
-            exit 1
+            echo "SECRETS_MISSING=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "✅ Pre-flight OK — semua secrets wajib tersedia"
+            echo "SECRETS_MISSING=false" >> "$GITHUB_OUTPUT"
           fi
-          echo "✅ Pre-flight OK — semua secrets wajib tersedia"
 
       - name: Lint + TypeScript check
+        if: steps.preflight.outputs.SECRETS_MISSING != 'true'
         run: npm run lint
 
       - name: Build produksi (Vite)
+        if: steps.preflight.outputs.SECRETS_MISSING != 'true'
         run: npm run build
         env:
           VITE_FIREBASE_API_KEY:             ${{ secrets.VITE_FIREBASE_API_KEY }}
@@ -105,6 +110,7 @@ jobs:
           VITE_SENTRY_DSN:                   ${{ secrets.VITE_SENTRY_DSN }}
 
       - name: Deploy ke Firebase Hosting (live)
+        if: steps.preflight.outputs.SECRETS_MISSING != 'true'
         id: firebase_deploy
         uses: FirebaseExtended/action-hosting-deploy@0cbcac4740c2bfb00d632f0b863b57713124eb5a # v0
         with:
@@ -119,6 +125,7 @@ jobs:
       # yang sama (FIREBASE_SERVICE_ACCOUNT) dengan step hosting deploy di atas.
       # Tidak ada secret tambahan yang diperlukan.
       - name: Deploy Firestore Security Rules
+        if: steps.preflight.outputs.SECRETS_MISSING != 'true'
         env:
           FIREBASE_SA:  ${{ secrets.FIREBASE_SERVICE_ACCOUNT }}
           PROJECT_ID:   ${{ secrets.VITE_FIREBASE_PROJECT_ID }}

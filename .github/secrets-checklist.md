@@ -1,5 +1,11 @@
 # GitHub Secrets Checklist — PSA Business Suite
-> Update: 2026-05-16 | Arsitektur: Firebase Hosting Only (Spark Plan — Rp 0/bulan)
+> Update: 2026-06-13 | Arsitektur: Firebase Hosting Only (Spark Plan — Rp 0/bulan)
+
+## 🔴 STATUS SAAT INI (2026-06-13)
+Secrets yang **sudah ada** di repo: `PAT_SECRETS_WRITE`, `VITE_CRYPTO_PEPPER`  
+Secrets yang **belum diset** (menyebabkan deploy gagal): semua 8 secrets WAJIB di bawah ini.
+
+**PRIORITAS:** Set `FIREBASE_SERVICE_ACCOUNT` + `VITE_FIREBASE_*` dulu. Deploy akan berjalan otomatis setelah itu.
 
 ## ✅ WAJIB ADA (deploy akan GAGAL tanpa ini)
 

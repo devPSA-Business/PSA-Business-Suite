@@ -16,12 +16,12 @@ updates:
       prefix: "chore"
       include: "scope"
     ignore:
-      # @vitejs/plugin-react: v6.x incompatible with Vite 8 + React 19/Babel combo.
-      # Manual upgrade only after verifying full build passes (npm run build).
-      # Historical context: 6.0.2 caused P0 build crash (fixed in commit 3cfc39f, 2026-06-02).
-      # Current status with Vite 8: UNTESTED in production build. Lock until verified.
+      # @vitejs/plugin-react: v6.x = designated plugin for Vite 8.x (peerDeps: vite ^8.0.0).
+      # Historical crash (commit 3cfc39f, 2026-06-02) was with Vite 6.x — version MISMATCH.
+      # After Vite bump to 8.0.16 (PR#138-ish), 6.x is correct and compatible.
+      # Block MAJOR only (v6→v7 would require Vite upgrade). Minor within v6.x = safe.
       - dependency-name: "@vitejs/plugin-react"
-        update-types: ["version-update:semver-major", "version-update:semver-minor"]
+        update-types: ["version-update:semver-major"]
       # firebase + dexie: schema-affecting deps — require manual migration review
       - dependency-name: "firebase"
         update-types: ["version-update:semver-major"]

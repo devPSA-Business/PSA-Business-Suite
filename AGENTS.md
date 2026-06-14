@@ -16,14 +16,15 @@ Tindakan Anda dicatat di `AI_TRACK_RECORD.md`. Selalu review actual source sebel
    `src/lib/cryptoIndexedDB.ts`, `src/stores/useSecurityStore.ts` — perlu ADR tertulis dulu.
 2. **Semua aritmatika uang/berat WAJIB via `MathUtils` (Decimal.js)** — TIDAK BOLEH native JS `+ - * /`.
 3. **`npm install` WAJIB `--legacy-peer-deps`** — ada konflik peer @firebase vs rules-unit-testing.
+3a. **`@vitejs/plugin-react` versi WAJIB sesuai Vite major.** Vite 8.x → gunakan `@vitejs/plugin-react` v6.x (peerDeps: `vite ^8.0.0`). Jangan auto-bump ke v7+ tanpa upgrade Vite. Catatan historis: 6.x crash dengan Vite 6.x (mismatch) — sudah resolved saat Vite di-upgrade ke 8.x (2026-06-14).
 4. **TSC=0 dan semua test hijau WAJIB** sebelum commit ke `main`.
 5. **`db.keyval`, `db.close()`, `db.delete()`** — tidak boleh dipindahkan ke UseCase normal.
    Ini operasi security-bypass yang by design.
 6. **Jangan mock `crypto.subtle`** di test keamanan — gunakan SHA-256 nyata.
 7. **Max 3 file per PR/eksekusi** kecuali ada justifikasi eksplisit dari owner.
 
-## 4. Status Teknis Terkini (valid per HEAD f112a6b + PR#152 pending merge)
-- **Test:** 284 passed / 39 files · TSC: 0 errors (282 main + 2 dari PR#153 pending)
+## 4. Status Teknis Terkini (valid per 2026-06-14, HEAD main)
+- **Test:** 284+ passed / 39 files · TSC: 0 errors
 - **Coverage global:** ~23.6% (UI-heavy; money-path + blockchain-audit sudah terkover)
 - **TD-01 RESOLVED** — CheckoutUseCase.ts:80 guard Rp 0 sudah ada
 - **TD-03 RESOLVED** — pruning 90 hari (bukan 30), buyback di-exclude

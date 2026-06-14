@@ -40,34 +40,50 @@ jobs:
           SAFE="true"
           REASON=""
 
-          # Blokir 1: Major version update
+          # Blokir 1: Major version update (SELALU blokir — risk of breaking changes)
           if [[ "$UPDATE_TYPE" == "version-update:semver-major" ]]; then
             SAFE="false"
             REASON="Major version update - perlu review manual agar tidak ada breaking change."
           fi
 
-          # Blokir 2: Dependensi kritis keamanan/DB/build
-          # vite: major version pernah break build (vite 6→8 kasus nyata, PR#138)
-          # @types/node: major version (v22→v25) menyebabkan TSC error di vite.config.ts
-          # decimal.js: financial library inti — semua MathUtils bergantung padanya (audit 2026-06-12)
-          # Catatan: @vitejs/plugin-react ditambahkan 2026-06-13 setelah Dependabot auto-merge
-          # 4.7.0→6.0.2 (PR#163) yang membutuhkan verifikasi manual kompatibilitas React 19 + Babel.
-          # lucide-react 0.x→1.x, @sentry/react 8.x→10.x, eslint 9.x→10.x juga butuh manual review.
-          CRITICAL_DEPS=(
-            "firebase" "dexie" "@firebase/app" "firebase-admin" "@firebase/auth"
-            "vite" "@vitejs/plugin-react" "@vitejs/plugin-react-swc"
-            "@types/node" "decimal.js"
-            "lucide-react" "react" "react-dom" "react-router"
-            "@sentry/react" "@sentry/vite-plugin" "@sentry/browser"
-            "eslint" "@typescript-eslint" "typescript"
-            "workbox" "vite-plugin-pwa"
+          # Blokir 2: Dependensi kritis — blokir SEMUA update (minor + patch sekalipun).
+          # Hanya daftar paket yang mana minor/patch update pun bisa memengaruhi:
+          #   - Data integrity (firebase, dexie, decimal.js)
+          #   - Security-critical crypto/auth flow
+          #   - Build tooling yang pernah terbukti crash (vite, @vitejs/plugin-react)
+          #
+          # CATATAN IMPLEMENTASI: Gunakan matching EXACT agar tidak false-positive.
+          # Dulu pakai 'grep -qi $dep' yang substring-match sehingga:
+          #   "vite" cocok dengan "vitest", "@vitest/coverage-v8" → SALAH, over-blocking
+          #   "react" cocok dengan "react-is", "@tanstack/react-router" → SALAH
+          # Sekarang: split nama dep per spasi/koma, compare lowercase exact.
+          #
+          # Paket yang sudah di-handle via dependabot.yml ignore rules dan TIDAK perlu
+          # masuk sini: @vitejs/plugin-react (minor+major diabaikan di dependabot.yml).
+          ALWAYS_BLOCK=(
+            "firebase"
+            "firebase-admin"
+            "@firebase/app"
+            "@firebase/auth"
+            "@firebase/firestore"
+            "@firebase/database"
+            "@firebase/storage"
+            "dexie"
+            "decimal.js"
+            "vite"
           )
-          for dep in "${CRITICAL_DEPS[@]}"; do
-            if echo "$DEPENDENCY_NAMES" | grep -qi "$dep"; then
-              SAFE="false"
-              REASON="Update dependensi kritis '$dep' - potensi breaking change. Wajib review manual."
-              break
-            fi
+
+          # Split DEPENDENCY_NAMES (space/comma separated) dan bandingkan exact lowercase
+          IFS=', ' read -ra DEP_LIST <<< "$DEPENDENCY_NAMES"
+          for dep_name in "${DEP_LIST[@]}"; do
+            dep_lower="${dep_name,,}"  # lowercase
+            for critical in "${ALWAYS_BLOCK[@]}"; do
+              if [[ "$dep_lower" == "${critical,,}" ]]; then
+                SAFE="false"
+                REASON="Update dependensi kritis '$dep_name' - potensi data/build breaking. Review manual."
+                break 2
+              fi
+            done
           done
 
           echo "safe=$SAFE" >> "$GITHUB_OUTPUT"

@@ -1,11 +1,11 @@
 # AGENTS.md — PSA Business Suite Master AI Instructions (v1.5.1)
-# Wajib dibaca AI/Bot SEBELUM bertindak. Versi ini otoritatif per 2026-06-10.
+# Wajib dibaca AI/Bot SEBELUM bertindak. Versi ini otoritatif per 2026-06-15.
 
 ## 1. Identitas Proyek
 - **Produk:** PSA Business Suite — POS offline-first toko perhiasan imitasi, Sampit Kalteng
 - **Owner:** 1 orang non-developer + 1 asisten kasir. Tidak ada IT team.
 - **Stack:** React 19/TS/Vite 8 · Dexie.js (SSoT lokal) · Firebase Spark (sync mirror) · Clean Arch + FSD
-- **Versi aktif:** v1.5.1 · Branch utama: `main` · HEAD main: f112a6b + PR#152 pending merge
+- **Versi aktif:** v1.5.1 · Branch utama: `main` · HEAD main: a4f58878 (PR#195 merged 2026-06-14)
 
 ## 2. Peran AI di Proyek Ini
 Anda adalah **Senior Principal Software Engineer** proyek ini. Anda memiliki token akses.
@@ -23,15 +23,15 @@ Tindakan Anda dicatat di `AI_TRACK_RECORD.md`. Selalu review actual source sebel
 6. **Jangan mock `crypto.subtle`** di test keamanan — gunakan SHA-256 nyata.
 7. **Max 3 file per PR/eksekusi** kecuali ada justifikasi eksplisit dari owner.
 
-## 4. Status Teknis Terkini (valid per 2026-06-14, HEAD main)
-- **Test:** 284+ passed / 39 files · TSC: 0 errors
+## 4. Status Teknis Terkini (valid per 2026-06-15, HEAD a4f58878)
+- **Test:** 304+ passed / 40 files · TSC: 0 errors
 - **Coverage global:** ~23.6% (UI-heavy; money-path + blockchain-audit sudah terkover)
 - **TD-01 RESOLVED** — CheckoutUseCase.ts:80 guard Rp 0 sudah ada
 - **TD-03 RESOLVED** — pruning 90 hari (bukan 30), buyback di-exclude
 - **TD-04 RESOLVED** — db.keyval.3 digunakan di LockedPage.tsx
 - **NT-02 RESOLVED** — AuditIntegrityService.spec.ts selesai (13 tests)
 - **NT-03 RESOLVED** — anyOf swallowed error di SyncServiceImpl.spec.ts diperbaiki
-- **NT-01 OPEN** — EmployeesPage.tsx L82/109/132 masih direct db.users write (butuh ManageUserUseCase baru, Sprint +1)
+- **NT-01 RESOLVED** — ManageUserUseCase aktif di DI Container; EmployeesPage.tsx L75/91/124 sudah via UseCase (c4a66ee8, PR#157)
 
 ## 5. Aturan Arsitektur
 - **FSD Strict:** Logika bisnis HANYA di `src/features/*/usecases/` atau `src/application/`

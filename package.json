@@ -41,7 +41,7 @@
     "recharts": "^3.8.1",
     "tailwind-merge": "^3.5.0",
     "zustand": "^5.0.14",
-    "@sentry/react": "^10.57.0"
+    "@sentry/react": "^10.58.0"
   },
   "devDependencies": {
     "@firebase/eslint-plugin-security-rules": "^0.0.2",

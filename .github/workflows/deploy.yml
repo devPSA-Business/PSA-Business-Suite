@@ -49,6 +49,15 @@ jobs:
       contents: write   # Diupgrade untuk git tag pada step "Tag rilis produksi"
       id-token: write
 
+    # BUGFIX (Sesi-1, 21 Jul 2026): 'secrets' context TIDAK BOLEH dipakai langsung
+    # di dalam if: (GitHub Actions menolak SELURUH workflow file — 0 jobs terjadwal,
+    # bukan cuma step ini yang skip). Ref resmi: docs.github.com/actions "Using secrets
+    # in GitHub Actions" -> "Secrets cannot be directly referenced in if: conditionals."
+    # Solusi: konversi ke job-level env, baca env.* di if: step (env context DIIZINKAN
+    # di step-level if, tidak seperti secrets context).
+    env:
+      MAIL_CONFIGURED: ${{ secrets.MAIL_USERNAME != '' && secrets.MAIL_PASSWORD != '' }}
+
     steps:
       - name: Checkout repository
         uses: actions/checkout@df4cb1c069e1874edd31b4311f1884172cec0e10 # v6.0.3
@@ -206,7 +215,7 @@ jobs:
           echo "\`\`\`" >> $GITHUB_STEP_SUMMARY
 
       - name: Email — Deploy berhasil
-        if: success() && secrets.MAIL_USERNAME != ''
+        if: success() && env.MAIL_CONFIGURED == 'true'
         uses: dawidd6/action-send-mail@2cea9617b09d79a095af21254fbcb7ae95903dde # v3.12.0
         with:
           server_address: smtp.gmail.com
@@ -227,7 +236,7 @@ jobs:
             — PSA CI/CD Bot 🤖
 
       - name: Email — Deploy gagal
-        if: failure() && secrets.MAIL_USERNAME != ''
+        if: failure() && env.MAIL_CONFIGURED == 'true'
         uses: dawidd6/action-send-mail@2cea9617b09d79a095af21254fbcb7ae95903dde # v3.12.0
         with:
           server_address: smtp.gmail.com

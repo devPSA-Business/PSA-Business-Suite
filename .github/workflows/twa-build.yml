@@ -52,6 +52,12 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 30
 
+    # `secrets.*` tidak tersedia di jobs.<job_id>.steps.if — lihat catatan yang sama
+    # di deploy.yml. jobs.<job_id>.env mengizinkan `secrets`, jadi flag-nya dihitung
+    # di sini dan step di bawah membaca `env.APK_TESTER_CONFIGURED`.
+    env:
+      APK_TESTER_CONFIGURED: ${{ secrets.APK_TESTER_EMAILS != '' }}
+
     steps:
       - name: Checkout
         uses: actions/checkout@df4cb1c069e1874edd31b4311f1884172cec0e10 # v6.0.3
@@ -156,7 +162,7 @@ jobs:
 
       # ── Distribute via Firebase App Distribution ───────────────────────────
       - name: Distribute APK ke Tester
-        if: ${{ secrets.APK_TESTER_EMAILS != '' }}
+        if: ${{ env.APK_TESTER_CONFIGURED == 'true' }}
         uses: wzieba/Firebase-Distribution-Github-Action@bd494989dd4bec0343f78adee87fe66e48279ad6 # v1.7.1
         with:
           appId: ${{ secrets.VITE_FIREBASE_APP_ID }}

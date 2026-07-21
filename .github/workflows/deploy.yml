@@ -49,6 +49,15 @@ jobs:
       contents: write   # Diupgrade untuk git tag pada step "Tag rilis produksi"
       id-token: write
 
+    # `secrets.*` TIDAK tersedia di jobs.<job_id>.if maupun jobs.<job_id>.steps.if
+    # (lihat tabel "Context availability" di docs.github.com/actions — GitHub menolak
+    # seluruh file dengan "Unrecognized named-value: 'secrets'" sebelum satu job pun
+    # dijadwalkan). Nilai kebenaran secret dihitung di sini (jobs.<job_id>.env, yang
+    # MENGIZINKAN `secrets`), lalu step di bawah membaca `env.MAIL_CONFIGURED` — bukan
+    # `secrets.MAIL_USERNAME` — di dalam `if:`-nya.
+    env:
+      MAIL_CONFIGURED: ${{ secrets.MAIL_USERNAME != '' && secrets.MAIL_PASSWORD != '' }}
+
     steps:
       - name: Checkout repository
         uses: actions/checkout@df4cb1c069e1874edd31b4311f1884172cec0e10 # v6.0.3
@@ -206,7 +215,7 @@ jobs:
           echo "\`\`\`" >> $GITHUB_STEP_SUMMARY
 
       - name: Email — Deploy berhasil
-        if: success() && secrets.MAIL_USERNAME != ''
+        if: success() && env.MAIL_CONFIGURED == 'true'
         uses: dawidd6/action-send-mail@2cea9617b09d79a095af21254fbcb7ae95903dde # v3.12.0
         with:
           server_address: smtp.gmail.com
@@ -227,7 +236,7 @@ jobs:
             — PSA CI/CD Bot 🤖
 
       - name: Email — Deploy gagal
-        if: failure() && secrets.MAIL_USERNAME != ''
+        if: failure() && env.MAIL_CONFIGURED == 'true'
         uses: dawidd6/action-send-mail@2cea9617b09d79a095af21254fbcb7ae95903dde # v3.12.0
         with:
           server_address: smtp.gmail.com

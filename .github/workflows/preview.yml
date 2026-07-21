@@ -45,7 +45,13 @@ jobs:
     # Ini mencegah CI fail merah untuk setiap PR hanya karena secrets belum diset.
     # Preview deploy baru aktif setelah owner set FIREBASE_SERVICE_ACCOUNT di repo secrets.
     # Ref: PSA_GOVERNANCE.md Bagian D1 — tindakan yang hanya bisa dilakukan owner.
-    if: ${{ secrets.FIREBASE_SERVICE_ACCOUNT != '' }}
+    #
+    # CATATAN: gate ini SENGAJA tidak lagi berupa job-level `if: secrets.X != ''`.
+    # `secrets` bukan context yang tersedia di jobs.<job_id>.if (lihat "Context
+    # availability" di docs.github.com/actions) — GitHub menolak SELURUH file ini
+    # sebelum satu job pun dijadwalkan ("Unrecognized named-value: 'secrets'").
+    # Gate yang benar dipindah ke step "Pre-flight" di bawah (step output, bukan
+    # secrets context, sehingga valid dipakai di jobs.<job_id>.steps.if).
 
     permissions:
       contents: read
@@ -64,7 +70,22 @@ jobs:
       - name: Install dependencies
         run: npm install --legacy-peer-deps
 
+      - name: Pre-flight — Cek Firebase Service Account
+        id: preflight
+        env:
+          SA: ${{ secrets.FIREBASE_SERVICE_ACCOUNT }}
+        run: |
+          if [ -z "$SA" ]; then
+            echo "⚠️  Preview deploy dilewati — FIREBASE_SERVICE_ACCOUNT belum diset."
+            echo "Cara set: https://github.com/${{ github.repository }}/settings/secrets/actions"
+            echo "HAS_SA=false" >> "$GITHUB_OUTPUT"
+          else
+            echo "✅ Pre-flight OK — FIREBASE_SERVICE_ACCOUNT tersedia"
+            echo "HAS_SA=true" >> "$GITHUB_OUTPUT"
+          fi
+
       - name: Build Preview
+        if: steps.preflight.outputs.HAS_SA == 'true'
         run: npm run build
         env:
           # Firebase Core — sama dengan produksi
@@ -85,6 +106,7 @@ jobs:
 
       # Deploy ke Preview Channel — URL otomatis di-post ke PR
       - name: Deploy ke Firebase Preview Channel
+        if: steps.preflight.outputs.HAS_SA == 'true'
         id: preview_deploy
         uses: FirebaseExtended/action-hosting-deploy@e2eda2e106cfa35cdbcf4ac9ddaf6c4756df2c8c # v0.10.0
         with:
@@ -95,6 +117,7 @@ jobs:
           expires: 7d   # Preview dihapus otomatis 7 hari setelah PR ditutup
 
       - name: Summary Preview URL
+        if: steps.preflight.outputs.HAS_SA == 'true'
         run: |
           echo "## 🔍 Preview Deploy Berhasil" >> $GITHUB_STEP_SUMMARY
           echo "" >> $GITHUB_STEP_SUMMARY

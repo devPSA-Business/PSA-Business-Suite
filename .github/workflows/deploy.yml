@@ -175,6 +175,8 @@ jobs:
       - name: Tag rilis produksi (untuk rollback)
         if: success()
         # permissions dipindah ke level job (lihat "permissions:" di atas)
+        env:
+          COMMIT_MESSAGE: ${{ github.event.head_commit.message }}
         run: |
           TIMESTAMP=$(date -u +"%Y%m%d-%H%M")
           SHORT_SHA="${{ github.sha }}"
@@ -186,7 +188,7 @@ jobs:
           git tag -a "${TAG_NAME}" -m "Auto-tag deploy produksi ${TIMESTAMP}
 
           Commit : ${{ github.sha }}
-          Pesan  : ${{ github.event.head_commit.message }}
+          Pesan  : ${COMMIT_MESSAGE}
           URL    : https://psa-business-suite.web.app"
 
           git push origin "${TAG_NAME}"

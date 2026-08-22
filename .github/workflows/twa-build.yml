@@ -52,6 +52,12 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 30
 
+    # BUGFIX (Sesi-1, 21 Jul 2026): 'secrets' context tidak boleh dipakai langsung
+    # di if: (GitHub menolak seluruh workflow file -> 0 jobs). Lihat deploy.yml
+    # untuk referensi lengkap. Fix: baca lewat env.* di step-level if.
+    env:
+      APK_TESTER_CONFIGURED: ${{ secrets.APK_TESTER_EMAILS != '' }}
+
     steps:
       - name: Checkout
         uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7.0.0
@@ -156,7 +162,7 @@ jobs:
 
       # ── Distribute via Firebase App Distribution ───────────────────────────
       - name: Distribute APK ke Tester
-        if: ${{ secrets.APK_TESTER_EMAILS != '' }}
+        if: env.APK_TESTER_CONFIGURED == 'true'
         uses: wzieba/Firebase-Distribution-Github-Action@bd494989dd4bec0343f78adee87fe66e48279ad6 # v1.7.1
         with:
           appId: ${{ secrets.VITE_FIREBASE_APP_ID }}

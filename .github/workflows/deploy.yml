@@ -175,18 +175,24 @@ jobs:
       - name: Tag rilis produksi (untuk rollback)
         if: success()
         # permissions dipindah ke level job (lihat "permissions:" di atas)
+        # SECURITY FIX: github.sha / head_commit.message TIDAK boleh diinterpolasi
+        # langsung di run: block (script injection risk). Dipindah ke env: lalu
+        # dibaca sebagai variabel shell biasa — pola sama seperti MAIL_CONFIGURED
+        # di atas (baris ~59).
+        env:
+          COMMIT_SHA: ${{ github.sha }}
+          COMMIT_MSG: ${{ github.event.head_commit.message }}
         run: |
           TIMESTAMP=$(date -u +"%Y%m%d-%H%M")
-          SHORT_SHA="${{ github.sha }}"
-          SHORT_SHA="${SHORT_SHA:0:7}"
+          SHORT_SHA="${COMMIT_SHA:0:7}"
           TAG_NAME="prod-${TIMESTAMP}-${SHORT_SHA}"
 
           git config user.name  "PSA CI/CD Bot"
           git config user.email "ci@psa-business-suite.internal"
           git tag -a "${TAG_NAME}" -m "Auto-tag deploy produksi ${TIMESTAMP}
 
-          Commit : ${{ github.sha }}
-          Pesan  : ${{ github.event.head_commit.message }}
+          Commit : ${COMMIT_SHA}
+          Pesan  : ${COMMIT_MSG}
           URL    : https://psa-business-suite.web.app"
 
           git push origin "${TAG_NAME}"

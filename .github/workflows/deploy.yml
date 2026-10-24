@@ -35,6 +35,12 @@ on:
       - "package.json"
       - "package-lock.json"
   workflow_dispatch:
+    inputs:
+      deploy_rules:
+        description: 'Deploy Firestore rules juga? (default: tidak). Aktifkan HANYA setelah rules diverifikasi di Rules Playground.'
+        type: boolean
+        required: false
+        default: false
 
 concurrency:
   group: deploy-produksi-${{ github.ref }}
@@ -69,33 +75,44 @@ jobs:
           cache: "npm"
 
       - name: Install dependencies
-        run: npm install --legacy-peer-deps
+        run: npm ci --legacy-peer-deps
 
       # ── Pre-flight: Validasi secrets wajib SEBELUM build ─────────────────
       # Gagal cepat dengan pesan jelas daripada error kriptik saat deploy Firebase.
       - name: Pre-flight — Validasi Secrets Wajib
         id: preflight
         env:
-          SA:  ${{ secrets.FIREBASE_SERVICE_ACCOUNT }}
-          PID: ${{ secrets.VITE_FIREBASE_PROJECT_ID }}
+          SA:     ${{ secrets.FIREBASE_SERVICE_ACCOUNT }}
+          PID:    ${{ secrets.VITE_FIREBASE_PROJECT_ID }}
+          APIKEY: ${{ secrets.VITE_FIREBASE_API_KEY }}
+          AUTHD:  ${{ secrets.VITE_FIREBASE_AUTH_DOMAIN }}
+          BUCKET: ${{ secrets.VITE_FIREBASE_STORAGE_BUCKET }}
+          SENDER: ${{ secrets.VITE_FIREBASE_MESSAGING_SENDER_ID }}
+          APPID:  ${{ secrets.VITE_FIREBASE_APP_ID }}
+          PEPPER: ${{ secrets.VITE_CRYPTO_PEPPER }}
         run: |
           MISSING=()
-          [ -z "$SA"  ] && MISSING+=("FIREBASE_SERVICE_ACCOUNT")
-          [ -z "$PID" ] && MISSING+=("VITE_FIREBASE_PROJECT_ID")
+          [ -z "$SA"     ] && MISSING+=("FIREBASE_SERVICE_ACCOUNT")
+          [ -z "$PID"    ] && MISSING+=("VITE_FIREBASE_PROJECT_ID")
+          [ -z "$APIKEY" ] && MISSING+=("VITE_FIREBASE_API_KEY")
+          [ -z "$AUTHD"  ] && MISSING+=("VITE_FIREBASE_AUTH_DOMAIN")
+          [ -z "$BUCKET" ] && MISSING+=("VITE_FIREBASE_STORAGE_BUCKET")
+          [ -z "$SENDER" ] && MISSING+=("VITE_FIREBASE_MESSAGING_SENDER_ID")
+          [ -z "$APPID"  ] && MISSING+=("VITE_FIREBASE_APP_ID")
+          [ -z "$PEPPER" ] && MISSING+=("VITE_CRYPTO_PEPPER")
 
           if [ ${#MISSING[@]} -ne 0 ]; then
-            echo "⚠️  Deploy dilewati — secrets Firebase belum dikonfigurasi:"
+            echo "::error::Deploy DIBATALKAN — secrets wajib belum diisi:"
             for s in "${MISSING[@]}"; do
               echo "   → $s"
             done
-            echo ""
             echo "Cara set: https://github.com/${{ github.repository }}/settings/secrets/actions"
-            echo "Panduan lengkap: .github/secrets-checklist.md"
+            echo "Panduan: .github/secrets-checklist.md"
             echo "SECRETS_MISSING=true" >> "$GITHUB_OUTPUT"
-          else
-            echo "✅ Pre-flight OK — semua secrets wajib tersedia"
-            echo "SECRETS_MISSING=false" >> "$GITHUB_OUTPUT"
+            exit 1
           fi
+          echo "✅ Pre-flight OK — 8 secrets wajib tersedia"
+          echo "SECRETS_MISSING=false" >> "$GITHUB_OUTPUT"
 
       - name: Lint + TypeScript check
         if: steps.preflight.outputs.SECRETS_MISSING != 'true'
@@ -133,8 +150,11 @@ jobs:
       # Firebase CLI kini menggunakan GOOGLE_APPLICATION_CREDENTIALS via service account
       # yang sama (FIREBASE_SERVICE_ACCOUNT) dengan step hosting deploy di atas.
       # Tidak ada secret tambahan yang diperlukan.
+      # Rules HANYA dideploy manual (workflow_dispatch + deploy_rules=true) sampai rules
+      # diverifikasi. Auto-deploy dari push dimatikan agar rules yang belum teruji
+      # tidak mengunci/membuka akses data produksi tanpa sengaja.
       - name: Deploy Firestore Security Rules
-        if: steps.preflight.outputs.SECRETS_MISSING != 'true'
+        if: steps.preflight.outputs.SECRETS_MISSING != 'true' && github.event_name == 'workflow_dispatch' && inputs.deploy_rules == true
         env:
           FIREBASE_SA:  ${{ secrets.FIREBASE_SERVICE_ACCOUNT }}
           PROJECT_ID:   ${{ secrets.VITE_FIREBASE_PROJECT_ID }}
@@ -173,7 +193,7 @@ jobs:
       # List semua tag produksi: git tag --list 'prod-*' --sort=-creatordate
       # ─────────────────────────────────────────────────────────────────────────
       - name: Tag rilis produksi (untuk rollback)
-        if: success()
+        if: success() && steps.firebase_deploy.outcome == 'success'
         # permissions dipindah ke level job (lihat "permissions:" di atas)
         # SECURITY FIX: github.sha / head_commit.message TIDAK boleh diinterpolasi
         # langsung di run: block (script injection risk). Dipindah ke env: lalu
@@ -200,7 +220,7 @@ jobs:
           echo "✅ Release tag dibuat: ${TAG_NAME}"
 
       - name: Ringkasan deploy
-        if: success()
+        if: success() && steps.firebase_deploy.outcome == 'success'
         run: |
           echo "## ✅ Deploy Produksi Berhasil" >> $GITHUB_STEP_SUMMARY
           echo "" >> $GITHUB_STEP_SUMMARY
@@ -221,7 +241,7 @@ jobs:
           echo "\`\`\`" >> $GITHUB_STEP_SUMMARY
 
       - name: Email — Deploy berhasil
-        if: success() && env.MAIL_CONFIGURED == 'true'
+        if: success() && steps.firebase_deploy.outcome == 'success' && env.MAIL_CONFIGURED == 'true'
         uses: dawidd6/action-send-mail@2cea9617b09d79a095af21254fbcb7ae95903dde # v3.12.0
         with:
           server_address: smtp.gmail.com

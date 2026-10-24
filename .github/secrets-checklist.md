@@ -1,55 +1,41 @@
 # GitHub Secrets Checklist — PSA Business Suite
-> Update: 2026-06-13 | Arsitektur: Firebase Hosting Only (Spark Plan — Rp 0/bulan)
+> Diperbarui: 2026-10-24 (sesuai `deploy.yml` terbaru) | Firebase Hosting, Spark Plan
 
-## 🔴 STATUS SAAT INI (2026-06-13)
-Secrets yang **sudah ada** di repo: `PAT_SECRETS_WRITE`, `VITE_CRYPTO_PEPPER`  
-Secrets yang **belum diset** (menyebabkan deploy gagal): semua 8 secrets WAJIB di bawah ini.
+## ✅ WAJIB (8 secret) — deploy DIBATALKAN (merah) jika ada yang kosong
 
-**PRIORITAS:** Set `FIREBASE_SERVICE_ACCOUNT` + `VITE_FIREBASE_*` dulu. Deploy akan berjalan otomatis setelah itu.
-
-## ✅ WAJIB ADA (deploy akan GAGAL tanpa ini)
-
-| Secret Name | Deskripsi | Cara Mendapatkan |
+| Secret | Nilai | Sumber |
 |---|---|---|
-| `VITE_FIREBASE_API_KEY` | Firebase Web API Key | Firebase Console → Project Settings → General |
-| `VITE_FIREBASE_AUTH_DOMAIN` | Auth domain Firebase | Firebase Console → Project Settings |
-| `VITE_FIREBASE_PROJECT_ID` | Project ID Firebase | Firebase Console → Project Settings |
-| `VITE_FIREBASE_STORAGE_BUCKET` | Storage bucket | Firebase Console → Project Settings |
-| `VITE_FIREBASE_MESSAGING_SENDER_ID` | Sender ID | Firebase Console → Project Settings |
-| `VITE_FIREBASE_APP_ID` | App ID Firebase | Firebase Console → Project Settings |
-| `FIREBASE_SERVICE_ACCOUNT` | JSON service account untuk deploy | Firebase Console → Project Settings → Service Accounts → Generate Key |
-| `FIREBASE_PROJECT_ID` | Project ID (untuk firebase-tools CLI) | Sama dengan `VITE_FIREBASE_PROJECT_ID` |
+| `FIREBASE_SERVICE_ACCOUNT` | Seluruh JSON service account | Console → Project Settings → Service Accounts → Generate key |
+| `VITE_FIREBASE_PROJECT_ID` | `psa-business-suite` | Console → Project Settings → General |
+| `VITE_FIREBASE_API_KEY` | `AIza...` (39 karakter) | Config web app |
+| `VITE_FIREBASE_AUTH_DOMAIN` | `psa-business-suite.firebaseapp.com` | Config web app |
+| `VITE_FIREBASE_STORAGE_BUCKET` | `*.appspot.com` atau `*.firebasestorage.app` | Salin persis dari config web app |
+| `VITE_FIREBASE_MESSAGING_SENDER_ID` | angka saja | Config web app |
+| `VITE_FIREBASE_APP_ID` | `1:<angka>:web:<hex>` | Config web app |
+| `VITE_CRYPTO_PEPPER` | ≥ 32 karakter acak | Dibuat sekali; JANGAN diganti (hash PIN lama jadi tidak valid) |
 
-## 🟡 OPSIONAL (fitur akan disabled jika tidak ada, tapi app tetap berjalan)
+Service account perlu peran **Firebase Hosting Admin** (dan **Firebase Rules Admin** bila rules dideploy via workflow).
 
-| Secret Name | Deskripsi | Dampak jika kosong |
-|---|---|---|
-| `VITE_GEMINI_API_KEY` | Gemini API key untuk fitur NLQ/AI | Fitur tanya AI tidak tersedia |
-| `VITE_TELEGRAM_BOT_TOKEN` | Token Telegram Bot untuk alert | Alert sistem tidak terkirim |
-| `VITE_TELEGRAM_CHAT_ID` | Chat ID Telegram tujuan alert | Alert sistem tidak terkirim |
-| `VITE_RECAPTCHA_SITE_KEY` | reCAPTCHA Enterprise untuk App Check | App Check disabled (kurang aman) |
-| `VITE_SENTRY_DSN` | DSN Sentry untuk error tracking | Error monitoring disabled |
-| `VITE_CRYPTO_PEPPER` | Pepper tambahan untuk hash PIN | PIN hash tanpa pepper (masih aman via PBKDF2) |
-| `MAIL_USERNAME` | Gmail untuk notifikasi deploy | Email notif deploy tidak terkirim |
-| `MAIL_PASSWORD` | Gmail App Password | Email notif deploy tidak terkirim |
+## 🟡 OPSIONAL (fitur nonaktif jika kosong)
 
-## ❌ SUDAH TIDAK DIPERLUKAN (Dihapus / Deprecated)
+| Secret | Fungsi |
+|---|---|
+| `VITE_GEMINI_PROXY_URL` | URL Cloudflare Worker untuk fitur AI (tambahkan domain Worker ke `connect-src` CSP di `firebase.json`) |
+| `VITE_RECAPTCHA_SITE_KEY` | Site key reCAPTCHA Enterprise untuk App Check |
+| `VITE_SENTRY_DSN` | Error tracking |
+| `VITE_TELEGRAM_BOT_TOKEN`, `VITE_TELEGRAM_CHAT_ID` | Alert Telegram |
+| `MAIL_USERNAME`, `MAIL_PASSWORD` | Email notifikasi deploy (Gmail App Password) |
 
-Secrets ini **TIDAK PERLU lagi** dan bisa dihapus dari GitHub Secrets:
-- `FIREBASE_DEPLOY_TOKEN` → **DEPRECATED** — deploy.yml kini menggunakan `FIREBASE_SERVICE_ACCOUNT` (via `GOOGLE_APPLICATION_CREDENTIALS`) untuk firestore rules. Tidak perlu generate token via `firebase login:ci` lagi.
-- `GEMINI_API_KEY` (server-side) → diganti `VITE_GEMINI_API_KEY`
-- `CRYPTO_PEPPER` (server-side) → diganti `VITE_CRYPTO_PEPPER`
-- `TELEGRAM_BOT_TOKEN` (server-side) → diganti `VITE_TELEGRAM_BOT_TOKEN`
-- `TELEGRAM_CHAT_ID` (server-side) → diganti `VITE_TELEGRAM_CHAT_ID`
+> ⚠️ Semua nilai `VITE_*` ikut masuk ke bundle JavaScript dan **terlihat publik** di browser.
+> `VITE_CRYPTO_PEPPER` dan `VITE_TELEGRAM_BOT_TOKEN` BUKAN rahasia sungguhan; jangan simpan nilai sensitif di variabel `VITE_*`.
+> Jika token Telegram pernah dipakai di produksi, anggap bocor dan buat ulang lewat @BotFather.
 
-## 📋 Cara Set Secrets di GitHub
+## ❌ JANGAN ISI / HAPUS
+`FIREBASE_PROJECT_ID`, `FIREBASE_DEPLOY_TOKEN`, `VITE_GEMINI_API_KEY`, `GEMINI_API_KEY`, `CRYPTO_PEPPER`, `TELEGRAM_BOT_TOKEN`, `TELEGRAM_CHAT_ID`, `VITE_FIREBASE_DATABASE_ID` (kecuali memang membuat database Firestore bernama khusus; default `(default)`).
 
-1. Buka: `https://github.com/devPSA-Business/PSA-Business-Suite/settings/secrets/actions`
-2. Klik **New repository secret**
-3. Isi **Name** dan **Value**
-4. Klik **Add secret**
-
-**Urutkan dari yang WAJIB dulu** — tanpa 9 secrets wajib di atas, deploy akan gagal.
+## 📋 Cara set
+`https://github.com/devPSA-Business/PSA-Business-Suite/settings/secrets/actions` → **New repository secret**.
+Tempel nilai tanpa spasi/baris baru di awal atau akhir.
 
 ---
 
